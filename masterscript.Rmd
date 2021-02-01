@@ -1,30 +1,112 @@
 ---
 title: "masterscript"
 author: "William Rohde Madsen"
-date: "1/29/2021"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+# Packages
+```{r loading packages, echo = FALSE, include = FALSE}
+library(tidyverse)
+library(readxl)
+library(lubridate)
+library(stringr)
+library(haven) # to read dta data
+library(janitor)
+library(labelled) # helps with dta variable labels
+library(rgdal) # for shapefiles
+library(sf)
+library(nomisr) # access ONS nomis API
+library(lme4) # for glmer, etc. modelling
+library(rtweet) # using Twitter API
+library(httr)
+library(tfse) # to save token to environment
+
+#source("src/theme.R")
+
 ```
 
-## R Markdown
+# Load data
+## Twitter data
+```{r auth-twitter}
+###### Twitter authentication
+# Authorise
+vignette("auth", package = "rtweet")
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+## Key and secret
+api_key <- "edoqgFncKJGs99qm7f3eDc7Uk"
+api_secret_key <- "njtGrg5VI5TWtbF1dHe6sYE9AL0y5TAyDURhC0d4RLjwfdyzhx"
+access_token <- "1112111731562688523-qcQjmeFZVFItfNEWG4QrdyhphTaWy0"
+access_token_secret <- "JIFj9xvlFWNh6RBGiqf4IANlvtCX1CgBZ3YQmmCaSjd4T"
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+## Create app object
+app <- httr::oauth_app(appname = "APP_WM",
+                       key = api_key,
+                       secret = api_secret_key)
 
-```{r cars}
-summary(cars)
+## Access token method
+token <- httr::Token1.0$new(app = app,
+                            endpoint = httr::oauth_endpoints("twitter"),
+                            params = list(as_header = TRUE),
+                            credentials = list(oauth_token = access_token,
+                                               oauth_token_secret = access_token_secret),
+                            cache = FALSE)
+token
+
+
+
+
 ```
 
-## Including Plots
+```{r get-tweets}
+###### Get Tweets
 
-You can also embed plots, for example:
+###### Google Maps look-up coordinates
+# Using Google Maps API to find coordinates of a country
+google_maps_key <- "AIzaSyDTdau8NxUxOuIJrQ_bq0AbVkLisb3QkqM"
+nigeria_geo <- lookup_coords("nigeria", apikey = google_maps_key)
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+##### Get Nigeria tweets
+# Recent
+nigeria_tweets <- search_tweets("buhari lang:en OR Buhari lang:en", include_rts = FALSE, geocode = nigeria_geo, n = 30)
+
+# Full-archieve
+#search_fullarchive
+
+# tweets$created_at <- as.POSIXct(strptime(tweets$created_at, format = "%m/%d/%Y %H:%M:%S"))
+# tweets$account_created_at <- as.POSIXct(strptime(tweets$account_created_at, format = "%m/%d/%Y %H:%M:%S"))
+# tweets$quoted_created_at <- as.POSIXct(strptime(tweets$quoted_created_at, format = "%m/%d/%Y %H:%M:%S"))
+# tweets_2 <- tweets %>%
+#   group_by(status_id) %>%
+#   mutate_all(~ if_else(is.list(.) & , paste(.), .))
+
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+## Leader data
+```{r load-leader-data}
+###### Load leader data
+reign_raw <- read_csv("https://cdn.rawgit.com/OEFDataScience/REIGN.github.io/gh-pages/data_sets/leaderlist_1_21.csv")
+
+```
+
+
+# Format data
+```{r format-tweets}
+###### Tidy and format tweets
+nigeria_tweets %>% names
+
+```
+
+# Analysis
+## Tweet analysis
+```{r sentiment-analysis}
+###### Analyse sentiment for Tweets
+
+
+```
+
+```{r extract-covariates}
+###### Extract individual-level covariates
+
+
+```
+
