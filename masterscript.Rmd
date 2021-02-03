@@ -10,12 +10,9 @@ library(tidyverse)
 library(readxl)
 library(lubridate)
 library(stringr)
-library(haven) # to read dta data
 library(janitor)
-library(labelled) # helps with dta variable labels
 library(rgdal) # for shapefiles
 library(sf)
-library(nomisr) # access ONS nomis API
 library(lme4) # for glmer, etc. modelling
 library(rtweet) # using Twitter API
 library(httr)
@@ -26,7 +23,55 @@ library(tfse) # to save token to environment
 ```
 
 # Load data
-## Twitter data
+## Supplementary data
+```{r load-supp}
+###### Load supplementary data
+
+# Language data from the UN
+lang_raw <- read_csv("data/raw/UNdata_Export_20210203_194758725.csv")
+
+# Corruption perception index
+cpi_raw <- read_excel("data/raw/CPI2020_GlobalTablesTS_210125.xlsx",
+                      sheet = "CPI Timeseries 2012 - 2020",
+                      skip = 2)
+
+```
+
+## Leader data
+```{r load-leader}
+###### Load leader data
+reign_raw <- read_csv("https://cdn.rawgit.com/OEFDataScience/REIGN.github.io/gh-pages/data_sets/leaderlist_1_21.csv")
+
+```
+
+# Format supplemenary data
+```{r format-supp}
+###### Format and merge language and corruption data
+# This will serve to decide and describe the countries in focus
+
+###### Clean
+# Languages
+lang_raw %>%
+  clean_names() %>%
+  filter(language %in% c("Total", "English")) %>%
+  mutate(value = round(value)) %>%
+  pivot_wider(names_from = language, values_from = value) %>%
+  clean_names() %>%
+  mutate(english_prop = english/total %>% round) %>%
+  rename(country = country_or_area) %>%
+  group_by(country_or_area, area, sex, record_type, reliability) %>%
+  filter(year == max(year)) %>%
+  view()
+
+
+###### Merge
+
+
+```
+
+
+
+# Get Tweets
 ```{r auth-twitter}
 ###### Twitter authentication
 # Authorise
@@ -78,13 +123,6 @@ nigeria_tweets <- search_tweets("buhari lang:en OR Buhari lang:en", include_rts 
 # tweets_2 <- tweets %>%
 #   group_by(status_id) %>%
 #   mutate_all(~ if_else(is.list(.) & , paste(.), .))
-
-```
-
-## Leader data
-```{r load-leader-data}
-###### Load leader data
-reign_raw <- read_csv("https://cdn.rawgit.com/OEFDataScience/REIGN.github.io/gh-pages/data_sets/leaderlist_1_21.csv")
 
 ```
 
