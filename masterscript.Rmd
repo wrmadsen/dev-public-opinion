@@ -143,21 +143,26 @@ supp <- cpi %>%
   full_join(ethno_sub, by = c("country", "year" = "total_yr")) %>%
   left_join(pop, by = c("country", "year")) %>%
   left_join(gdp_ppp, by = c("country", "year")) %>%
-  mutate(eng_prop = eng_total/pop_total)
-
-
+  mutate(eng_prop = eng_total/pop_total,
+         gdp_ppp_pc = gdp_ppp/pop_total
+         ) %>%
+  filter(!is.na(eng_prop))
+  
+  
+  
 ```
 
 
 ```{r plot-supp}
 ###### Plot English speaking population against corruption index
 supp %>%
-  filter(!is.na(eng_prop)) %>%
   ggplot(.,
-         aes(x = cpiscore,
+         aes(x = gdp_ppp_pc,
              y = eng_prop)) +
   geom_point() +
-  geom_label_repel(aes(label = country))
+  geom_label_repel(aes(label = paste0(country, " ", year))
+                   ) +
+  facet_wrap(~year)
 
 
 
