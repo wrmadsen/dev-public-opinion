@@ -7,12 +7,17 @@ This project outlines a strategy and its feasibility and limitations in estimati
 Using Twitter data, I aim to estimate public opinion and investigate to what extent and how these estimates can be used to increase political accountability. Countries 
 
 ## Data
+### Twitter
 * Tweets from [Twitter's API](https://developer.twitter.com/en/docs)
 * Country leaders data, [REIGN](https://oefdatascience.github.io/REIGN.github.io/menu/reign_current.html)
+### Control and comparison
 * Electoral data
 * Traditional polling results
-* Language demographics: [Population by language, sex and urban/rural residence, UN](http://data.un.org/Data.aspx?d=POP&f=tableCode:27)
+### Supplementary, covariates and weights
+* English speaking population: [Population by language, sex and urban/rural residence, UN](http://data.un.org/Data.aspx?d=POP&f=tableCode:27)
+https://en.wikipedia.org/wiki/List_of_countries_by_English-speaking_population
 * Corruption index: [Transparency International](https://www.transparency.org/en/cpi/2020/index/nzl)
+* Country populations: [UN population statistics](https://population.un.org/wpp/Download/Standard/CSV/)
 * Twitter user demographics
 https://www.businessofapps.com/data/twitter-statistics/
 Hootsuite
