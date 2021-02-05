@@ -30,6 +30,14 @@ https://www.arabsocialmediareport.com/home/index.aspx
 	2b. Extracting individual-level covariates (gender, age, location, etc.)
 3. 
 
+### Data collection
+#### Get Tweets
+Use Python's twint module.
+https://rstudio.github.io/reticulate/
+https://stackoverflow.com/questions/52526092/passing-r-variables-to-a-python-script-with-reticulate
+https://stackoverflow.com/questions/41638558/how-to-call-python-script-from-r-with-arguments/45908913
+https://github.com/twintproject/twint
+
 ### Tweet analysis
 ### Sentiment analysis
 Here I detail how 

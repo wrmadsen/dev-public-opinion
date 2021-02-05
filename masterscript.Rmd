@@ -18,6 +18,7 @@ library(rtweet) # using Twitter API
 library(httr)
 library(tfse) # to save token to environment
 library(ggrepel)
+library(reticulate)
 
 #source("src/theme.R")
 
@@ -211,15 +212,8 @@ nigeria_geo <- lookup_coords("nigeria", apikey = google_maps_key)
 # Recent
 nigeria_tweets <- search_tweets("buhari lang:en OR Buhari lang:en", include_rts = FALSE, geocode = nigeria_geo, n = 30)
 
-# Full-archieve
-#search_fullarchive
-
-# tweets$created_at <- as.POSIXct(strptime(tweets$created_at, format = "%m/%d/%Y %H:%M:%S"))
-# tweets$account_created_at <- as.POSIXct(strptime(tweets$account_created_at, format = "%m/%d/%Y %H:%M:%S"))
-# tweets$quoted_created_at <- as.POSIXct(strptime(tweets$quoted_created_at, format = "%m/%d/%Y %H:%M:%S"))
-# tweets_2 <- tweets %>%
-#   group_by(status_id) %>%
-#   mutate_all(~ if_else(is.list(.) & , paste(.), .))
+###### Get Tweets with Python's Twint
+system("src/py/get_tweets.py")
 
 ```
 
