@@ -50,14 +50,19 @@ gdp_ppp_raw <- read_csv("data/raw/API_NY.GDP.MKTP.PP.KD_DS2_en_csv_v2_1928416.cs
 
 ```
 
-## Leader data
-```{r load-leader}
-###### Load leader data
-reign_raw <- read_csv("https://cdn.rawgit.com/OEFDataScience/REIGN.github.io/gh-pages/data_sets/leaderlist_1_21.csv")
+```{r load-get-data}
+###### Load data to use in collecting Tweets
+
+# Load leader data from REIGN
+reign_raw <- read_csv("data/raw/REIGN_2021_2.csv")
+
+# Load geocodes, INITIAL
+cap_geo_raw <- read_csv("data/raw/country-capitals.csv")
+
 
 ```
 
-# Format supplemenary data
+# Format data
 ```{r format-supp}
 ###### Format and bind supplementary data
 # This will serve to decide and describe the countries in focus
@@ -146,11 +151,55 @@ supp <- cpi %>%
   left_join(gdp_ppp, by = c("country", "year")) %>%
   mutate(eng_prop = eng_total/pop_total,
          gdp_ppp_pc = gdp_ppp/pop_total
-         ) %>%
+  ) %>%
   filter(!is.na(eng_prop))
-  
-  
-  
+
+
+
+```
+
+```{r format-get-help}
+###### Format and bind get help data
+
+###### Clean
+# Geocodes
+cap_geo <- cap_geo_raw %>%
+  clean_names() %>%
+  mutate(geocode = paste0(capital_latitude, ",", capital_longitude, ",20km")) %>%
+  select(country = country_name, capital = capital_name, geocode)
+
+# Leadership from REIGN
+reign <- reign_raw %>%
+  clean_names() %>%
+  select(country, leader, year, month) %>%
+  filter(lag(leader) != leader | lead(leader) != leader) %>%
+  mutate(date_type = if_else(lead(leader) != leader, "end", "start"),
+         date = paste0(year, "-", str_pad(month, 2, "left", pad = "0"), "-01"),
+         date = as.Date(date),
+  ) %>%
+  filter(!(year < 2006 & date_type == "end" | date_type == "start" & lead(year) < 2006)) %>% # drop terms before 2006 (Twitter's founding)
+  select(country, leader, date_type, date) %>%
+  group_by(country, leader, date_type) %>%
+  mutate(term_n = paste0("term ", 1:n())) %>% # count terms per leader NEED TO ADJUST FOR NAMES, e.g. Løkke, father-son?
+  ungroup() %>%
+  pivot_wider(names_from = date_type, values_from = date) %>%
+  mutate(start = if_else(is.na(start), end, start),
+  ) %>%
+  rowwise() %>%
+  mutate(date = list(seq.Date(start, end, by = "day"))) %>%
+  tidyr::unnest(date) %>%
+  mutate(country = case_when(country == "USA" ~ "United States",
+                             TRUE ~ country),
+         date_plus_one = date + days(1)) %>%
+  filter(date >= as.Date("2006-07-15")) # when Twitter full version went live
+
+
+###### Bind
+get_help <- reign %>%
+  left_join(cap_geo, by = "country")
+
+
+
 ```
 
 
@@ -162,7 +211,7 @@ supp %>%
              y = eng_prop)) +
   geom_point() +
   geom_label_repel(aes(label = paste0(country, " ", year))
-                   ) +
+  ) +
   facet_wrap(~year)
 
 
@@ -170,50 +219,38 @@ supp %>%
 ```
 
 # Get Tweets
-```{r auth-twitter}
-###### Twitter authentication
-# Authorise
-vignette("auth", package = "rtweet")
-
-## Key and secret
-api_key <- "edoqgFncKJGs99qm7f3eDc7Uk"
-api_secret_key <- "njtGrg5VI5TWtbF1dHe6sYE9AL0y5TAyDURhC0d4RLjwfdyzhx"
-access_token <- "1112111731562688523-qcQjmeFZVFItfNEWG4QrdyhphTaWy0"
-access_token_secret <- "JIFj9xvlFWNh6RBGiqf4IANlvtCX1CgBZ3YQmmCaSjd4T"
-
-## Create app object
-app <- httr::oauth_app(appname = "APP_WM",
-                       key = api_key,
-                       secret = api_secret_key)
-
-## Access token method
-token <- httr::Token1.0$new(app = app,
-                            endpoint = httr::oauth_endpoints("twitter"),
-                            params = list(as_header = TRUE),
-                            credentials = list(oauth_token = access_token,
-                                               oauth_token_secret = access_token_secret),
-                            cache = FALSE)
-token
-
-
-
-
-```
-
-```{r get-tweets}
-###### Get Tweets
-
-###### Google Maps look-up coordinates
-# Using Google Maps API to find coordinates of a country
-google_maps_key <- "AIzaSyDTdau8NxUxOuIJrQ_bq0AbVkLisb3QkqM"
-nigeria_geo <- lookup_coords("nigeria", apikey = google_maps_key)
-
-##### Get Nigeria tweets
-# Recent
-nigeria_tweets <- search_tweets("buhari lang:en OR Buhari lang:en", include_rts = FALSE, geocode = nigeria_geo, n = 30)
-
+```{r get-tweets-py}
 ###### Get Tweets with Python's Twint
-system("src/py/get_tweets.py")
+
+###### Set up
+# python version
+use_python("/usr/local/bin/python3", required = TRUE)
+
+# Source get_tweets Python function
+source_python("src/py/get_tweets.py", convert = FALSE)
+
+###### Get tweets and save as CSVs
+get_help %>%
+  filter(leader == "Mette Frederiksen") %>%
+  filter(date > as.Date("2020-08-01") & date < as.Date("2020-09-01")) %>%
+  mutate(csv_date = format(date, "%Y_%m_%d"),
+         date = paste(date),
+         date_plus_one = paste(date_plus_one),
+         ) %>%
+  mutate(tweets = pmap(list(leader, geocode, date, date_plus_one),
+                       ~get_tweets(..1,
+                                   "en",
+                                   ..2,
+                                   20,
+                                   ..3,
+                                   ..4,
+                                   paste0("data/tweets/", ..1, ..3, ".csv"))
+  )
+  )
+
+
+
+
 
 ```
 
