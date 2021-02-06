@@ -24,6 +24,8 @@ library(ndjson)
 library(quanteda)
 library(tidytext)
 library(rvest)
+library(maps)
+library(ggmap)
 
 #source("src/theme.R")
 
@@ -379,15 +381,21 @@ tweets %>%
 
 ```{r map-points}
 ###### Map Tweets as points
-library(maps)
 world1 <- map("world", plot = FALSE, fill = TRUE) %>% sf::st_as_sf()
 sf::st_as_sf(map("africa", plot = FALSE, fill = TRUE))
 
+
+###### Nigeria
 nigeria_sf <- world1 %>% filter(ID == "Nigeria")
 
 ggplot() +
   geom_sf(data = nigeria_sf) +
-  geom_point(data = tweets, aes(x = place_coordinates_0, y = place_coordinates_1))
+  coord_sf(xlim = c(5, 12), ylim = c(5, 10), expand = FALSE) +
+  geom_point(data = tweets, aes(x = place_coordinates_0, y = place_coordinates_1)) +
+  labs(title = "Lagos in Nigeria: Tweets which included point spatial data") +
+  theme_bw()
+
+ggmap::get_map(location = c(lon = -63.247593, lat = 17.631598), zoom = 14, maptype = "satellite")
 
 ```
 
