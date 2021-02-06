@@ -2,3 +2,9 @@
 .Rhistory
 .RData
 .Ruserdata
+
+# exclude all data files
+/data/*
+
+# but not data folder itself
+!/data/.gitkeep

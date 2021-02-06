@@ -13,11 +13,17 @@ Using Twitter data, I aim to estimate public opinion and investigate to what ext
 ### Control and comparison
 * Electoral data
 * Traditional polling results
-### Supplementary, covariates and weights
+### Covariates
+#### Cities
+	* https://simplemaps.com/data/world-cities
+	* http://data.un.org/Data.aspx?d=POP&f=tableCode:240#POP
+#### Development
+* IPC: Food insecurity: http://www.ipcinfo.org/ipc-country-analysis/population-tracking-tool/en/
 * English speaking population: [Population by language, sex and urban/rural residence, UN](http://data.un.org/Data.aspx?d=POP&f=tableCode:27)
-	https://en.wikipedia.org/wiki/List_of_countries_by_English-speaking_population
 * Corruption index: [Transparency International](https://www.transparency.org/en/cpi/2020/index/nzl)
 * Country populations: [UN population statistics](https://population.un.org/wpp/Download/Standard/CSV/)
+* ITU: Internet data: https://www.itu.int/en/ITU-D/Statistics/Pages/default.aspx
+#### Other
 * Twitter user demographics
 	https://www.businessofapps.com/data/twitter-statistics/
 	Hootsuite
@@ -29,8 +35,8 @@ Using Twitter data, I aim to estimate public opinion and investigate to what ext
 	* Sentiment analysis: Classifying each Tweet
 	* Extracting individual-level covariates (gender, age, location, etc.)
 3. Public opinion prediction:
-	* Simple favourability proportion
-	* Differences by regions, characteristics, events
+	* Simple favourability proportion (% share who favours a leader over time)
+	* Differences by regions, characteristics, events, etc.
 	* Rates of change
 4. Problems
 	* Bias of Twitter users: Maybe: Younger, more extreme, more outward-looking, etc. 
@@ -45,12 +51,18 @@ Using Twitter data, I aim to estimate public opinion and investigate to what ext
 ##### Different locations within a country
 Next focus is being able to gather Tweets from different locations within a country. This can serve to see differences between regions as well as assisting a weighting scheme.
 
+* Which cities or locations to choose should considered in light of the available covariate statistics, e.g. income level, education level, and other demographics, as it should be used for weighting.
+* Tweets gathered within the radius of city A may not be in city A's country if it is close to a border
+https://stackoverflow.com/questions/21708488/get-country-and-continent-from-longitude-and-latitude-point-in-r/21727515
+* 
+https://www.theguardian.com/global-development-professionals-network/2016/mar/16/the-top-10-sources-of-data-for-international-development-research
+
 Visualising within-country clusters:
 https://gis.stackexchange.com/questions/119736/ggmap-create-circle-symbol-where-radius-represents-distance-miles-or-km
 https://stackoverflow.com/questions/34183049/plot-circle-with-a-certain-radius-around-point-on-a-map-in-ggplot2
 
 ##### Rotating proxies: Robin Hood method:
-If Twitter blocks the scraping, it may be necessary to automatically change IP proxies at some step or time.
+If Twitter blocks my IP, it may be necessary to automatically change IP proxies throughout the scraping of Tweets. A VPN may help with this as well. Otherwise, a proxy service may be required.
 
 ### Sentiment analysis
 https://www.tidytextmining.com/index.html

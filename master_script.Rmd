@@ -396,6 +396,8 @@ ggplot() +
   theme_bw()
 
 ggmap::get_map(location = c(lon = -63.247593, lat = 17.631598), zoom = 14, maptype = "satellite")
+qmap('Liverpool')
+
 
 ```
 
