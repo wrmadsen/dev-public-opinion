@@ -4,7 +4,12 @@
 .Ruserdata
 
 # exclude all data files
-/data/*
+#/data/*
 
 # but not data folder itself
-!/data/.gitkeep
+#!/data/.gitkeep
+
+# ignore files
+*.csv
+*.json
+*.xlsx
