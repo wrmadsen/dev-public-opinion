@@ -235,19 +235,19 @@ source_python("src/py/get_tweets.py", convert = FALSE)
 ###### Get tweets and save as JSONs
 get_help %>%
   filter(country == "Nigeria") %>%
-  filter(date > as.Date("2018-01-01")) %>%
+  filter(date > as.Date("2021-02-01")) %>%
   mutate(csv_date = format(date, "%Y_%m_%d"),
          date = paste(date),
          date_plus_one = paste(date_plus_one),
   ) %>%
-  mutate(tweets = pmap(list(leader, geocode, date, date_plus_one),
+  mutate(tweets = pmap(list(leader, geocode, date, date_plus_one, country),
                        ~get_tweets(..1,
                                    "en",
                                    ..2,
                                    20,
                                    ..3,
                                    ..4,
-                                   paste0("data/tweets/", ..1, ..3, ".json"))
+                                   paste0("data/tweets/", ..1, "_", ..5, "_", ..3, ".json"))
   )
   )
 
@@ -261,6 +261,7 @@ read_tweets_back <- function(csv){
   
   df <- stream_in(csv) %>%
     as_tibble()
+  
   df$filename <- csv
   
   df
@@ -273,38 +274,30 @@ read_tweets_back <- function(csv){
 tweets_raw <- list.files("data/tweets/", full.names = TRUE) %>%
   map_df(~read_tweets_back(.))
 
-
-###### Format
-
-# Variables
-hashtag_vars <- tweets_raw %>% names() %>% .[grepl("hashtags.", .)]
-.vars <- rlang::syms(hashtag_vars)
-
-sapply(tweets_raw %>% select(contains("hashtag")), class)
-
-.[grepl("hashtag", .)]
-
-paste(!!!.vars, sep = "," )
-
-
-tweets_raw %>%
-  mutate(across(where(matches("hashtags.")), ~if_else(is.na(.), "", paste(.))))
-  transmute(hashtags_list = paste(!!!.vars, sep = ",", na.rm = TRUE)
-  )
-
-
-?list
-
-
 ```
 
 
 # Format data
 ```{r format-tweets}
 ###### Tidy and format tweets
-nigeria_tweets %>% names
+tweets <- tweets_raw %>%
+  # select(contains("hashtags.")) %>%
+  # view()
+  unite(col = "hashtags_", contains("hashtags."), na.rm = TRUE) %>%
+  unite(col = "photos_", contains("photos."), na.rm = TRUE) %>%
+  unite(col = "urls_", contains("urls."), na.rm = TRUE) %>%
+  relocate(matches("//d|0"), .after = last_col()) %>%
+  mutate(filename,
+         country = gsub(".*_(.*)_.*", "\\1", filename),
+         leader = gsub(paste0(".*//(.*)_", country, ".*"), "\\1", filename)
+  ) %>%
+  clean_names()
+
+tweets
+
 
 ```
+
 
 # Analysis
 ## Tweet analysis
