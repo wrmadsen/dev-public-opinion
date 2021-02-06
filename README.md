@@ -38,19 +38,14 @@ https://www.arabsocialmediareport.com/home/index.aspx
 
 ### Data collection
 #### Get Tweets
-Use Python's twint module.
-https://rstudio.github.io/reticulate/
-https://stackoverflow.com/questions/52526092/passing-r-variables-to-a-python-script-with-reticulate
-https://stackoverflow.com/questions/41638558/how-to-call-python-script-from-r-with-arguments/45908913
-https://github.com/twintproject/twint
+`Python`'s `twint` module allows us to scrape Tweets in a scalable way. With `R`'s `reticulate` package, I call our `Python` function from `R`.
+* https://rstudio.github.io/reticulate/
+* https://github.com/twintproject/twint
 
-* Use geocodes to search for Tweets in different places each day, which may be helpful for a weight scheme
-
-Use AWS? https://aws.amazon.com/blogs/opensource/getting-started-with-r-on-amazon-web-services/
+Next focus is being able to gather Tweets from different locations within a country. This can serve to see differences between regions as well as assisting a weighting scheme.
 
 Rotating proxies: Robin Hood method:
-https://free-proxy-list.net/
-https://www.scrapehero.com/how-to-rotate-proxies-and-ip-addresses-using-python-3/
+If Twitter blocks the scraping, it may be necessary to automatically change IP proxies at some step or time.
 
 ### Sentiment analysis
 https://www.tidytextmining.com/index.html
@@ -60,7 +55,3 @@ Using several factors, I choose which countries to investigate:
 1. Languages spoken: For this project, I limit by research to English-speaking countries
 2. Number of Twitter users
 2. Electoral corruption
-
-## Problems!
-* Bias of Twitter users: Maybe: Younger, more extreme, more outward-looking, etc. 
-* Bots: How many Tweets does not represent a single person's views? Check research on spotting bots.
