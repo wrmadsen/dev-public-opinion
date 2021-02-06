@@ -6,7 +6,7 @@ import twint
 wd = "/Users/williamrohdemadsen/Dropbox/UCL/Year 3/Term 2/POLS0014 Diss/dev-public-opinion"
 
 # Create function to get tweets
-def get_tweets(search, lang, geo, limit, since, until, csv_path):
+def get_tweets(search, lang, geo, limit, since, until, path):
 
     # Arguments
     c = twint.Config()
@@ -16,7 +16,7 @@ def get_tweets(search, lang, geo, limit, since, until, csv_path):
     c.Limit = limit
     c.Since = since
     c.Until = until
-    c.Output = csv_path
+    c.Output = path
     c.Store_json = True
 
     # Run
