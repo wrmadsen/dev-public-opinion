@@ -21,7 +21,9 @@ library(ggrepel)
 library(reticulate)
 library(vroom)
 library(ndjson)
-
+library(quanteda)
+library(tidytext)
+library(rvest)
 
 #source("src/theme.R")
 
@@ -53,7 +55,7 @@ gdp_ppp_raw <- read_csv("data/raw/API_NY.GDP.MKTP.PP.KD_DS2_en_csv_v2_1928416.cs
 
 ```
 
-```{r load-get-data}
+```{r load-get-help}
 ###### Load data to use in collecting Tweets
 
 # Load leader data from REIGN
@@ -62,10 +64,13 @@ reign_raw <- read_csv("data/raw/REIGN_2021_2.csv")
 # Load geocodes, INITIAL
 cap_geo_raw <- read_csv("data/raw/country-capitals.csv")
 
+# Get proxy list, rotating IPs for scraping tweets without getting blocked
+## https://free-proxy-list.net/
+proxy_raw <- read_html("https://free-proxy-list.net/#")
 
 ```
 
-# Format data
+# Format supplementary
 ```{r format-supp}
 ###### Format and bind supplementary data
 # This will serve to decide and describe the countries in focus
@@ -196,11 +201,24 @@ reign <- reign_raw %>%
          date_plus_one = date + days(1)) %>%
   filter(date >= as.Date("2006-07-15")) # when Twitter full version went live
 
+# Proxy IPs
+proxy <- tibble(proxy = html_nodes(proxy_raw, "#proxylisttable td:nth-child(1)") %>% html_text(trim = TRUE),
+                port = html_nodes(proxy_raw, "#proxylisttable td:nth-child(2)") %>% html_text(trim = TRUE),
+                https = html_nodes(proxy_raw, "#proxylisttable td:nth-child(7)") %>% html_text(trim = TRUE)
+) %>%
+  filter(https == "yes") %>% # only https types
+  transmute(proxy,
+            port,
+            proxy_type = "http",
+            proxy_no = row_number()
+            )
 
-###### Bind
+###### Bind all together
 get_help <- reign %>%
-  left_join(cap_geo, by = "country")
-
+  left_join(cap_geo, by = "country") %>%
+  mutate(proxy_no = rep(1:nrow(proxy), length.out = nrow(.))) %>% # repeat 1-300 to add proxy IPs
+  left_join(proxy, by = "proxy_no") %>% # add rotating proxies
+  mutate(port = as.integer(port))
 
 
 ```
@@ -209,13 +227,13 @@ get_help <- reign %>%
 ```{r plot-supp}
 ###### Plot English speaking population against corruption index
 supp %>%
+  filter(gdp_ppp_pc < 20000) %>%
   ggplot(.,
          aes(x = gdp_ppp_pc,
              y = eng_prop)) +
   geom_point() +
-  geom_label_repel(aes(label = paste0(country, " ", year))
-  ) +
-  facet_wrap(~year)
+  geom_label_repel(aes(label = paste0(country, " ", year))) +
+  labs(title = "English speakers of countries with a GDP PPP PC below 20K")
 
 
 
@@ -233,21 +251,29 @@ use_python("/usr/local/bin/python3", required = TRUE)
 source_python("src/py/get_tweets.py", convert = FALSE)
 
 ###### Get tweets and save as JSONs
+# Testing
+# get_tweets("Buhari", "en", "9.083333333,7.533333,20km",  20, "2020-01-01", "2020-01-05",
+#            "test.json", "193.56.255.180", as.integer(3128), "http")
+
+# Map across help data
 get_help %>%
-  filter(country == "Nigeria") %>%
-  filter(date > as.Date("2021-02-01")) %>%
+  filter(country == "Zimbabwe") %>%
+  filter(date > as.Date("2020-07-01")) %>%
   mutate(csv_date = format(date, "%Y_%m_%d"),
          date = paste(date),
          date_plus_one = paste(date_plus_one),
   ) %>%
-  mutate(tweets = pmap(list(leader, geocode, date, date_plus_one, country),
+  mutate(tweets = pmap(list(leader, geocode, date, date_plus_one, country, proxy, port, proxy_type),
                        ~get_tweets(..1,
                                    "en",
                                    ..2,
                                    20,
                                    ..3,
                                    ..4,
-                                   paste0("data/tweets/", ..1, "_", ..5, "_", ..3, ".json"))
+                                   paste0("data/tweets/", ..1, "_", ..5, "_", ..3, ".json"),
+                                   ..6,
+                                   ..7
+                       )
   )
   )
 
@@ -277,7 +303,7 @@ tweets_raw <- list.files("data/tweets/", full.names = TRUE) %>%
 ```
 
 
-# Format data
+# Format Tweets
 ```{r format-tweets}
 ###### Tidy and format tweets
 tweets <- tweets_raw %>%
@@ -288,21 +314,42 @@ tweets <- tweets_raw %>%
   unite(col = "urls_", contains("urls."), na.rm = TRUE) %>%
   relocate(matches("//d|0"), .after = last_col()) %>%
   mutate(filename,
+         date = as.Date(date),
          country = gsub(".*_(.*)_.*", "\\1", filename),
          leader = gsub(paste0(".*//(.*)_", country, ".*"), "\\1", filename)
-  ) %>%
-  clean_names()
+  )%>%
+  clean_names() %>%
+  select(date, name, country, leader, place, everything(),-c(contains("mentions"), contains("reply"), "filename"))
 
 tweets
+
+names(tweets)
+
+```
+
+```{r plot-tweet-freq}
+###### Plot number of tweets every week
+tweets %>%
+  filter(country == "Nigeria") %>%
+  mutate(week = floor_date(date, unit = "week"),
+         month = floor_date(date, unit = "month")
+  ) %>%
+  group_by(week, country, leader) %>%
+  summarise(n = n()) %>%
+  ggplot(.,
+         aes(x = week,
+             y = n)) +
+  geom_col() +
+  labs(title = "Number of Tweets mentioning Buhari in Lagos, Nigeria")
 
 
 ```
 
 
-# Analysis
-## Tweet analysis
+
+# Sentiment analysis
 ```{r sentiment-analysis}
-###### Analyse sentiment for Tweets
+###### Sentiment analysis of Tweets
 
 
 ```

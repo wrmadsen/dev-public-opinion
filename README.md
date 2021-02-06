@@ -38,9 +38,16 @@ https://stackoverflow.com/questions/52526092/passing-r-variables-to-a-python-scr
 https://stackoverflow.com/questions/41638558/how-to-call-python-script-from-r-with-arguments/45908913
 https://github.com/twintproject/twint
 
-### Tweet analysis
+* Use geocodes to search for Tweets in different places each day, which may be helpful for a weight scheme
+
+Use AWS? https://aws.amazon.com/blogs/opensource/getting-started-with-r-on-amazon-web-services/
+
+Rotating proxies: Robin Hood method:
+https://free-proxy-list.net/
+https://www.scrapehero.com/how-to-rotate-proxies-and-ip-addresses-using-python-3/
+
 ### Sentiment analysis
-Here I detail how 
+https://www.tidytextmining.com/index.html
 
 ## Which countries?
 Using several factors, I choose which countries to investigate:
