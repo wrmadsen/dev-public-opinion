@@ -26,9 +26,15 @@ https://www.arabsocialmediareport.com/home/index.aspx
 ## Pipeline
 1. Data collection: Tweets, covariates, electoral results, survey results, language demographics
 2. Tweet analysis:
-	2a. Sentiment analysis: Classifying each Tweet
-	2b. Extracting individual-level covariates (gender, age, location, etc.)
-3. 
+* Sentiment analysis: Classifying each Tweet
+* Extracting individual-level covariates (gender, age, location, etc.)
+3. Public opinion prediction:
+* Simple favourability proportion
+* Differences by regions, characteristics, events
+* Rates of change
+4. Problems!
+* Bias of Twitter users: Maybe: Younger, more extreme, more outward-looking, etc. 
+* Bots: How many Tweets does not represent a single person's views? Check research on spotting bots.
 
 ### Data collection
 #### Get Tweets
@@ -54,3 +60,7 @@ Using several factors, I choose which countries to investigate:
 1. Languages spoken: For this project, I limit by research to English-speaking countries
 2. Number of Twitter users
 2. Electoral corruption
+
+## Problems!
+* Bias of Twitter users: Maybe: Younger, more extreme, more outward-looking, etc. 
+* Bots: How many Tweets does not represent a single person's views? Check research on spotting bots.
