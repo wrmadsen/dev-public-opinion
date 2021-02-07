@@ -3,13 +3,8 @@
 .RData
 .Ruserdata
 
-# exclude all data files
-#/data/*
-
-# but not data folder itself
-#!/data/.gitkeep
-
 # ignore files
 *.csv
 *.json
 *.xlsx
+*.shp
