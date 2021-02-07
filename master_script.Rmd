@@ -32,7 +32,6 @@ library(ggmap)
 ```
 
 # Load data
-## Supplementary data
 ```{r load-supp}
 ###### Load supplementary data
 
@@ -72,7 +71,29 @@ proxy_raw <- read_html("https://free-proxy-list.net/#")
 
 ```
 
-# Format supplementary
+```{r load-subnational}
+###### Load subnational data
+
+# Load Global Data Lab data
+## https://globaldatalab.org/areadata/download_files/
+gdl_raw <- read_csv("data/raw/GDL-AreaData390 (1).csv")
+
+# Subnational infant mortality
+## https://sedac.ciesin.columbia.edu/data/set/povmap-global-subnational-infant-mortality-rates-v2/data-download
+
+
+```
+
+```{r load-shapefiles}
+###### Load shapefiles
+gdl_shp_raw <- readOGR(dsn = "data/raw/GDL Shapefiles V4 (1)/",
+                       layer = "GDL Shapefiles V4")
+# st_read("data/raw/GDL Shapefiles V4 (1)/GDL Shapefiles V4.shp")
+
+```
+
+
+# Format data
 ```{r format-supp}
 ###### Format and bind supplementary data
 # This will serve to decide and describe the countries in focus
@@ -221,7 +242,7 @@ proxy <- read_tsv("https://api.proxyscrape.com/v2/?request=getproxies&protocol=h
             proxy = gsub("\\:.*", "", proxy),
             proxy_type = "http",
             proxy_no = row_number()
-            )
+  )
 
 ###### Bind all together
 get_help <- reign %>%
@@ -346,7 +367,7 @@ names(tweets)
 
 # Plots
 
-```{r plot-eng_prop}
+```{r plot-eng-prop}
 ###### Plot English speaking population against corruption index
 supp %>%
   filter(gdp_ppp_pc < 20000) %>%
@@ -368,13 +389,15 @@ tweets %>%
   mutate(week = floor_date(date, unit = "week"),
          month = floor_date(date, unit = "month")
   ) %>%
-  group_by(week, country, leader) %>%
+  group_by(month, country, leader) %>%
   summarise(n = n()) %>%
   ggplot(.,
-         aes(x = week,
+         aes(x = month,
              y = n)) +
   geom_col() +
-  labs(title = "Number of Tweets mentioning Buhari in Lagos, Nigeria")
+  labs(title = "Number of Tweets mentioning Buhari in Lagos, Nigeria",
+       subtitle = paste0(nrow(tweets), " tweets from Lagos")
+  ) 
 
 
 ```
@@ -388,11 +411,17 @@ sf::st_as_sf(map("africa", plot = FALSE, fill = TRUE))
 ###### Nigeria
 nigeria_sf <- world1 %>% filter(ID == "Nigeria")
 
+tweets_n <- nrow(tweets)
+tweets_n_w_points <- nrow(tweets[!is.na(tweets$place_coordinates_0),])
+
 ggplot() +
   geom_sf(data = nigeria_sf) +
-  coord_sf(xlim = c(5, 12), ylim = c(5, 10), expand = FALSE) +
-  geom_point(data = tweets, aes(x = place_coordinates_0, y = place_coordinates_1)) +
-  labs(title = "Lagos in Nigeria: Tweets which included point spatial data") +
+  coord_sf(xlim = c(8.5, 9.5), ylim = c(7, 7.7), expand = FALSE) +
+  geom_point(data = tweets, aes(x = place_coordinates_0, y = place_coordinates_1),
+             size = 0.7) +
+  labs(title = "Lagos in Nigeria: Tweets which included point spatial data",
+       subtitle = paste0(tweets_n_w_points, " of ", tweets_n, " tweets include spatial data")
+  ) +
   theme_bw()
 
 ggmap::get_map(location = c(lon = -63.247593, lat = 17.631598), zoom = 14, maptype = "satellite")
