@@ -13,17 +13,27 @@ Using Twitter data, I aim to estimate public opinion and investigate to what ext
 ### Control and comparison
 * Electoral data
 * Traditional polling results
-### Cities
+### City-level
 * https://simplemaps.com/data/world-cities
-* http://data.un.org/Data.aspx?d=POP&f=tableCode:240#POP
+* Population: http://data.un.org/Data.aspx?d=POP&f=tableCode:240#POP
+* Population: https://stats.oecd.org/Index.aspx?Datasetcode=CITIES
+* Housing unit types and internet access: http://data.un.org/Data.aspx?d=POP&f=tableCode%3a307
+* Water supply system: http://data.un.org/Data.aspx?d=POP&f=tableCode%3a283
+* Toilet type: http://data.un.org/Data.aspx?d=POP&f=tableCode%3a287
+* The Subnational Human Development Database: https://www.nature.com/articles/sdata201938, https://globaldatalab.org/shdi/
+* https://globaldatalab.org/
+### Region-level
+* Global Subnational Infant Mortality Rates: https://sedac.ciesin.columbia.edu/data/set/povmap-global-subnational-infant-mortality-rates-v2
+* Gridded Population of the World (GPW): https://sedac.ciesin.columbia.edu/data/collection/gpw-v4
 ### Development
 * IPC: Food insecurity: http://www.ipcinfo.org/ipc-country-analysis/population-tracking-tool/en/
 * English speaking population: [Population by language, sex and urban/rural residence, UN](http://data.un.org/Data.aspx?d=POP&f=tableCode:27)
 * Corruption index: [Transparency International](https://www.transparency.org/en/cpi/2020/index/nzl)
 * Country populations: [UN population statistics](https://population.un.org/wpp/Download/Standard/CSV/)
 * ITU: Internet data: https://www.itu.int/en/ITU-D/Statistics/Pages/default.aspx
+* OECD, Aid finance: https://www.oecd.org/dac/financing-sustainable-development/development-finance-data/
 ### National services
-* Nigeria: https://nigerianstat.gov.ng/
+* Nigeria: https://nigerianstat.gov.ng/, https://nigeria.opendataforafrica.org/
 ### Other
 * Twitter user demographics
 	https://www.businessofapps.com/data/twitter-statistics/
