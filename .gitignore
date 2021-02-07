@@ -8,3 +8,7 @@
 *.json
 *.xlsx
 *.shp
+*.shx
+*.prj
+*.dbf
+*.zip
