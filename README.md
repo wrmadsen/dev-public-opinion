@@ -20,12 +20,15 @@ Using Twitter data, I aim to estimate public opinion and investigate to what ext
 	* Bots: How many Tweets does not represent a single person's views? Check research on spotting Twitter bots.
 
 ### Get Tweets
-`Python`'s `twint` module allows us to scrape Tweets in a scalable way. With `R`'s `reticulate` package, I call our `Python` function from `R`.
-* https://rstudio.github.io/reticulate/
-* https://github.com/twintproject/twint
+`Python`'s [twint](https://github.com/twintproject/twint) module allows us to scrape Tweets in a scalable way. With `R`'s [reticulate](https://rstudio.github.io/reticulate/) package, I call our `Python` function from `R`.
 
-#### Different locations within a country
+#### Locations within each country
 Next focus is being able to gather Tweets from different locations within a country. This can serve to see differences between regions as well as assisting a weighting scheme.
+1. Add locations/cities for each country to scraper help data based on what is available in covariate data
+2. Scrape tweets for locations in each country
+
+#### Which countries?
+Looking at English-speaking proportion, number of Twitter users, electoral corruption and other characteristics, I can select a tentative group of countries: Nigeria, Iraq, Phillipines, Egypt, 
 
 * Which cities or locations to choose should considered in light of the available covariate statistics, e.g. income level, education level, and other demographics, as it should be used for weighting.
 * Tweets gathered within the radius of city A may not be in city A's country if it is close to a border
@@ -44,27 +47,21 @@ If Twitter blocks my IP, it may be necessary to automatically change IP proxies 
 ### Sentiment analysis
 https://www.tidytextmining.com/index.html
 
-### Individual-level covariates
+### Individual-level characteristics
 * Age, race, gender: https://github.com/wri/demographic-identifier
-
-
-## Which countries?
-Using several factors, I choose which countries to investigate:
-1. Languages spoken: For this project, I limit by research to English-speaking countries
-2. Number of Twitter users
-3. Electoral corruption
 
 ## Data
 ### Twitter
 * Tweets from [Twitter's API](https://developer.twitter.com/en/docs)
-* Country leaders data, [REIGN](https://oefdatascience.github.io/REIGN.github.io/menu/reign_current.html)
 ### Control and comparison
 * Electoral data
 * Traditional polling results
+### Scraping help data
+* Country leaders data, [REIGN](https://oefdatascience.github.io/REIGN.github.io/menu/reign_current.html)
 ### Spatial
 * GDL shapefiles: https://globaldatalab.org/shdi/shapefiles/
 * https://simplemaps.com/data/world-cities
-### City-level
+### Subnational
 * Population: http://data.un.org/Data.aspx?d=POP&f=tableCode:240#POP
 * Population: https://stats.oecd.org/Index.aspx?Datasetcode=CITIES
 * Housing unit types and internet access: http://data.un.org/Data.aspx?d=POP&f=tableCode%3a307
@@ -79,13 +76,15 @@ Using several factors, I choose which countries to investigate:
 * IPC: Food insecurity: http://www.ipcinfo.org/ipc-country-analysis/population-tracking-tool/en/
 * English speaking population: [Population by language, sex and urban/rural residence, UN](http://data.un.org/Data.aspx?d=POP&f=tableCode:27)
 * Corruption index: [Transparency International](https://www.transparency.org/en/cpi/2020/index/nzl)
+* Perceptions of Electoral Integrity: https://dataverse.harvard.edu/dataverse/PEI
 * Country populations: [UN population statistics](https://population.un.org/wpp/Download/Standard/CSV/)
 * ITU: Internet data: https://www.itu.int/en/ITU-D/Statistics/Pages/default.aspx
 * OECD, Aid finance: https://www.oecd.org/dac/financing-sustainable-development/development-finance-data/
+### Regime
+* Worldwide Governance Indicators (WGI): http://info.worldbank.org/governance/wgi/#home
+* Geddes, Wright, and Frantz’ autocratic regimes dataset (events, etc.): https://sites.psu.edu/dictators/
 ### National services
 * Nigeria: https://nigerianstat.gov.ng/, https://nigeria.opendataforafrica.org/
 ### Other
-* Twitter user demographics
-	https://www.businessofapps.com/data/twitter-statistics/
-	Hootsuite
-	https://www.arabsocialmediareport.com/home/index.aspx
+* Twitter MAU, selected countries: https://www.businessofapps.com/data/twitter-statistics/ (Hootsuite/We Are Social)
+* https://www.arabsocialmediareport.com/home/index.aspx

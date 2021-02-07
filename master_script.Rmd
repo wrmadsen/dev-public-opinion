@@ -46,6 +46,9 @@ cpi_raw <- read_excel("data/raw/CPI2020_GlobalTablesTS_210125.xlsx",
                       sheet = "CPI Timeseries 2012 - 2020",
                       skip = 2)
 
+# WGI data
+wgi_raw <- read_excel("data/raw/wgidataset.xlsx", sheet = "VoiceandAccountability", skip = 12)
+
 # UN population estimates
 ## https://population.un.org/wpp/Download/Standard/CSV/
 pop_raw <- read_csv("data/raw/WPP2019_TotalPopulationBySex.csv")
@@ -53,6 +56,9 @@ pop_raw <- read_csv("data/raw/WPP2019_TotalPopulationBySex.csv")
 # GDP PPP from World Bank
 ## https://data.worldbank.org/indicator/NY.GDP.MKTP.PP.KD
 gdp_ppp_raw <- read_csv("data/raw/API_NY.GDP.MKTP.PP.KD_DS2_en_csv_v2_1928416.csv", skip = 3)
+
+# Twitter users by country
+twitter_mau_raw <- read_csv("data/raw/twitter_mau.csv")
 
 ```
 
@@ -159,6 +165,23 @@ cpi <- cpi_raw %>%
                names_pattern = "(.+)_(.+)") %>%
   transmute(country, year = as.double(year), cpiscore)
 
+# WGI, Voice and accountability
+## paste the first row with the column name and assigning them as column names
+colnames(wgi_raw) <- paste0(colnames(wgi_raw), wgi_raw[1, ])
+wgi <- wgi_raw %>%
+  rename_with(~gsub("\\.\\.\\.\\d*", "_", .)) %>%
+  slice(-1) %>%
+  pivot_longer(cols = c(3:ncol(.)),
+               names_to = c("year", "name"),
+               names_pattern = "(.+)_(.+)",
+               values_to = "wgi_est"
+  ) %>%
+  filter(name == "Estimate") %>%
+  transmute(country = `_Country/Territory`,
+            year = as.integer(year),
+            wgi_est = if_else(wgi_est == "#NA", as.double(NA), as.double(wgi_est))
+  )
+
 # UN population estimates
 pop <- pop_raw %>%
   clean_names() %>%
@@ -175,14 +198,22 @@ gdp_ppp <- gdp_ppp_raw %>%
   filter(gdp_ppp != "X66") %>%
   transmute(country = country_name, year = as.integer(year), gdp_ppp)
 
+# Twitter MAU, 2020
+twitter_mau <- twitter_mau_raw %>%
+  rename(country = 1,
+         mau_2020 = 2)
+
 ###### Bind
 supp <- cpi %>%
   full_join(ethno_sub, by = c("country", "year" = "total_yr")) %>%
   left_join(pop, by = c("country", "year")) %>%
   left_join(gdp_ppp, by = c("country", "year")) %>%
-  mutate(eng_prop = eng_total/pop_total,
-         gdp_ppp_pc = gdp_ppp/pop_total
-  ) %>%
+  left_join(wgi, by = c("country", "year")) %>%
+  left_join(twitter_mau, by = c("country")) %>%
+mutate(eng_prop = eng_total/pop_total,
+       gdp_ppp_pc = gdp_ppp/pop_total,
+       mau_2020_pc = mau_2020/pop_total
+) %>%
   filter(!is.na(eng_prop))
 
 
@@ -253,6 +284,44 @@ get_help <- reign %>%
 
 
 ```
+
+```{r format-subnational}
+###### Format subnational data
+
+# GDL data
+gdl <- gdl_raw %>%
+  select(country, region, level, year, popshare)
+
+
+```
+
+```{r format-shapefiles}
+###### Format shapefiles
+
+# GDL shapefiles
+# Convert sp into sf dataframe
+gdl_sf <- st_as_sf(gdl_shp_raw)
+
+# Get centroids
+gdl_centroids <- st_centroid(gdl_sf$geometry) %>%
+  st_coordinates %>%
+  as_tibble() %>%
+  rename_with(~paste0("centroid_", .))
+
+# Simplify and add centroids
+gdl_simp <- gdl_sf %>%
+  mutate(geometry = st_simplify(geometry, dTolerance = 0.05)) %>%
+  bind_cols(gdl_centroids)
+
+```
+
+```{r bind-subnat-shapefile}
+###### Bind subnational data to shapefiles
+subnat <- gdl_simp %>%
+  left_join(gdl, by = c("region", "country"))
+
+```
+
 
 # Get Tweets
 ```{r get-tweets-py}
@@ -370,13 +439,13 @@ names(tweets)
 ```{r plot-eng-prop}
 ###### Plot English speaking population against corruption index
 supp %>%
-  filter(gdp_ppp_pc < 20000) %>%
+  filter(wgi_est < 1) %>%
   ggplot(.,
-         aes(x = gdp_ppp_pc,
+         aes(x = wgi_est,
              y = eng_prop)) +
-  geom_point() +
+  geom_point(aes(size = mau_2020_pc)) +
   geom_label_repel(aes(label = paste0(country, " ", year))) +
-  labs(title = "English speakers of countries with a GDP PPP PC below 20K")
+  labs(title = "English-speaking share by voice and accountability index")
 
 
 
@@ -424,9 +493,18 @@ ggplot() +
   ) +
   theme_bw()
 
-ggmap::get_map(location = c(lon = -63.247593, lat = 17.631598), zoom = 14, maptype = "satellite")
-qmap('Liverpool')
 
+```
+
+```{r map-gdl}
+###### Plot shapefiles data from GDL
+subnat %>%
+  filter(country == "Afghanistan") %>%
+  #filter(year == 2018) %>%
+  ggplot(.) +
+  geom_sf(aes(fill = popshare)) +
+  geom_text(aes(label = region, x = centroid_X, y = centroid_Y)) +
+  facet_wrap(~year)
 
 ```
 
