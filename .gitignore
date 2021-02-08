@@ -13,3 +13,5 @@
 *.dbf
 *.zip
 *.tif
+*.txt
+*.rdata

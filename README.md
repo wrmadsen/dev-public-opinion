@@ -27,14 +27,30 @@ Next focus is being able to gather Tweets from different locations within a coun
 1. Add locations/cities for each country to scraper help data based on what is available in covariate data
 2. Scrape tweets for locations in each country
 
+How to decide on coordinates and radius of scraping locations:
+Use GPW population count raster data, converted to polygons, to determine scraping locations and radius. With high spatial granularity down to 1 km and data across years (2010, 2015, 2020), these can be used for a consistent way of finding a radius. 
+* Seems to have a raster dataset including population by sex and age
+* Can add city and other point data to visualise significant cities (data from Africapolis, Global Data Lab).
+Considerations:
+* Can a GPW polygon cross two countries? GPW4 documentation suggests they cannot because they use international boundaries (p. 5). Some countries were not adjusted (p. 38). Check if those on the border align with those you end up scraping (i.e. does a boundary line go through a polygon?)
+* MAUP problem (p. 26), which could be interesting to discuss.
+* GWR?
+
+Method:
+1. Choose areas to scrape within a country:
+	a. Randomly
+	b. By one or several variables
+		* For example, choose X largest within each subnational region, or X randomly among a subset (e.g. those with a greater population than Y) in each region
+2. Discard or include areas that border several countries. Needs to distinguish between a land or water border. Perhaps GPW includes country data?
+3. 
+
 #### Which countries?
-Looking at English-speaking proportion, number of Twitter users, electoral corruption and other characteristics, I can select a tentative group of countries: Nigeria, Iraq, Phillipines, Egypt, 
+Tentative group: Nigeria, Iraq, Phillipines, Egypt, Tunis, Russia, Turkey, Malaysia, Zimbabwe
+Looking at differences in English-speaking proportion, number of Twitter users, electoral corruption and other characteristics, we can discuss the consequences of the accuracy of the Twitter public opinion by country.
 
 * Which cities or locations to choose should considered in light of the available covariate statistics, e.g. income level, education level, and other demographics, as it should be used for weighting.
 * Tweets gathered within the radius of city A may not be in city A's country if it is close to a border
 https://stackoverflow.com/questions/21708488/get-country-and-continent-from-longitude-and-latitude-point-in-r/21727515
-* 
-https://www.theguardian.com/global-development-professionals-network/2016/mar/16/the-top-10-sources-of-data-for-international-development-research
 
 Visualising within-country clusters:
 https://gis.stackexchange.com/questions/119736/ggmap-create-circle-symbol-where-radius-represents-distance-miles-or-km
@@ -60,18 +76,18 @@ https://www.tidytextmining.com/index.html
 * Country leaders data, [REIGN](https://oefdatascience.github.io/REIGN.github.io/menu/reign_current.html)
 ### Spatial
 * GDL shapefiles: https://globaldatalab.org/shdi/shapefiles/
-* https://simplemaps.com/data/world-cities
+* Africapolis, database of thousands of cities in Africa: https://africapolis.org/data
+* Natural Earth, https://www.naturalearthdata.com/downloads/50m-cultural-vectors/
 ### Subnational
 * Population: http://data.un.org/Data.aspx?d=POP&f=tableCode:240#POP
 * Population: https://stats.oecd.org/Index.aspx?Datasetcode=CITIES
 * Housing unit types and internet access: http://data.un.org/Data.aspx?d=POP&f=tableCode%3a307
 * Water supply system: http://data.un.org/Data.aspx?d=POP&f=tableCode%3a283
 * Toilet type: http://data.un.org/Data.aspx?d=POP&f=tableCode%3a287
-* The Subnational Human Development Database: https://www.nature.com/articles/sdata201938, https://globaldatalab.org/shdi/
-* https://globaldatalab.org/
+* Global Data Lab: https://globaldatalab.org/
 ### Region-level
 * Global Subnational Infant Mortality Rates: https://sedac.ciesin.columbia.edu/data/set/povmap-global-subnational-infant-mortality-rates-v2
-* Gridded Population of the World (GPW): https://sedac.ciesin.columbia.edu/data/collection/gpw-v4
+* Gridded Population of the World (GPW), Administrative Unit: https://sedac.ciesin.columbia.edu/data/set/gpw-v4-admin-unit-center-points-population-estimates-rev11/data-download
 ### Development
 * IPC: Food insecurity: http://www.ipcinfo.org/ipc-country-analysis/population-tracking-tool/en/
 * English speaking population: [Population by language, sex and urban/rural residence, UN](http://data.un.org/Data.aspx?d=POP&f=tableCode:27)

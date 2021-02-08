@@ -12,20 +12,21 @@ library(lubridate)
 library(stringr)
 library(janitor)
 library(rgdal) # for shapefiles
-library(sf)
+library(sf) # manipulating spatial data
 library(lme4) # for glmer, etc. modelling
 library(rtweet) # using Twitter API
 library(httr)
 library(tfse) # to save token to environment
 library(ggrepel)
-library(reticulate)
-library(vroom)
+library(reticulate) # using python code in R
+library(vroom) # loading data faster
 library(ndjson)
 library(quanteda)
 library(tidytext)
-library(rvest)
+library(rvest) # reading html websites
 library(maps)
 library(ggmap)
+library(stars) # rasters
 
 #source("src/theme.R")
 
@@ -94,11 +95,35 @@ gdl_raw <- read_csv("data/raw/GDL-AreaData390 (1).csv")
 
 ```
 
-```{r load-shapefiles}
-###### Load shapefiles
-gdl_shp_raw <- readOGR(dsn = "data/raw/GDL Shapefiles V4 (1)/",
-                       layer = "GDL Shapefiles V4")
-# st_read("data/raw/GDL Shapefiles V4 (1)/GDL Shapefiles V4.shp")
+```{r load-spatial}
+###### Load spatial data
+
+# GDL shapefiles
+# gdl_shp_raw <- readOGR(dsn = "data/raw/GDL Shapefiles V4 (1)/",
+#                        layer = "GDL Shapefiles V4")
+
+# save(gdl_shp_raw, file = "data/gdl_shp_raw.rdata") # save as rdata to speed up loading after first time
+load("data/gdl_shp_raw.rdata")
+
+# Africapolis
+## https://africapolis.org/data
+afri_polis_raw <- read_excel("data/raw/Africapolis_agglomeration_2015.xlsx", skip = 15)
+
+# Load GPW4 Admin Unit data
+# gpw_raw <- list.files(pattern = "gpw_v4_admin_unit.+\\.csv", recursive = TRUE) %>%
+#   map_df(~read_csv(.))
+
+
+# Load GPW4 Admin Unit shapefiles
+nga_shp_raw <- readOGR(dsn = "data/gpw_admin/gpw-v4-admin-unit-center-points-population-estimates-rev11_nga_shp/",
+                       layer = "gpw_v4_admin_unit_center_points_population_estimates_rev11_nga")
+
+# Load GPW4 Population count, 15 minute resolution (30 km), raster data
+gpw_30_raw <- read_stars("data/gpw_pop/gpw-v4-population-count-rev11_2020_15_min_tif/gpw_v4_population_count_rev11_2020_15_min.tif")
+
+# Natural Earth cultural country boundaries
+ne_raw <- readOGR(dsn = "data/ne_50m_admin_0_countries/",
+                  layer = "ne_50m_admin_0_countries")
 
 ```
 
@@ -161,16 +186,18 @@ ethno_sub <- ethno %>%
   select(country, eng_total, total_yr)
 
 # English speakers Wikipedia
-wiki_raw %>%
+wiki_eng <- wiki_raw %>%
   slice(-1) %>%
   clean_names() %>%
-  select(country,
-         eligible_pop = eligible_population,
+  rename(eligible_pop = eligible_population,
          total_eng_speak = total_english_speakers,
          as_1st_lang = as_first_language,
          as_additional = as_an_additional_language) %>%
-  mutate(across())
-  mutate(eng_prop = total_eng_speak/eligible_pop)
+  mutate(across(c(2:5), as.integer),
+         eng_prop_wiki = total_eng_speak/eligible_pop,
+         country = str_trim(country),
+  ) %>%
+  select(country, eng_prop_wiki)
 
 # Corruption
 cpi <- cpi_raw %>%
@@ -222,6 +249,7 @@ hootsuite <- hootsuite_raw %>%
 ###### Bind
 supp <- cpi %>%
   full_join(ethno_sub, by = c("country", "year" = "total_yr")) %>%
+  left_join(wiki_eng, by = "country") %>%
   left_join(pop, by = c("country", "year")) %>%
   left_join(gdp_ppp, by = c("country", "year")) %>%
   left_join(wgi, by = c("country", "year")) %>%
@@ -308,13 +336,12 @@ get_help <- reign %>%
 gdl <- gdl_raw %>%
   select(country, region, level, year, popshare)
 
-
 ```
 
-```{r format-shapefiles}
-###### Format shapefiles
+```{r format-spatial}
+###### Format spatial data
 
-# GDL shapefiles
+###### GDL shapefiles
 # Convert sp into sf dataframe
 gdl_sf <- st_as_sf(gdl_shp_raw)
 
@@ -328,6 +355,28 @@ gdl_centroids <- st_centroid(gdl_sf$geometry) %>%
 gdl_simp <- gdl_sf %>%
   mutate(geometry = st_simplify(geometry, dTolerance = 0.05)) %>%
   bind_cols(gdl_centroids)
+
+###### Format NE boundary data
+ne <- st_as_sf(ne_raw) %>%
+  clean_names() %>%
+  select(admin, geometry)
+
+###### Format GPW data
+# Export from raster to polygons
+gpw_30 <- st_as_sf(gpw_30_raw, as_points = FALSE, merge = FALSE) %>%
+  rename(pop = 1)
+
+# Get and bind GPW centroids
+gpw_centroids <- st_centroid(gpw_30$geometry) %>%
+  st_coordinates %>%
+  as_tibble() %>%
+  rename_with(~paste0("centroid_", .))
+
+gpw_30_ext <- gpw_30 %>%
+  bind_cols(gpw_centroids) %>%
+  st_join(., ne)
+
+gpw_30_ext %>% filter(admin == "Nigeria")
 
 ```
 
@@ -454,7 +503,14 @@ names(tweets)
 
 ```{r plot-eng-sources}
 ###### Plot different data on English speakers
-
+supp %>%
+  ggplot(.,
+         aes(x = eng_prop_wiki,
+             y = eng_prop) # ethno
+  ) +
+  geom_point() +
+  geom_label_repel(aes(label = paste0(country, " ", year))) +
+  labs(title = "Different sources on English speakers per country")
 
 
 ```
@@ -496,7 +552,7 @@ tweets %>%
 
 ```
 
-```{r map-points}
+```{r map-tweets}
 ###### Map Tweets as points
 world1 <- map("world", plot = FALSE, fill = TRUE) %>% sf::st_as_sf()
 sf::st_as_sf(map("africa", plot = FALSE, fill = TRUE))
@@ -530,6 +586,20 @@ subnat %>%
   geom_sf(aes(fill = popshare)) +
   geom_text(aes(label = region, x = centroid_X, y = centroid_Y)) +
   facet_wrap(~year)
+
+```
+
+```{r map-gpw}
+###### Map spatial data from GPW
+ggplot() +
+  #geom_sf(aes(fill = pop)) +
+  geom_sf(data = ne) + # boundary lines
+  geom_sf(data = pop_30, alpha = 0.5) + # GPW areas
+  coord_sf(xlim = c(2.5, 30), ylim = c(4, 30), expand = FALSE) +
+  labs(title = "GPW Population Counts",
+       subtitle = NULL) +
+  theme_bw()
+
 
 ```
 
