@@ -35,11 +35,14 @@ library(ggmap)
 ```{r load-supp}
 ###### Load supplementary data
 
-# Language data from the UN
-lang_raw <- read_csv("data/raw/UNdata_Export_20210203_194758725.csv")
+# English speakers data from the UN
+un_lang_raw <- read_csv("data/raw/UNdata_Export_20210203_194758725.csv")
 
-# Language data pasted from Ethnologue
+# English speakers data pasted from Ethnologue
 ethno_raw <- read_excel("data/raw/ethnologue_english.xlsx")
+
+# English speakers data from Wikipedia
+wiki_raw <- read_excel("data/raw/english_wiki.xlsx", skip = 1)
 
 # Corruption perception index
 cpi_raw <- read_excel("data/raw/CPI2020_GlobalTablesTS_210125.xlsx",
@@ -57,8 +60,9 @@ pop_raw <- read_csv("data/raw/WPP2019_TotalPopulationBySex.csv")
 ## https://data.worldbank.org/indicator/NY.GDP.MKTP.PP.KD
 gdp_ppp_raw <- read_csv("data/raw/API_NY.GDP.MKTP.PP.KD_DS2_en_csv_v2_1928416.csv", skip = 3)
 
-# Twitter users by country
-twitter_mau_raw <- read_csv("data/raw/twitter_mau.csv")
+# Twitter users by country, Hootsuite, January 2020
+hootsuite_raw <- read_excel("data/raw/twitter_hootsuite.xlsx", skip = 1)
+
 
 ```
 
@@ -108,7 +112,7 @@ gdl_shp_raw <- readOGR(dsn = "data/raw/GDL Shapefiles V4 (1)/",
 # UN language population
 ## Appears to only show population by primary language
 ## May use rural, urban distinctions for weighting
-lang_raw %>%
+un_lang_raw %>%
   clean_names() %>%
   filter(language %in% c("Total", "English")) %>%
   mutate(value = round(value)) %>%
@@ -156,6 +160,18 @@ ethno <- ethno_raw %>%
 ethno_sub <- ethno %>%
   select(country, eng_total, total_yr)
 
+# English speakers Wikipedia
+wiki_raw %>%
+  slice(-1) %>%
+  clean_names() %>%
+  select(country,
+         eligible_pop = eligible_population,
+         total_eng_speak = total_english_speakers,
+         as_1st_lang = as_first_language,
+         as_additional = as_an_additional_language) %>%
+  mutate(across())
+  mutate(eng_prop = total_eng_speak/eligible_pop)
+
 # Corruption
 cpi <- cpi_raw %>%
   clean_names() %>%
@@ -198,10 +214,10 @@ gdp_ppp <- gdp_ppp_raw %>%
   filter(gdp_ppp != "X66") %>%
   transmute(country = country_name, year = as.integer(year), gdp_ppp)
 
-# Twitter MAU, 2020
-twitter_mau <- twitter_mau_raw %>%
-  rename(country = 1,
-         mau_2020 = 2)
+# Twitter users, January 2020
+hootsuite <- hootsuite_raw %>%
+  transmute(country,
+            twitter_users = as.numeric(users)*1000) # thousands
 
 ###### Bind
 supp <- cpi %>%
@@ -209,11 +225,11 @@ supp <- cpi %>%
   left_join(pop, by = c("country", "year")) %>%
   left_join(gdp_ppp, by = c("country", "year")) %>%
   left_join(wgi, by = c("country", "year")) %>%
-  left_join(twitter_mau, by = c("country")) %>%
-mutate(eng_prop = eng_total/pop_total,
-       gdp_ppp_pc = gdp_ppp/pop_total,
-       mau_2020_pc = mau_2020/pop_total
-) %>%
+  left_join(hootsuite, by = c("country")) %>%
+  mutate(eng_prop = eng_total/pop_total,
+         gdp_ppp_pc = gdp_ppp/pop_total,
+         twitter_users_pc = twitter_users/pop_total
+  ) %>%
   filter(!is.na(eng_prop))
 
 
@@ -408,7 +424,7 @@ tweets <- tweets_raw %>%
          date = as.Date(date),
          country = gsub(".*_(.*)_.*", "\\1", filename),
          leader = gsub(paste0(".*//(.*)_", country, ".*"), "\\1", filename)
-  )%>%
+  ) %>%
   clean_names() %>%
   select(date, name, country, leader, place, everything(),-c(contains("mentions"), contains("reply"), "filename"))
 
@@ -436,14 +452,23 @@ names(tweets)
 
 # Plots
 
+```{r plot-eng-sources}
+###### Plot different data on English speakers
+
+
+
+```
+
+
 ```{r plot-eng-prop}
 ###### Plot English speaking population against corruption index
 supp %>%
-  filter(wgi_est < 1) %>%
+  #filter(wgi_est < 1) %>%
+  filter(twitter_users_pc < 0.3) %>%
   ggplot(.,
-         aes(x = wgi_est,
+         aes(x = twitter_users_pc,
              y = eng_prop)) +
-  geom_point(aes(size = mau_2020_pc)) +
+  geom_point() +
   geom_label_repel(aes(label = paste0(country, " ", year))) +
   labs(title = "English-speaking share by voice and accountability index")
 

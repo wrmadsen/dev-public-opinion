@@ -86,5 +86,7 @@ https://www.tidytextmining.com/index.html
 ### National services
 * Nigeria: https://nigerianstat.gov.ng/, https://nigeria.opendataforafrica.org/
 ### Other
+* Digital 2020 reports, Hootsuite, https://datareportal.com/reports/
 * Twitter MAU, selected countries: https://www.businessofapps.com/data/twitter-statistics/ (Hootsuite/We Are Social)
 * https://www.arabsocialmediareport.com/home/index.aspx
+* https://investor.twitterinc.com/financial-information/quarterly-results/default.aspx
