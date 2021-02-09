@@ -42,7 +42,9 @@ Method:
 	b. By one or several variables
 		* For example, choose X largest within each subnational region, or X randomly among a subset (e.g. those with a greater population than Y) in each region
 2. Discard or include areas that border several countries. Needs to distinguish between a land or water border. Perhaps GPW includes country data?
-3. 
+
+Use Admin Unit data to choose cities or regions, then use GDP raster data to choose exact locations. For example, choose one region and then select three most populous rasters within that region. Admin Unit data gives valuable covariates. Consider that this needs to be done for several regions for each day. Check out O'Grady's slides on the problems of inferring higher level values to individuals, which would be a necessary evil here.
+* Using distance to centroid or being within subnational boundaries. Have contacted Columbia about GPW boundaries. World Bank might also have them.
 
 #### Which countries?
 Tentative group: Nigeria, Iraq, Phillipines, Egypt, Tunis, Russia, Turkey, Malaysia, Zimbabwe
@@ -78,6 +80,7 @@ https://www.tidytextmining.com/index.html
 * GDL shapefiles: https://globaldatalab.org/shdi/shapefiles/
 * Africapolis, database of thousands of cities in Africa: https://africapolis.org/data
 * Natural Earth, https://www.naturalearthdata.com/downloads/50m-cultural-vectors/
+* World Bank, boundaries: https://datacatalog.worldbank.org/dataset/world-bank-official-boundaries/resource/e2ced400-e63e-415b-9c4d-8138fdc21bb0, https://datacatalog.worldbank.org/dataset/world-subnational-boundaries, https://datacatalog.worldbank.org/dataset/world-bank-official-boundaries
 ### Subnational
 * Population: http://data.un.org/Data.aspx?d=POP&f=tableCode:240#POP
 * Population: https://stats.oecd.org/Index.aspx?Datasetcode=CITIES
