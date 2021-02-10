@@ -9,6 +9,10 @@
 *.xlsx
 *.shp
 *.shx
+*.sbx
+*.sbn
+*.cpg
+*.xml
 *.prj
 *.dbf
 *.zip

@@ -83,4 +83,7 @@ gpw_30_raw <- read_stars("data/gpw_pop/gpw-v4-population-count-rev11_2020_15_min
 # Natural Earth cultural country boundaries
 ne_raw <- st_read("data/ne_50m_admin_0_countries/ne_50m_admin_0_countries.shp")
 
+# OCHA boundary data
+ocha_raw <- st_read("data/nga_adm_osgof_20190417/nga_admbnda_adm1_osgof_20190417.shp")
+
 

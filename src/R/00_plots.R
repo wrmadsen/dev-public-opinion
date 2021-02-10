@@ -86,11 +86,7 @@ ggplot() +
   theme_bw()
 
 
-###### Data quality
-gaul1 %>%
-  filter(name0 == "U.K. of Great Britain and Northern Ireland") %>%
+###### OCHA
+ocha_raw %>%
   ggplot() +
   geom_sf()
-
-
-coord_sf(xlim = c(1, 15), ylim = c(1, 15), expand = FALSE)
