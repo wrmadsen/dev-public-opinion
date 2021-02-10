@@ -28,8 +28,6 @@ library(maps)
 library(ggmap)
 library(stars) # rasters
 
-#source("src/theme.R")
-
 ```
 
 # Load data
@@ -110,7 +108,10 @@ load("data/gdl_shp_raw.rdata")
 afri_polis_raw <- read_excel("data/raw/Africapolis_agglomeration_2015.xlsx", skip = 15)
 
 # Load World Bank boundaries
-wb_0_raw <- st_read("data/WB_Boundaries_GeoJSON_highres/WB_countries_Admin0.geojson")
+#wb_0_raw <- st_read("data/WB_Boundaries_GeoJSON_highres/WB_countries_Admin0.geojson")
+
+# Eurostat
+gaul1_raw <- st_read("data/gaul1_asap/gaul1_asap.shp")
 
 ```
 
@@ -134,8 +135,8 @@ gpw_30_raw <- read_stars("data/gpw_pop/gpw-v4-population-count-rev11_2020_15_min
 ne_raw <- st_read("data/ne_50m_admin_0_countries/ne_50m_admin_0_countries.shp")
 
 # Data quality files from GPW
-gpw_context_raw <- read_stars("data/gpw_quality//gpw-v4-data-quality-indicators-rev11_context_2pt5_min_tif/gpw_v4_data_quality_indicators_rev11_context_2pt5_min.tif")
-gpw_mean_raw <- read_stars("data/gpw_quality/gpw-v4-data-quality-indicators-rev11_mean_adminunitarea_2pt5_min_tif/gpw_v4_data_quality_indicators_rev11_mean_adminunitarea_2pt5_min.tif")
+gpw_context_raw <- read_stars("data/gpw_quality//gpw-v4-data-quality-indicators-rev11_context_30_min_tif/gpw_v4_data_quality_indicators_rev11_context_30_min.tif", proxy = FALSE)
+gpw_mean_raw <- read_stars("data/gpw_quality/gpw-v4-data-quality-indicators-rev11_mean_adminunitarea_30_min_tif/gpw_v4_data_quality_indicators_rev11_mean_adminunitarea_30_min.tif", proxy = FALSE)
 
 
 ```
@@ -374,6 +375,10 @@ ne <- st_as_sf(ne_raw) %>%
   clean_names() %>%
   select(admin, geometry)
 
+###### Eurostat
+gaul1 <- st_as_sf(gaul1_raw) %>%
+  arrange(name0)
+
 ###### Format GPW data
 
 ## Raster data, population count
@@ -395,25 +400,8 @@ gpw_30_ext <- gpw_30 %>%
 nga_shp <- st_as_sf(nga_shp_raw) %>%
   mutate(across(c(UN_2020_E), ~as.numeric(levels(.))[.])) # turn factor into numeric
 
-# ## Data quality context
-# # Convert to sf
-# gpw_context <- st_as_sf(gpw_context_raw, as_points = FALSE, na.rm = FALSE)
-# gpw_mean <- st_as_sf(gpw_mean_raw, as_points = FALSE, na.rm = FALSE)
-# 
-# plot(gpw_context_raw)
-# 
-# st_is_valid(gpw_context_raw)
-# 
-# summary(gpw_context_raw)
-# 
-# st_contour(gpw_mean_raw, contour_lines = TRUE) %>% plot()
-# 
-# gpw_mean <- st_contour(gpw_mean_raw, contour_lines = TRUE)
-# st_xy2sfc(gpw_mean_raw, as_points = FALSE)
-
-
 ###### World Bank boundaries
-wb_0_raw %>% plot()
+#wb_0_raw %>% plot()
 
 
 ```
@@ -643,6 +631,12 @@ ggplot() +
   labs(title = "GPW Population Counts",
        subtitle = NULL) +
   theme_bw()
+
+
+###### Data quality
+ggplot() +
+  geom_sf(data = gaul1_raw) +
+  coord_sf(xlim = c(1, 100), ylim = c(1, 100), expand = FALSE)
 
 
 ```
