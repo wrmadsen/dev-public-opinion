@@ -90,3 +90,11 @@ ggplot() +
 ocha_raw %>%
   ggplot() +
   geom_sf()
+
+
+###### Jordan gaul1 to check duplicates of st_join
+gaul1 %>%
+  filter(name0 == "Jordan") %>%
+  ggplot() +
+  geom_sf() +
+  geom_sf_label(aes(label = name1))

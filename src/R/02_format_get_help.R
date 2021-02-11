@@ -32,25 +32,27 @@ reign <- reign_raw %>%
          date_plus_one = date + days(1)) %>%
   filter(date >= as.Date("2006-07-15")) # when Twitter full version went live
 
-# Proxy IPs
-# proxy <- tibble(proxy = html_nodes(proxy_raw, "#proxylisttable td:nth-child(1)") %>% html_text(trim = TRUE),
-#                 port = html_nodes(proxy_raw, "#proxylisttable td:nth-child(2)") %>% html_text(trim = TRUE),
-#                 https = html_nodes(proxy_raw, "#proxylisttable td:nth-child(7)") %>% html_text(trim = TRUE)
-# ) %>%
-#   filter(https == "yes") %>% # only https types
-#   transmute(proxy,
-#             port,
-#             proxy_type = "http",
-#             proxy_no = row_number()
-#             )
-#
-# proxy <- read_tsv("https://api.proxyscrape.com/v2/?request=getproxies&protocol=http&timeout=100&country=all&ssl=all&anonymity=all&simplified=true") %>%
-#   rename(proxy = 1) %>%
-#   transmute(port = gsub(".+:", "", proxy) %>% as.integer,
-#             proxy = gsub("\\:.*", "", proxy),
-#             proxy_type = "http",
-#             proxy_no = row_number()
-#   )
+# Boundaries to collect Tweets from
+## Join raster data with boundary data
+### Double check the kind of join desired, some overlap
+gpw_30_ext <- gpw_30 %>%
+  bind_cols(gpw_centroids) %>% # Bind OCHA instead?
+  select(pop, centroid_x, centroid_y) %>%
+  as_tibble() %>%
+  st_as_sf(coords = c("centroid_x", "centroid_y"), crs = 4326) %>%
+  st_join(.,
+          gaul1)
+
+d <- gpw_30_ext %>%
+  as.data.frame() %>%
+  mutate(geometry = as.character(geometry)) %>%
+  group_by(geometry) %>%
+  mutate(n = n())
+
+gpw_30_ext %>%
+  filter(name0 == "Greenland") %>%
+  group_by(name1) %>%
+  summarise(pop)
 
 ###### Bind data
 get_help <- reign %>%
@@ -58,3 +60,4 @@ get_help <- reign %>%
   mutate(proxy_no = rep(1:nrow(proxy), length.out = nrow(.))) %>% # repeat 1-300 to add proxy IPs
   left_join(proxy, by = "proxy_no") %>% # add rotating proxies
   mutate(port = as.integer(port))
+

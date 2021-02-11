@@ -1,6 +1,12 @@
 # Estimating public opinion in developing countries using social media
 This project outlines a strategy and its feasibility and limitations in estimating public opinion in English-speaking developing countries. This may have consequences for the idea of political and electoral accountability, the social contract, depending on how our strategy can reliably produce estimates of public opinion. These estimates may serve as a comparison against official electoral results.
 
+To do:
+* Check same spatial projections
+* Check leader names, tidy (issue with family names)
+* Add election data
+* Decide on which day a leader's term ends
+
 ## Research design
 ### How can public Twitter data be used to increase political accountability?
 
@@ -13,9 +19,11 @@ Using Twitter data, I aim to estimate public opinion and investigate to what ext
 	* Extracting individual-level covariates (gender, age, location, etc.)
 3. Public opinion prediction:
 	* Simple favourability proportion (% share who favours a leader over time)
+4. Comparison and validation
+	* Election data
 	* Differences by regions, characteristics, events, etc.
 	* Rates of change: If overall share is too biased, changes in sentiment may be a better and more reliable predictor
-4. Problems
+5. Problems
 	* Bias of Twitter users: Maybe: Younger, more extreme, more outward-looking, etc. 
 	* Bots: How many Tweets does not represent a single person's views? Check research on spotting Twitter bots.
 
@@ -42,6 +50,11 @@ Method:
 	b. By one or several variables
 		* For example, choose X largest within each subnational region, or X randomly among a subset (e.g. those with a greater population than Y) in each region
 2. Discard or include areas that border several countries. Needs to distinguish between a land or water border. Perhaps GPW includes country data?
+
+1. Bind GPW raster/polygon population data with subnational boundaries and city points
+	a. Subnational boundaries can be Eurostat `gaul1` or OCHA for higher granularity. `gaul1` is perhaps too imprecise, since its join gives duplicates, suggesting that a GPW centroid can cross `gaul1` admins.
+	b. City points is great for visualisation - can just be added later
+2. For each day, scrape Tweets in several polygons within each subnational boundary for every country
 
 Use Admin Unit data to choose cities or regions, then use GDP raster data to choose exact locations. For example, choose one region and then select three most populous rasters within that region. Admin Unit data gives valuable covariates. Consider that this needs to be done for several regions for each day. Check out O'Grady's slides on the problems of inferring higher level values to individuals, which would be a necessary evil here.
 * Using distance to centroid or being within subnational boundaries. Have contacted Columbia about GPW boundaries. World Bank might also have them.
