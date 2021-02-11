@@ -33,13 +33,6 @@ hootsuite_raw <- read_excel("data/raw/twitter_hootsuite.xlsx", skip = 1)
 # Load leader data from REIGN
 reign_raw <- read_csv("data/raw/REIGN_2021_2.csv")
 
-# Load geocodes, INITIAL
-cap_geo_raw <- read_csv("data/raw/country-capitals.csv")
-
-# Get proxy list, rotating IPs for scraping tweets without getting blocked
-## https://free-proxy-list.net/
-proxy_raw <- read_html("https://free-proxy-list.net/#")
-
 ###### Load subnational data
 
 # Load Global Data Lab data
@@ -49,13 +42,11 @@ gdl_raw <- read_csv("data/raw/GDL-AreaData390 (1).csv")
 # Subnational infant mortality
 ## https://sedac.ciesin.columbia.edu/data/set/povmap-global-subnational-infant-mortality-rates-v2/data-download
 
-
 ###### Load spatial data
 
 # GDL shapefiles
-
 # save(gdl_shp_raw, file = "data/gdl_shp_raw.rdata") # save as rdata to speed up loading after first time
-load("data/gdl_shp_raw.rdata")
+#load("data/gdl_shp_raw.rdata")
 
 # Africapolis
 ## https://africapolis.org/data
@@ -65,8 +56,7 @@ afri_polis_raw <- read_excel("data/raw/Africapolis_agglomeration_2015.xlsx", ski
 #wb_0_raw <- st_read("data/WB_Boundaries_GeoJSON_highres/WB_countries_Admin0.geojson")
 
 # Eurostat
-gaul1_raw <- st_read("data/gaul1_asap/gaul1_asap.shp")
-
+#gaul1_raw <- st_read("data/gaul1_asap/gaul1_asap.shp")
 
 # GPW data
 # Load GPW4 Admin Unit data
@@ -75,15 +65,19 @@ gaul1_raw <- st_read("data/gaul1_asap/gaul1_asap.shp")
 
 # Load GPW4 Admin Unit shapefiles
 ## Nigeria
-nga_shp_raw <- st_read("data/gpw_admin/gpw-v4-admin-unit-center-points-population-estimates-rev11_nga_shp/gpw_v4_admin_unit_center_points_population_estimates_rev11_nga.shp")
+#nga_shp_raw <- st_read("data/gpw_admin/gpw-v4-admin-unit-center-points-population-estimates-rev11_nga_shp/gpw_v4_admin_unit_center_points_population_estimates_rev11_nga.shp")
 
 # Load GPW4 Population raster count, 15 minute resolution (30 km), raster data
 gpw_30_raw <- read_stars("data/gpw_pop/gpw-v4-population-count-rev11_2020_15_min_tif/gpw_v4_population_count_rev11_2020_15_min.tif")
 
 # Natural Earth cultural country boundaries
-ne_raw <- st_read("data/ne_50m_admin_0_countries/ne_50m_admin_0_countries.shp")
+#ne_raw <- st_read("data/ne_50m_admin_0_countries/ne_50m_admin_0_countries.shp")
 
 # OCHA boundary data
 ocha_raw <- st_read("data/nga_adm_osgof_20190417/nga_admbnda_adm1_osgof_20190417.shp")
+
+# GADM subnational admin boundaries
+gadm_1_raw <- list.files(pattern="gadm36.+1\\.shp$", full.names = TRUE, recursive = TRUE) %>%
+  map_df(~st_read(.))
 
 

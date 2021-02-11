@@ -94,7 +94,10 @@ https://www.tidytextmining.com/index.html
 * Africapolis, database of thousands of cities in Africa: https://africapolis.org/data
 * Natural Earth, https://www.naturalearthdata.com/downloads/50m-cultural-vectors/
 * World Bank, boundaries: https://datacatalog.worldbank.org/dataset/world-bank-official-boundaries/resource/e2ced400-e63e-415b-9c4d-8138fdc21bb0, https://datacatalog.worldbank.org/dataset/world-subnational-boundaries, https://datacatalog.worldbank.org/dataset/world-bank-official-boundaries
+### Subnational boundaries
 * OCHA: https://data.humdata.org/search?q=subnational&ext_search_source=main-nav
+* GADM: https://gadm.org/index.html
+
 ### Subnational
 * Population: http://data.un.org/Data.aspx?d=POP&f=tableCode:240#POP
 * Population: https://stats.oecd.org/Index.aspx?Datasetcode=CITIES
