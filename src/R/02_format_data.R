@@ -168,19 +168,14 @@ gaul1 <- st_as_sf(gaul1_raw) %>%
 ## Raster data, population count
 # Export from raster to polygons
 gpw_30 <- st_as_sf(gpw_30_raw, as_points = FALSE, merge = FALSE) %>%
-  rename(pop = 1)
+  rename(pop = 1) %>%
+  st_transform(., 4326)
 
 # Get and bind GPW centroids
 gpw_centroids <- st_centroid(gpw_30$geometry) %>%
-  st_coordinates %>%
+  st_coordinates() %>%
   as_tibble() %>%
-  rename_with(~paste0("centroid_", .))
-
-# Join raster data with boundary data
-## Double check the kind of join desired, some overlap
-gpw_30_ext <- gpw_30 %>%
-  bind_cols(gpw_centroids) %>%
-  st_join(., gaul1, left = TRUE)
+  rename_with(~paste0("centroid_", tolower(.)))
 
 ## Admin unit shapefiles
 nga_shp <- st_as_sf(nga_shp_raw) %>%
