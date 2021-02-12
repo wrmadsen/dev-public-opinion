@@ -13,6 +13,7 @@ library(reticulate) # using python code in R
 library(vroom) # loading data faster
 library(ndjson)
 library(quanteda)
+library(jsonlite)
 library(tidytext)
 library(rvest) # reading html websites
 library(maps)
