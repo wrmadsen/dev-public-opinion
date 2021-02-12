@@ -134,34 +134,34 @@ supp <- cpi %>%
 
 # GDL data
 gdl <- gdl_raw %>%
-  select(country, region, level, year, popshare)
+  clean_names()
 
 ###### Format spatial data
 
 ###### GDL shapefiles
 # Convert sp into sf dataframe
-gdl_sf <- st_as_sf(gdl_shp_raw)
-
-# Get centroids
-gdl_centroids <- st_centroid(gdl_sf$geometry) %>%
-  st_coordinates %>%
-  as_tibble() %>%
-  rename_with(~paste0("centroid_", .))
-
-# Simplify and add centroids
-gdl_simp <- gdl_sf %>%
-  mutate(geometry = st_simplify(geometry, dTolerance = 0.05)) %>%
-  bind_cols(gdl_centroids)
+# gdl_sf <- st_as_sf(gdl_shp_raw)
+# 
+# # Get centroids
+# gdl_centroids <- st_centroid(gdl_sf$geometry) %>%
+#   st_coordinates %>%
+#   as_tibble() %>%
+#   rename_with(~paste0("centroid_", .))
+# 
+# # Simplify and add centroids
+# gdl_simp <- gdl_sf %>%
+#   mutate(geometry = st_simplify(geometry, dTolerance = 0.05)) %>%
+#   bind_cols(gdl_centroids)
 
 ###### Format NE boundary data
-ne <- st_as_sf(ne_raw) %>%
-  clean_names() %>%
-  select(admin, geometry)
+# ne <- st_as_sf(ne_raw) %>%
+#   clean_names() %>%
+#   select(admin, geometry)
 
 ###### Eurostat
-gaul1 <- st_as_sf(gaul1_raw) %>%
-  select(name0, name1, geometry) %>%
-  arrange(name0)
+# gaul1 <- st_as_sf(gaul1_raw) %>%
+#   select(name0, name1, geometry) %>%
+#   arrange(name0)
 
 ###### Format GPW data
 
@@ -180,3 +180,57 @@ gpw_centroids <- st_centroid(gpw_30$geometry) %>%
 ## Admin unit shapefiles
 nga_shp <- st_as_sf(nga_shp_raw) %>%
   mutate(across(c(UN_2020_E), ~as.numeric(levels(.))[.])) # turn factor into numeric
+
+###### Format GADM subnational boundary data
+gadm_1 <- gadm_1_raw %>%
+  clean_names() %>%
+  select(name_0, name_1, engtype_1, geometry)
+
+# Drop geo to easily check names
+gadm_1_df <- as.data.frame(gadm_1) %>%
+  select(-geometry)
+
+###### Format election data
+
+# Nigeria, format Presidentials election data, from inspecting Stears website
+nga_p_19 <- stears_19_raw %>%
+  as_tibble() %>%
+  select(president) %>%
+  unnest() %>%
+  unnest() %>%
+  filter(!is.na(candidate))
+
+nga_p_15 <- stears_15_raw[1] %>%
+  as_tibble() %>%
+  unnest()
+
+nga_pres <- bind_rows(nga_p_15, nga_p_19) %>%
+  mutate(across(c(total_votes, votes), ~gsub(",", "", .) %>% as.integer),
+         year = as.integer(year))
+
+# Afghanistan,
+afg_19 <- afg_19_raw %>%
+  rename(province = name,
+         total = votes
+         ) %>%
+  pivot_longer(cols = c(4:ncol(.)), values_to = "votes") %>%
+  mutate(year = 2019)
+
+
+afg_14 <- afg_14_raw %>%
+  rename(province = name,
+         total = votes,
+         total_population = totalPopulation
+         ) %>%
+  pivot_longer(cols = c(5:ncol(.)), values_to = "votes") %>%
+  mutate(year = 2014)
+
+afg_09 <- afg_09_raw %>%
+  rename(province = name
+         ) %>%
+  pivot_longer(c(8:ncol(.)), values_to = "votes") %>%
+  clean_names() %>%
+  mutate(year = 2009)
+
+afg_pres <- bind_rows(afg_09, afg_14) %>%
+  bind_rows(afg_19)
