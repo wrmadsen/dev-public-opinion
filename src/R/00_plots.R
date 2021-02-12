@@ -92,9 +92,10 @@ ocha_raw %>%
   geom_sf()
 
 
-###### Jordan gaul1 to check duplicates of st_join
-gaul1 %>%
-  filter(name0 == "Jordan") %>%
-  ggplot() +
-  geom_sf() +
-  geom_sf_label(aes(label = name1))
+###### Plot boundaries against raster pop data
+ggplot(gadm_1) +
+  geom_sf(data = gpw_30, aes(fill = pop), colour = "black", alpha = 0.5) +
+  geom_sf(colour = "red", alpha = 0.5) +
+  geom_sf_label(aes(label = name_1)) +
+  coord_sf(xlim = c(34, 40), ylim = c(29, 34), expand = FALSE)
+  
