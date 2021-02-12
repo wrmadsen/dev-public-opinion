@@ -36,12 +36,14 @@ reign <- reign_raw %>%
 ## Join raster data with boundary data
 ### Double check the kind of join desired, some overlap
 gpw_30_ext <- gpw_30 %>%
-  bind_cols(gpw_centroids) %>% # Bind OCHA instead?
-  select(pop, centroid_x, centroid_y) %>%
-  as_tibble() %>%
-  st_as_sf(coords = c("centroid_x", "centroid_y"), crs = 4326) %>%
+  # bind_cols(gpw_centroids) %>%
+  # select(pop, centroid_x, centroid_y) %>%
+  # as_tibble() %>%
+  # st_as_sf(coords = c("centroid_x", "centroid_y"), crs = 4326) %>%
   st_join(.,
-          gaul1)
+          gadm_1) %>%
+  filter(!is.na(name_0)) %>%
+  mutate(across(c(name_0, name_1, engtype_1), as.character))
 
 d <- gpw_30_ext %>%
   as.data.frame() %>%
@@ -50,9 +52,12 @@ d <- gpw_30_ext %>%
   mutate(n = n())
 
 gpw_30_ext %>%
-  filter(name0 == "Greenland") %>%
-  group_by(name1) %>%
-  summarise(pop)
+  as.data.frame() %>%
+  filter(name_0 == "Jordan") %>%
+  group_by(name_) %>%
+  summarise(pop  = sum(pop))
+
+class(gpw_30_ext)
 
 ###### Bind data
 get_help <- reign %>%
