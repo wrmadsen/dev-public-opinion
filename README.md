@@ -81,12 +81,21 @@ https://www.tidytextmining.com/index.html
 ### Individual-level characteristics
 * Age, race, gender: https://github.com/wri/demographic-identifier
 
+### Comparison and validation
+Depends on what is available for each country. For example, if a country's official election results are not reliable, there are other sources to look at, such as polling, election complaints or other.
+
+* Elections complaints: Validation could also be done for certain countries if they publish data on election complaints. One hypothesis could revolve around a positive correlation between the difference of the official election vote rate and the Twitter prediction against the number of complaints. Afghanistan publishes data on complaints.
+
+* Compare against country with rich polling data, e.g. US or UK.
+
 ## Data
 ### Twitter
 * Tweets from [Twitter's API](https://developer.twitter.com/en/docs)
-### Control and comparison
-* Electoral data
-* Traditional polling results
+### Polling
+### Election
+* CLEA: http://www.electiondataarchive.org/data-and-documentation.php
+* Afghanistan Election Data: https://afghanistanelectiondata.org/
+* Nigeria elections, Stears: https://nigeriaelections.stearsng.com/president/2019 (confirm data's accuracy against Reuters?)
 ### Scraping help data
 * Country leaders data, [REIGN](https://oefdatascience.github.io/REIGN.github.io/menu/reign_current.html)
 ### Spatial
@@ -97,7 +106,6 @@ https://www.tidytextmining.com/index.html
 ### Subnational boundaries
 * OCHA: https://data.humdata.org/search?q=subnational&ext_search_source=main-nav
 * GADM: https://gadm.org/index.html
-
 ### Subnational
 * Population: http://data.un.org/Data.aspx?d=POP&f=tableCode:240#POP
 * Population: https://stats.oecd.org/Index.aspx?Datasetcode=CITIES

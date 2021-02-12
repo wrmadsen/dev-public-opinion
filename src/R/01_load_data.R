@@ -15,7 +15,7 @@ cpi_raw <- read_excel("data/raw/CPI2020_GlobalTablesTS_210125.xlsx",
                       sheet = "CPI Timeseries 2012 - 2020",
                       skip = 2)
 
-# WGI data
+# WGI data, voice and accountability index
 wgi_raw <- read_excel("data/raw/wgidataset.xlsx", sheet = "VoiceandAccountability", skip = 12)
 
 # UN population estimates
@@ -28,6 +28,9 @@ gdp_ppp_raw <- read_csv("data/raw/API_NY.GDP.MKTP.PP.KD_DS2_en_csv_v2_1928416.cs
 
 # Twitter users by country, Hootsuite, January 2020
 hootsuite_raw <- read_excel("data/raw/twitter_hootsuite.xlsx", skip = 1)
+
+# Load CLEA election data
+load("data/clea_lc_20201216.rdata")
 
 ###### Load data to use in collecting Tweets
 # Load leader data from REIGN
@@ -69,6 +72,7 @@ afri_polis_raw <- read_excel("data/raw/Africapolis_agglomeration_2015.xlsx", ski
 
 # Load GPW4 Population raster count, 15 minute resolution (30 km), raster data
 gpw_30_raw <- read_stars("data/gpw_pop/gpw-v4-population-count-rev11_2020_15_min_tif/gpw_v4_population_count_rev11_2020_15_min.tif")
+gpw_5_raw <- read_stars("data/gpw_pop/gpw-v4-population-count-adjusted-to-2015-unwpp-country-totals-rev11_2020_2pt5_min_tif/gpw_v4_population_count_adjusted_to_2015_unwpp_country_totals_rev11_2020_2pt5_min.tif")
 
 # Natural Earth cultural country boundaries
 #ne_raw <- st_read("data/ne_50m_admin_0_countries/ne_50m_admin_0_countries.shp")
@@ -80,4 +84,13 @@ ocha_raw <- st_read("data/nga_adm_osgof_20190417/nga_admbnda_adm1_osgof_20190417
 gadm_1_raw <- list.files(pattern="gadm36.+1\\.shp$", full.names = TRUE, recursive = TRUE) %>%
   map_df(~st_read(.))
 
+###### Election data
 
+# Nigeria presidential elections, from Stears
+stears_19_raw <- fromJSON("data/election/nigeria2019.json")
+stears_15_raw <- fromJSON("data/election/nigeria2015.json")
+
+# Afghanistan
+afg_19_raw <- read_csv("data/election/2019-Presidential-national-presidential.csv")
+afg_14_raw <- read_csv("data/election/2014-Presidential-national-presidential.csv")
+afg_09_raw <- read_csv("data/election/2009-Presidential-national-presidential.csv")
