@@ -21,3 +21,7 @@
 *.rdata
 *.geojson
 *.html
+*.pdf
+*.docx
+*.doc
+*.rds
