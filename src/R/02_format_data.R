@@ -130,58 +130,31 @@ supp <- cpi %>%
   ) %>%
   filter(!is.na(eng_prop))
 
-###### Format subnational data
+###### Format region data
 
 # GDL data
 gdl <- gdl_raw %>%
   clean_names()
 
-###### Format spatial data
+###### Format region data
 
-###### GDL shapefiles
+###### GDL region shapefiles
 # Convert sp into sf dataframe
-# gdl_sf <- st_as_sf(gdl_shp_raw)
-# 
-# # Get centroids
-# gdl_centroids <- st_centroid(gdl_sf$geometry) %>%
-#   st_coordinates %>%
-#   as_tibble() %>%
-#   rename_with(~paste0("centroid_", .))
-# 
-# # Simplify and add centroids
-# gdl_simp <- gdl_sf %>%
-#   mutate(geometry = st_simplify(geometry, dTolerance = 0.05)) %>%
-#   bind_cols(gdl_centroids)
+gdl_sf <- st_as_sf(gdl_shp_raw)
 
-###### Format NE boundary data
-# ne <- st_as_sf(ne_raw) %>%
-#   clean_names() %>%
-#   select(admin, geometry)
-
-###### Eurostat
-# gaul1 <- st_as_sf(gaul1_raw) %>%
-#   select(name0, name1, geometry) %>%
-#   arrange(name0)
-
-###### Format GPW data
-
-## Raster data, population count
-# Export from raster to polygons
-gpw_30 <- st_as_sf(gpw_30_raw, as_points = FALSE, merge = FALSE) %>%
-  rename(pop = 1) %>%
-  st_transform(., 4326)
-
-# Get and bind GPW centroids
-gpw_centroids <- st_centroid(gpw_30$geometry) %>%
-  st_coordinates() %>%
+# Get centroids
+gdl_centroids <- st_centroid(gdl_sf$geometry) %>%
+  st_coordinates %>%
   as_tibble() %>%
   rename_with(~paste0("centroid_", tolower(.)))
 
-## Admin unit shapefiles
-nga_shp <- st_as_sf(nga_shp_raw) %>%
-  mutate(across(c(UN_2020_E), ~as.numeric(levels(.))[.])) # turn factor into numeric
+# Simplify and add centroids
+gdl_simp <- gdl_sf %>%
+  mutate(geometry = st_simplify(geometry, dTolerance = 0.05)) %>%
+  bind_cols(gdl_centroids)
 
 ###### Format GADM subnational boundary data
+# Only includes certain countries we'd picked out
 gadm_1 <- gadm_1_raw %>%
   clean_names() %>%
   select(name_0, name_1, engtype_1, geometry)
@@ -189,6 +162,99 @@ gadm_1 <- gadm_1_raw %>%
 # Drop geo to easily check names
 gadm_1_df <- as.data.frame(gadm_1) %>%
   select(-geometry)
+
+###### Format city data
+###### Africapolis
+afri_polis <- afri_polis_raw %>%
+  clean_names()
+
+###### NE urban landscan
+## mean_bb_xc and mean_bb_yc is midpoint
+
+## Subset to only include cities within countries that are being analysed
+### Join by regional boundary data
+### This is for the countries and subnational regions we want to scrape
+
+# Add buffer to make sf valid to join
+landscan_buff <- st_buffer(landscan_raw, dist = 0)
+
+# Join to subset
+## Desired output 
+#landscan <- st_join(landscan_buff, gadm_1, join = st_overlaps, largest = TRUE)
+
+## Split city polygons if they span several regions
+## This also joins city and region data
+## Note that the columns with population data are now not representative
+cities_int <- st_intersection(landscan_buff, gadm_1)
+
+# Plot city against region boundaries, Jordan as an example, illustrating st_join()
+cities_int %>%
+  filter(name_conve == "Amman") %>%
+  #filter(name_1 == "Balqa") %>%
+  ggplot() +
+  geom_sf(aes(fill = name_1))
+  geom_sf(data = gadm_1[gadm_1$name_0 == "Jordan",], colour = "black", fill = NA) + 
+  geom_sf_label(data = gadm_1[gadm_1$name_0 == "Jordan",], aes(label = name_1)) +
+  coord_sf(xlim = c(35, 37), ylim = c(31.5, 32.5), expand = FALSE)
+
+## Get points of middle of city boundaries, bbox
+### Cannot use original NE bbox variables as they refer to previous, non-split city polygons
+cities_mid <- x
+cities_int %>%
+  group_by()
+  st_bbox(geometry)
+  st_as_sf(coords = c("mean_bb_xc", "mean_bb_yc"), crs = 4326) %>%
+  select(name_conve, geometry)
+
+## Get points of a corner of city boundaries, bbox
+cities_corner <- cities_int %>%
+  as_tibble() %>%
+  st_as_sf(coords = c("min_bb_xmi", "min_bb_ymi"), crs = 4326) %>%
+  select(name_conve, geometry)
+  
+## Find distance between points, which will be the radius to scrape Tweets within 
+radius_km <- st_distance(landscan_mid$geometry, landscan_corner$geometry, by_element = TRUE)/1000 # divide to convert m to km
+
+## Join radius to dataset
+
+
+###### Cities, ArcGIS, long and lat
+cities <- cities_raw %>%
+  st_as_sf() %>%
+  st_transform(., 4326) %>%
+  clean_names() %>%
+  arrange(cntry_name)
+
+cities %>%
+  st_cast("POINT") %>%
+  st_distance(st_centroid(cities))
+
+st_sf(cities$geometry)
+?st_sf
+
+
+###### Format GPW data
+
+## Raster data, population count
+# Export from raster to polygons
+# gpw_30 <- st_as_sf(gpw_30_raw, as_points = FALSE, merge = FALSE) %>%
+#   rename(pop = 1) %>%
+#   st_transform(., 4326)
+# 
+# gpw_5 <- st_as_sf(gpw_5_raw, as_points = FALSE, merge = FALSE) %>%
+#   rename(pop = 1) %>%
+#   st_transform(., 4326)
+
+# Get and bind GPW centroids
+# gpw_centroids <- st_centroid(gpw_30$geometry) %>%
+#   st_coordinates() %>%
+#   as_tibble() %>%
+#   rename_with(~paste0("centroid_", tolower(.)))
+
+## Admin unit shapefiles
+# nga_shp <- st_as_sf(nga_shp_raw) %>%
+#   mutate(across(c(UN_2020_E), ~as.numeric(levels(.))[.])) # turn factor into numeric
+
 
 ###### Format election data
 
@@ -208,11 +274,11 @@ nga_pres <- bind_rows(nga_p_15, nga_p_19) %>%
   mutate(across(c(total_votes, votes), ~gsub(",", "", .) %>% as.integer),
          year = as.integer(year))
 
-# Afghanistan,
+# Afghanistan president data
 afg_19 <- afg_19_raw %>%
   rename(province = name,
          total = votes
-         ) %>%
+  ) %>%
   pivot_longer(cols = c(4:ncol(.)), values_to = "votes") %>%
   mutate(year = 2019)
 
@@ -221,13 +287,13 @@ afg_14 <- afg_14_raw %>%
   rename(province = name,
          total = votes,
          total_population = totalPopulation
-         ) %>%
+  ) %>%
   pivot_longer(cols = c(5:ncol(.)), values_to = "votes") %>%
   mutate(year = 2014)
 
 afg_09 <- afg_09_raw %>%
   rename(province = name
-         ) %>%
+  ) %>%
   pivot_longer(c(8:ncol(.)), values_to = "votes") %>%
   clean_names() %>%
   mutate(year = 2009)

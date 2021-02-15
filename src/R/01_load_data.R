@@ -45,21 +45,23 @@ gdl_raw <- read_csv("data/raw/GDL-AreaData390 (1).csv")
 # Subnational infant mortality
 ## https://sedac.ciesin.columbia.edu/data/set/povmap-global-subnational-infant-mortality-rates-v2/data-download
 
-###### Load spatial data
 
-# GDL shapefiles
-# save(gdl_shp_raw, file = "data/gdl_shp_raw.rdata") # save as rdata to speed up loading after first time
-#load("data/gdl_shp_raw.rdata")
-
+###### Load cities data
 # Africapolis
 ## https://africapolis.org/data
 afri_polis_raw <- read_excel("data/raw/Africapolis_agglomeration_2015.xlsx", skip = 15)
 
-# Load World Bank boundaries
-#wb_0_raw <- st_read("data/WB_Boundaries_GeoJSON_highres/WB_countries_Admin0.geojson")
+# World Cities shapefiles from ArcGIS, long and lat
+cities_raw <- st_read("data/raw/World_Cities-shp/World_Cities.shp")
 
-# Eurostat
-#gaul1_raw <- st_read("data/gaul1_asap/gaul1_asap.shp")
+# Natural Earth urban landscan of cities
+landscan_raw <- st_read("data/ne_10m_urban_areas_landscan/ne_10m_urban_areas_landscan.shp")
+
+###### Load region data
+# GDL shapefiles
+# save(gdl_shp_raw, file = "data/gdl_shp_raw.rdata") # save as rdata to speed up loading after first time
+load("data/gdl_shp_raw.rdata")
+
 
 # GPW data
 # Load GPW4 Admin Unit data
@@ -71,8 +73,8 @@ afri_polis_raw <- read_excel("data/raw/Africapolis_agglomeration_2015.xlsx", ski
 #nga_shp_raw <- st_read("data/gpw_admin/gpw-v4-admin-unit-center-points-population-estimates-rev11_nga_shp/gpw_v4_admin_unit_center_points_population_estimates_rev11_nga.shp")
 
 # Load GPW4 Population raster count, 15 minute resolution (30 km), raster data
-gpw_30_raw <- read_stars("data/gpw_pop/gpw-v4-population-count-rev11_2020_15_min_tif/gpw_v4_population_count_rev11_2020_15_min.tif")
-gpw_5_raw <- read_stars("data/gpw_pop/gpw-v4-population-count-adjusted-to-2015-unwpp-country-totals-rev11_2020_2pt5_min_tif/gpw_v4_population_count_adjusted_to_2015_unwpp_country_totals_rev11_2020_2pt5_min.tif")
+#gpw_30_raw <- read_stars("data/gpw_pop/gpw-v4-population-count-rev11_2020_15_min_tif/gpw_v4_population_count_rev11_2020_15_min.tif")
+#gpw_5_raw <- read_stars("data/gpw_pop/gpw-v4-population-count-adjusted-to-2015-unwpp-country-totals-rev11_2020_2pt5_min_tif/gpw_v4_population_count_adjusted_to_2015_unwpp_country_totals_rev11_2020_2pt5_min.tif")
 
 # Natural Earth cultural country boundaries
 #ne_raw <- st_read("data/ne_50m_admin_0_countries/ne_50m_admin_0_countries.shp")

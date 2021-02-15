@@ -36,6 +36,11 @@ Next focus is being able to gather Tweets from different locations within a coun
 2. Scrape tweets for locations in each country
 
 How to decide on coordinates and radius of scraping locations:
+Since the scraping of Tweets is done selecting a point and a radius, I need to decide on a strategy for choosing which and how many points to be scraped within subnational regions.
+* Scrape by city data: Africapolis, Global Data Lab. Choose one or several cities within subnational regions. Scrape each city by the smallest possible circle which contains the city's boundary. To capture citizens outside of these urbans areas, the circle could be extend to a radius from the centroid to the nearest polygon border.
+* Scrape points by a mix of populous and random GPW population rasters. Siginificant processing required and problems with rasters crossing different countries and regions. Little difference compared to using less demanding city data.
+* Scrape by the largest possible circle which can fit within the region polygon
+
 Use GPW population count raster data, converted to polygons, to determine scraping locations and radius. With high spatial granularity down to 1 km and data across years (2010, 2015, 2020), these can be used for a consistent way of finding a radius. 
 * Seems to have a raster dataset including population by sex and age
 * Can add city and other point data to visualise significant cities (data from Africapolis, Global Data Lab).
@@ -57,7 +62,6 @@ Method:
 2. For each day, scrape Tweets in several polygons within each subnational boundary for every country
 
 Use Admin Unit data to choose cities or regions, then use GDP raster data to choose exact locations. For example, choose one region and then select three most populous rasters within that region. Admin Unit data gives valuable covariates. Consider that this needs to be done for several regions for each day. Check out O'Grady's slides on the problems of inferring higher level values to individuals, which would be a necessary evil here.
-* Using distance to centroid or being within subnational boundaries. Have contacted Columbia about GPW boundaries. World Bank might also have them.
 
 #### Which countries?
 Tentative group: Nigeria, Iraq, Phillipines, Egypt, Tunis, Russia, Turkey, Malaysia, Zimbabwe
@@ -70,7 +74,6 @@ https://stackoverflow.com/questions/21708488/get-country-and-continent-from-long
 Visualising within-country clusters:
 https://gis.stackexchange.com/questions/119736/ggmap-create-circle-symbol-where-radius-represents-distance-miles-or-km
 https://stackoverflow.com/questions/34183049/plot-circle-with-a-certain-radius-around-point-on-a-map-in-ggplot2
-https://gis.stackexchange.com/questions/282750/identify-polygon-containing-point-with-r-sf-package
 
 #### Rotating proxies: Robin Hood method:
 If Twitter blocks my IP, it may be necessary to automatically change IP proxies throughout the scraping of Tweets. A VPN may help with this as well. Otherwise, a proxy service may be required.
@@ -80,6 +83,11 @@ https://www.tidytextmining.com/index.html
 
 ### Individual-level characteristics
 * Age, race, gender: https://github.com/wri/demographic-identifier
+
+* Age:
+
+* Gender: Use census date for each country. Liu and Ruths' (2013) gender-name association score between -1 to 1 could work.
+http://www.namepedia.org/en/firstname/
 
 ### Comparison and validation
 Depends on what is available for each country. For example, if a country's official election results are not reliable, there are other sources to look at, such as polling, election complaints or other.
@@ -92,6 +100,8 @@ Depends on what is available for each country. For example, if a country's offic
 ### Twitter
 * Tweets from [Twitter's API](https://developer.twitter.com/en/docs)
 ### Polling
+* Europe Elects: https://europeelects.eu/data/
+* Asia Foundation, Afghanistan surveys: https://asiafoundation.org/where-we-work/afghanistan/survey/download-data-form/
 ### Election
 * CLEA: http://www.electiondataarchive.org/data-and-documentation.php
 * Afghanistan Election Data: https://afghanistanelectiondata.org/
@@ -101,8 +111,11 @@ Depends on what is available for each country. For example, if a country's offic
 ### Spatial
 * GDL shapefiles: https://globaldatalab.org/shdi/shapefiles/
 * Africapolis, database of thousands of cities in Africa: https://africapolis.org/data
+* World Cities, https://hub.arcgis.com/datasets/6996f03a1b364dbab4008d99380370ed_0
+* Natural Earth, urban landscan: https://www.naturalearthdata.com/downloads/10m-cultural-vectors/10m-populated-places/
 * Natural Earth, https://www.naturalearthdata.com/downloads/50m-cultural-vectors/
 * World Bank, boundaries: https://datacatalog.worldbank.org/dataset/world-bank-official-boundaries/resource/e2ced400-e63e-415b-9c4d-8138fdc21bb0, https://datacatalog.worldbank.org/dataset/world-subnational-boundaries, https://datacatalog.worldbank.org/dataset/world-bank-official-boundaries
+* Oak Ridge, landscan: https://landscan.ornl.gov/
 ### Subnational boundaries
 * OCHA: https://data.humdata.org/search?q=subnational&ext_search_source=main-nav
 * GADM: https://gadm.org/index.html
