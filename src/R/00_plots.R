@@ -75,12 +75,25 @@ subnat %>%
 # Plot scraper circles
 scrape_circles %>%
   filter(countrynm == "Jordan") %>%
+  filter(name1 == "Ajloun Gov.") %>%
   ggplot() +
-  geom_sf(colour = "red", show.legend = FALSE, fill = NA) +
-  geom_sf(data = scrape_points[scrape_points$name_0 == "Jordan",],
-          colour = "blue") +
-  geom_sf(data = st_transform(gadm_1[gadm_1$name_0 == "Jordan",], 27700),
-          colour = "black", fill = NA)
+  geom_sf(colour = "red", fill = NA,  show.legend = FALSE) +
+  geom_sf(data = scrape_points[scrape_points$name1 == "Ajloun Gov.",],
+          aes(size = un_2020_e), colour = "blue") +
+  geom_sf_text(data = scrape_points[scrape_points$name1 == "Ajloun Gov.",],
+                aes(label = name3)) +
+  geom_sf(data = st_transform(gadm_1[gadm_1$name_1 == "Ajlun",], 27700),
+          colour = "black", fill = NA) +
+  labs(title = "Scraper locations in Jordan")
 
-
+# Plot GADM region polygons against GPW admin points
+gpw %>%
+  filter(countrynm == "Jordan") %>%
+  #filter(name_1 == "Balqa") %>%
+  ggplot() +
+  geom_sf(aes(colour = name3), show.legend = FALSE) +
+  geom_sf(data = gadm_1[gadm_1$name_0 == "Jordan",], colour = "black", fill = NA) + 
+  geom_sf_label(data = gadm_1[gadm_1$name_0 == "Jordan",], aes(label = name_1)) +
+  coord_sf(xlim = c(35, 37), ylim = c(31.5, 32.5), expand = FALSE) +
+  NULL
 

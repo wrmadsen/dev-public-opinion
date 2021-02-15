@@ -136,8 +136,6 @@ supp <- cpi %>%
 gdl <- gdl_raw %>%
   clean_names()
 
-###### Format region data
-
 ###### GDL region shapefiles
 # Convert sp into sf dataframe
 gdl_sf <- st_as_sf(gdl_shp_raw)
@@ -153,117 +151,23 @@ gdl_simp <- gdl_sf %>%
   mutate(geometry = st_simplify(geometry, dTolerance = 0.05)) %>%
   bind_cols(gdl_centroids)
 
-# gdl_sf %>%
-#   filter(country == "Nigeria") %>%
-#   ggplot() +
-#   geom_sf()
-
-###### GPW admin unit data
-gpw <- gpw_raw %>%
-  clean_names() %>%
-  arrange(countrynm, name1, name2, name3, name4) %>%
-  select(countrynm, name1, name2, name3, name4)
-
-filter(countrynm == "Jordan")
-
-###### Format GADM subnational boundary data
-# Only includes certain countries we'd picked out
-gadm_1 <- gadm_1_raw %>%
-  clean_names() %>%
-  select(name_0, name_1, engtype_1, geometry)
-
-# Drop geo to easily check names
-gadm_1_df <- as.data.frame(gadm_1) %>%
-  select(-geometry)
-
-# Plot gadm against GPW admin
-gpw %>%
-  filter(countrynm == "Jordan") %>%
-  #filter(name_1 == "Balqa") %>%
-  ggplot() +
-  geom_sf(aes(colour = name3), show.legend = FALSE) +
-  geom_sf(data = gadm_1[gadm_1$name_0 == "Jordan",], colour = "black", fill = NA) + 
-  geom_sf_label(data = gadm_1[gadm_1$name_0 == "Jordan",], aes(label = name_1)) +
-  coord_sf(xlim = c(35, 37), ylim = c(31.5, 32.5), expand = FALSE) +
-  NULL
-
-# Join region polygons and admin points and calculate smallest distance
-# Cut off to only include GPW points which are within GADM regions
-scrape_regions <- st_join(gadm_1, gpw) %>%
-  arrange(countrynm, name1, name2) %>%
-  st_transform(., 27700) # British National Grid to work in meters, required for the scraping radius
-
-## Add GPW points to dataframe with region polygon geometry
-## Ensures that points geometry are in same order as polygon region geometry
-scrape_points <- scrape_regions %>%
-  as_tibble() %>%
-  select(-geometry) %>%
-  left_join(., st_transform(gpw, 27700), by = c("countrynm", "name1", "name2", "name3", "name4")) %>%
-  st_as_sf()
-
-# Calculate smallest distance
-## Convert to linestring before calculating distance
-## https://github.com/r-spatial/sf/issues/1290
-scrape_regions_line <- st_geometry(obj = scrape_regions) %>%
-  st_cast(to = "LINESTRING")
-
-scrape_points$radius <- st_distance(scrape_regions_line, scrape_points, by_element = TRUE) # in meters
-
-scrape_points <- scrape_points %>%
-  mutate(radius_m = as.double(radius))
-
-# Create circle polygon showing scraping area
-## Reproject to 27700 first in order to buffer in meters
-scrape_circles <- scrape_points %>%
-  st_transform(., 27700) %>%
-  st_buffer(., scrape_points$radius_m)
-
-# Create main scraper locations object
-scrape_points %>%
-  st_transform(4326) %>%
-  
-
 ###### Format city data
 ###### Africapolis
 afri_polis <- afri_polis_raw %>%
   clean_names()
 
 ###### Cities, ArcGIS, long and lat
-cities <- cities_raw %>%
-  st_as_sf() %>%
-  st_transform(., 4326) %>%
-  clean_names() %>%
-  arrange(cntry_name)
-
-cities %>%
-  st_cast("POINT") %>%
-  st_distance(st_centroid(cities))
-
-st_sf(cities$geometry)
-
-
-###### Format GPW data
-
-## Raster data, population count
-# Export from raster to polygons
-# gpw_30 <- st_as_sf(gpw_30_raw, as_points = FALSE, merge = FALSE) %>%
-#   rename(pop = 1) %>%
-#   st_transform(., 4326)
+# cities <- cities_raw %>%
+#   st_as_sf() %>%
+#   st_transform(., 4326) %>%
+#   clean_names() %>%
+#   arrange(cntry_name)
 # 
-# gpw_5 <- st_as_sf(gpw_5_raw, as_points = FALSE, merge = FALSE) %>%
-#   rename(pop = 1) %>%
-#   st_transform(., 4326)
-
-# Get and bind GPW centroids
-# gpw_centroids <- st_centroid(gpw_30$geometry) %>%
-#   st_coordinates() %>%
-#   as_tibble() %>%
-#   rename_with(~paste0("centroid_", tolower(.)))
-
-## Admin unit shapefiles
-# nga_shp <- st_as_sf(nga_shp_raw) %>%
-#   mutate(across(c(UN_2020_E), ~as.numeric(levels(.))[.])) # turn factor into numeric
-
+# cities %>%
+#   st_cast("POINT") %>%
+#   st_distance(st_centroid(cities))
+# 
+# st_sf(cities$geometry)
 
 ###### Format election data
 

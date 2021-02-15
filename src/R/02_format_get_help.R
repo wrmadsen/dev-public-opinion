@@ -32,57 +32,81 @@ reign <- reign_raw %>%
          date_plus_one = date + days(1)) %>%
   filter(date >= as.Date("2006-07-15")) # when Twitter full version went live
 
-# Boundaries to collect Tweets from
+###### GPW admin unit data
+gpw <- gpw_raw %>%
+  clean_names() %>%
+  arrange(countrynm, name1, name2, name3, name4, name5, name6) %>%
+  select(countrynm, name1, name2, name3, name4, name5, name6, total_a_km, un_2020_e)
 
-# Subset before joining (otherwise will be slow)
-gadm_bbox <- st_bbox(gadm_1)
+###### Format GADM subnational boundary data
+# Only includes certain countries we'd picked out
+gadm_1 <- gadm_1_raw %>%
+  clean_names() %>%
+  select(name_0, name_1, engtype_1, geometry)
 
-bbox_wrap <- function(x) st_as_sf(x)
+###### Create scraper locations object
+# Join region polygons and admin points and calculate smallest distance
+# Cut off to only include GPW points which are within GADM regions
+scrape_regions <- st_join(gadm_1, gpw) %>%
+  arrange(countrynm, name1, name2) %>%
+  st_transform(., 27700) # British National Grid to work in meters, required for the scraping radius
 
-gadm_1 %>%
+## Add GPW points to dataframe with region polygon geometry
+## Ensures that points geometry are in same order as polygon region geometry
+gpw_bng <- gpw %>%
+  st_transform(., 27700) %>%
+  select(-c(total_a_km, un_2020_e))
+
+scrape_points <- scrape_regions %>%
   as_tibble() %>%
-  group_by(name_0) %>%
-  summarise(geometry = st_union(geometry)) %>%
-  mutate(geometry = st_sfc(geometry))
+  select(-geometry) %>%
+  left_join(., gpw_bng, by = c("countrynm", "name1", "name2", "name3", "name4", "name5", "name6")) %>%
+  st_as_sf() %>%
+  mutate(across(1:10, as.character),
+         across(1:10, ~if_else(. == "NA", NA_character_, .)),
+         gpw_smallest = case_when(!is.na(name6) ~ name6, # create variable with most granular GPW name
+                                  !is.na(name5) ~ name5,
+                                  !is.na(name4) ~ name4,
+                                  !is.na(name3) ~ name3,
+                                  !is.na(name2) ~ name2,
+                                  !is.na(name1) ~ name1)
+         ) %>%
+  select(name_0, name_1, engtype_1, gpw_smallest,
+         gpw_1 = name1, gpw_2 = name2, gpw_3 = name3, gpw_4 = name4, gpw_5 = name5, gpw_6 = name6,
+         total_a_km, un_2020_e, geometry) %>%
+  arrange(name_0, name_1, gpw_smallest)
 
+# Calculate smallest distance
+## Convert to linestring before calculating distance
+## https://github.com/r-spatial/sf/issues/1290
+scrape_regions_line <- st_geometry(obj = scrape_regions) %>%
+  st_cast(to = "LINESTRING")
 
-  nest() %>%
-  unnest() %>%
-  
-  mutate(bbox = map(data, bbox_wrap))
+scrape_points$radius <- st_distance(scrape_regions_line, scrape_points, by_element = TRUE) # in meters
 
+scrape_points <- scrape_points %>%
+  mutate(radius_m = as.double(radius))
 
+# Create circle polygon showing scraping area
+## Reproject to 27700 first in order to buffer in meters
+scrape_circles <- scrape_points %>%
+  st_transform(., 27700) %>%
+  st_buffer(., scrape_points$radius_m)
 
+# Create main scraper locations object
+## Can also subset number of locations used for each region
+scrape_locations <- scrape_points %>%
+  st_transform(4326) %>% # transform back to 4326 to get long and lat
+  mutate(x = st_coordinates(geometry)[,1],
+         y = st_coordinates(geometry)[,2]
+  ) %>%
+  mutate(area_circle = st_area(scrape_circles$geometry),
+         area_circle_km = as.double(area_circle)/1000000,
+         radius_km = radius_m/1000,
+         geocode = paste0(x, ",", y, ",", radius_km, "km")
+  ) %>%
+  group_by()
 
-st_crop(gpw_5, gadm_bbox)
-
-## Join raster data with boundary data
-### Double check the kind of join desired, some overlap
-ras_5_bound <- st_join(gpw_5, gadm_1, join = st_nearest_feature)
-
-
-  filter(!is.na(name_0)) %>%
-  mutate(across(c(name_0, name_1, engtype_1), as.character))
-
-## Add centroids
-ras_5_bound$centroid <- st_centroid(ras_5_bound$geometry)
-
-# Correct for rasters that cross between 
-
-# Print largest per subregion
-ras_5_bound %>%
-  as.data.frame() %>%
-  filter(name_0 == "Jordan") %>%
-  group_by(name_1) %>%
-  slice_max(order_by = pop, n = 3) %>%
-  arrange(name_1, pop)
-
-# Plot
-ras_5_bound %>%
-  filter(name_0 == "Jordan") %>%
-  ggplot() +
-  geom_sf(aes(fill = log(pop))) +
-  geom_sf(data = gadm_1[gadm_1$name_0 == "Jordan",], fill = NA, colour = "red")
 
 ###### Bind data
 get_help <- reign %>%
