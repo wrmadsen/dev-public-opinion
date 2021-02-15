@@ -1,6 +1,9 @@
 ###### Plot
 
-###### Plot different data on English speakers
+
+
+###### English-speakers plot
+# Plot different data on English speakers
 supp %>%
   ggplot(.,
          aes(x = eng_prop_wiki,
@@ -10,7 +13,7 @@ supp %>%
   geom_label_repel(aes(label = paste0(country, " ", year))) +
   labs(title = "Different sources on English speakers per country")
 
-###### Plot English speaking population against corruption index
+# Plot English speaking population against corruption index
 supp %>%
   #filter(wgi_est < 1) %>%
   filter(twitter_users_pc < 0.3) %>%
@@ -21,7 +24,7 @@ supp %>%
   geom_label_repel(aes(label = paste0(country, " ", year))) +
   labs(title = "English-speaking share by voice and accountability index")
 
-###### Plot number of tweets every week
+# Plot number of tweets every week
 tweets %>%
   filter(country == "Nigeria") %>%
   mutate(week = floor_date(date, unit = "week"),
@@ -38,11 +41,11 @@ tweets %>%
   ) 
 
 
-###### Map Tweets as points
+# Map Tweets as points
 world1 <- map("world", plot = FALSE, fill = TRUE) %>% sf::st_as_sf()
 sf::st_as_sf(map("africa", plot = FALSE, fill = TRUE))
 
-###### Nigeria NE
+# Nigeria NE
 nigeria_sf <- world1 %>% filter(ID == "Nigeria")
 
 tweets_n <- nrow(tweets)
@@ -59,7 +62,7 @@ ggplot() +
   theme_bw()
 
 
-###### Plot shapefiles data from GDL
+# Plot shapefiles data from GDL
 subnat %>%
   filter(country == "Afghanistan") %>%
   #filter(year == 2018) %>%
@@ -68,34 +71,16 @@ subnat %>%
   geom_text(aes(label = region, x = centroid_X, y = centroid_Y)) +
   facet_wrap(~year)
 
-
-###### Map spatial data from GPW
-nga_shp_big <- nga_shp %>%
-  filter(UN_2020_E > 600000)
-
-ggplot() +
-  #geom_sf(aes(fill = pop)) +
-  #geom_sf(data = ne) + # boundary lines
-  geom_sf(data = gpw_30_ext, alpha = 0.5) + # GPW areas
-  geom_text_repel(data = nga_shp_big, aes(label = NAME2, x = CENTROID_X, y = CENTROID_Y)) +
-  geom_sf(data = nga_shp_big) + # GPW admin shapefiles
-  #coord_sf(xlim = c(2.5, 15), ylim = c(4, 15), expand = FALSE) +
-  coord_sf(xlim = c(2.5, 4), ylim = c(6, 8), expand = FALSE) +
-  labs(title = "GPW Population Counts",
-       subtitle = NULL) +
-  theme_bw()
-
-
-###### OCHA
-ocha_raw %>%
+###### Methodology plots
+# Plot scraper circles
+scrape_circles %>%
+  filter(countrynm == "Jordan") %>%
   ggplot() +
-  geom_sf()
+  geom_sf(colour = "red", show.legend = FALSE, fill = NA) +
+  geom_sf(data = scrape_points[scrape_points$name_0 == "Jordan",],
+          colour = "blue") +
+  geom_sf(data = st_transform(gadm_1[gadm_1$name_0 == "Jordan",], 27700),
+          colour = "black", fill = NA)
 
 
-###### Plot boundaries against raster pop data
-ggplot(gadm_1) +
-  geom_sf(data = gpw_30, aes(fill = pop), colour = "black", alpha = 0.5) +
-  geom_sf(colour = "red", alpha = 0.5) +
-  geom_sf_label(aes(label = name_1)) +
-  coord_sf(xlim = c(34, 40), ylim = c(29, 34), expand = FALSE)
-  
+

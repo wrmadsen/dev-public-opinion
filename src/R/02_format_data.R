@@ -161,7 +161,8 @@ gdl_simp <- gdl_sf %>%
 ###### GPW admin unit data
 gpw <- gpw_raw %>%
   clean_names() %>%
-  arrange(countrynm, name1, name2, name3, name4)
+  arrange(countrynm, name1, name2, name3, name4) %>%
+  select(countrynm, name1, name2, name3, name4)
 
 filter(countrynm == "Jordan")
 
@@ -186,98 +187,46 @@ gpw %>%
   coord_sf(xlim = c(35, 37), ylim = c(31.5, 32.5), expand = FALSE) +
   NULL
 
+# Join region polygons and admin points and calculate smallest distance
+# Cut off to only include GPW points which are within GADM regions
+scrape_regions <- st_join(gadm_1, gpw) %>%
+  arrange(countrynm, name1, name2) %>%
+  st_transform(., 27700) # British National Grid to work in meters, required for the scraping radius
 
+## Add GPW points to dataframe with region polygon geometry
+## Ensures that points geometry are in same order as polygon region geometry
+scrape_points <- scrape_regions %>%
+  as_tibble() %>%
+  select(-geometry) %>%
+  left_join(., st_transform(gpw, 27700), by = c("countrynm", "name1", "name2", "name3", "name4")) %>%
+  st_as_sf()
 
+# Calculate smallest distance
+## Convert to linestring before calculating distance
+## https://github.com/r-spatial/sf/issues/1290
+scrape_regions_line <- st_geometry(obj = scrape_regions) %>%
+  st_cast(to = "LINESTRING")
+
+scrape_points$radius <- st_distance(scrape_regions_line, scrape_points, by_element = TRUE) # in meters
+
+scrape_points <- scrape_points %>%
+  mutate(radius_m = as.double(radius))
+
+# Create circle polygon showing scraping area
+## Reproject to 27700 first in order to buffer in meters
+scrape_circles <- scrape_points %>%
+  st_transform(., 27700) %>%
+  st_buffer(., scrape_points$radius_m)
+
+# Create main scraper locations object
+scrape_points %>%
+  st_transform(4326) %>%
+  
 
 ###### Format city data
 ###### Africapolis
 afri_polis <- afri_polis_raw %>%
   clean_names()
-
-###### NE urban landscan
-## mean_bb_xc and mean_bb_yc is midpoint
-
-## Subset to only include cities within countries that are being analysed
-### Join by regional boundary data
-### This is for the countries and subnational regions we want to scrape
-
-# Add buffer to make sf valid to join
-landscan_buff <- st_buffer(landscan_raw, dist = 0)
-
-# Join to subset
-## Desired output 
-# cities_cut <- st_join(landscan_buff, gadm_1, join = st_overlaps, largest = TRUE) %>%
-#   select(name_0, name_1, engtype_1, city = name_conve, geometry) %>%
-#   arrange(name_0, city)
-
-## Join with region data and drop smaller parts of cities that overlap with other regions
-## Note that the columns with population data are now not representative
-cities_cut <- st_intersection(landscan_buff, gadm_1) %>%
-  select(name_0, name_1, engtype_1, city = name_conve, geometry) %>%
-  arrange(name_0, city) %>%
-  group_by(city) %>%
-  filter(st_area(geometry) == max(st_area(geometry))) # drop smallest intersections that extend into other regions
-
-pop_points <- x
-pop_points_raw %>%
-  clean_names() %>%
-  view
-
-  names
-  select(sov0name, name_en, pop2015, geometry)
-
-st_intersection(pop_points, gadm_1) %>%
-  view()
-
-## Some NE cities were not located in 
-gadm_1 %>%
-  filter(!name_1 %in% cities_cut$name_1)
-
-## Reset row names
-#rownames(cities_int) <- NULL
-
-## Drop split city features which crossed over into a different country
-#cities
-
-# Plot city against region boundaries, Jordan as an example, illustrating st_join()
-cities_cut %>%
-  filter(city == "Amman") %>%
-  #filter(name_1 == "Balqa") %>%
-  ggplot() +
-  geom_sf(aes(fill = name_1)) +
-  geom_sf(data = gadm_1[gadm_1$name_0 == "Jordan",], colour = "black", fill = NA) + 
-  geom_sf_label(data = gadm_1[gadm_1$name_0 == "Jordan",], aes(label = name_1)) +
-  coord_sf(xlim = c(35, 37), ylim = c(31.5, 32.5), expand = FALSE) +
-  NULL
-
-## Get points of middle of city boundaries, bbox
-### Cannot use original NE bbox variables as they refer to previous, non-split city polygons
-st_bbox_by_feature = function(x) {
-  x = st_geometry(x)
-  f <- function(y) st_as_sfc(st_bbox(y))
-  do.call("c", lapply(x, f))
-}
-
-cities_cut$bbox = st_bbox_by_feature(cities_cut$geometry)
-
-cities_cut %>%
-  group_by(city) %>%
-  st_bbox(geometry)
-
-  st_as_sf(coords = c("mean_bb_xc", "mean_bb_yc"), crs = 4326) %>%
-  select(name_conve, geometry)
-
-## Get points of a corner of city boundaries, bbox
-cities_corner <- cities_int %>%
-  as_tibble() %>%
-  st_as_sf(coords = c("min_bb_xmi", "min_bb_ymi"), crs = 4326) %>%
-  select(name_conve, geometry)
-  
-## Find distance between points, which will be the radius to scrape Tweets within 
-radius_km <- st_distance(landscan_mid$geometry, landscan_corner$geometry, by_element = TRUE)/1000 # divide to convert m to km
-
-## Join radius to dataset
-
 
 ###### Cities, ArcGIS, long and lat
 cities <- cities_raw %>%
@@ -291,7 +240,6 @@ cities %>%
   st_distance(st_centroid(cities))
 
 st_sf(cities$geometry)
-?st_sf
 
 
 ###### Format GPW data
