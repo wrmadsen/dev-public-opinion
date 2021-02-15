@@ -153,6 +153,18 @@ gdl_simp <- gdl_sf %>%
   mutate(geometry = st_simplify(geometry, dTolerance = 0.05)) %>%
   bind_cols(gdl_centroids)
 
+# gdl_sf %>%
+#   filter(country == "Nigeria") %>%
+#   ggplot() +
+#   geom_sf()
+
+###### GPW admin unit data
+gpw <- gpw_raw %>%
+  clean_names() %>%
+  arrange(countrynm, name1, name2, name3, name4)
+
+filter(countrynm == "Jordan")
+
 ###### Format GADM subnational boundary data
 # Only includes certain countries we'd picked out
 gadm_1 <- gadm_1_raw %>%
@@ -162,6 +174,20 @@ gadm_1 <- gadm_1_raw %>%
 # Drop geo to easily check names
 gadm_1_df <- as.data.frame(gadm_1) %>%
   select(-geometry)
+
+# Plot gadm against GPW admin
+gpw %>%
+  filter(countrynm == "Jordan") %>%
+  #filter(name_1 == "Balqa") %>%
+  ggplot() +
+  geom_sf(aes(colour = name3), show.legend = FALSE) +
+  geom_sf(data = gadm_1[gadm_1$name_0 == "Jordan",], colour = "black", fill = NA) + 
+  geom_sf_label(data = gadm_1[gadm_1$name_0 == "Jordan",], aes(label = name_1)) +
+  coord_sf(xlim = c(35, 37), ylim = c(31.5, 32.5), expand = FALSE) +
+  NULL
+
+
+
 
 ###### Format city data
 ###### Africapolis
@@ -180,29 +206,64 @@ landscan_buff <- st_buffer(landscan_raw, dist = 0)
 
 # Join to subset
 ## Desired output 
-#landscan <- st_join(landscan_buff, gadm_1, join = st_overlaps, largest = TRUE)
+# cities_cut <- st_join(landscan_buff, gadm_1, join = st_overlaps, largest = TRUE) %>%
+#   select(name_0, name_1, engtype_1, city = name_conve, geometry) %>%
+#   arrange(name_0, city)
 
-## Split city polygons if they span several regions
-## This also joins city and region data
+## Join with region data and drop smaller parts of cities that overlap with other regions
 ## Note that the columns with population data are now not representative
-cities_int <- st_intersection(landscan_buff, gadm_1)
+cities_cut <- st_intersection(landscan_buff, gadm_1) %>%
+  select(name_0, name_1, engtype_1, city = name_conve, geometry) %>%
+  arrange(name_0, city) %>%
+  group_by(city) %>%
+  filter(st_area(geometry) == max(st_area(geometry))) # drop smallest intersections that extend into other regions
+
+pop_points <- x
+pop_points_raw %>%
+  clean_names() %>%
+  view
+
+  names
+  select(sov0name, name_en, pop2015, geometry)
+
+st_intersection(pop_points, gadm_1) %>%
+  view()
+
+## Some NE cities were not located in 
+gadm_1 %>%
+  filter(!name_1 %in% cities_cut$name_1)
+
+## Reset row names
+#rownames(cities_int) <- NULL
+
+## Drop split city features which crossed over into a different country
+#cities
 
 # Plot city against region boundaries, Jordan as an example, illustrating st_join()
-cities_int %>%
-  filter(name_conve == "Amman") %>%
+cities_cut %>%
+  filter(city == "Amman") %>%
   #filter(name_1 == "Balqa") %>%
   ggplot() +
-  geom_sf(aes(fill = name_1))
+  geom_sf(aes(fill = name_1)) +
   geom_sf(data = gadm_1[gadm_1$name_0 == "Jordan",], colour = "black", fill = NA) + 
   geom_sf_label(data = gadm_1[gadm_1$name_0 == "Jordan",], aes(label = name_1)) +
-  coord_sf(xlim = c(35, 37), ylim = c(31.5, 32.5), expand = FALSE)
+  coord_sf(xlim = c(35, 37), ylim = c(31.5, 32.5), expand = FALSE) +
+  NULL
 
 ## Get points of middle of city boundaries, bbox
 ### Cannot use original NE bbox variables as they refer to previous, non-split city polygons
-cities_mid <- x
-cities_int %>%
-  group_by()
+st_bbox_by_feature = function(x) {
+  x = st_geometry(x)
+  f <- function(y) st_as_sfc(st_bbox(y))
+  do.call("c", lapply(x, f))
+}
+
+cities_cut$bbox = st_bbox_by_feature(cities_cut$geometry)
+
+cities_cut %>%
+  group_by(city) %>%
   st_bbox(geometry)
+
   st_as_sf(coords = c("mean_bb_xc", "mean_bb_yc"), crs = 4326) %>%
   select(name_conve, geometry)
 

@@ -40,6 +40,7 @@ Since the scraping of Tweets is done selecting a point and a radius, I need to d
 * Scrape by city data: Africapolis, Global Data Lab. Choose one or several cities within subnational regions. Scrape each city by the smallest possible circle which contains the city's boundary. To capture citizens outside of these urbans areas, the circle could be extend to a radius from the centroid to the nearest polygon border.
 * Scrape points by a mix of populous and random GPW population rasters. Siginificant processing required and problems with rasters crossing different countries and regions. Little difference compared to using less demanding city data.
 * Scrape by the largest possible circle which can fit within the region polygon
+* Scrape by night light data to fit the largest possible circle around a lit point with a region polygon
 
 Use GPW population count raster data, converted to polygons, to determine scraping locations and radius. With high spatial granularity down to 1 km and data across years (2010, 2015, 2020), these can be used for a consistent way of finding a radius. 
 * Seems to have a raster dataset including population by sex and age
@@ -113,8 +114,7 @@ Depends on what is available for each country. For example, if a country's offic
 * Africapolis, database of thousands of cities in Africa: https://africapolis.org/data
 * World Cities, https://hub.arcgis.com/datasets/6996f03a1b364dbab4008d99380370ed_0
 * Natural Earth, urban landscan: https://www.naturalearthdata.com/downloads/10m-cultural-vectors/10m-populated-places/
-* Natural Earth, https://www.naturalearthdata.com/downloads/50m-cultural-vectors/
-* World Bank, boundaries: https://datacatalog.worldbank.org/dataset/world-bank-official-boundaries/resource/e2ced400-e63e-415b-9c4d-8138fdc21bb0, https://datacatalog.worldbank.org/dataset/world-subnational-boundaries, https://datacatalog.worldbank.org/dataset/world-bank-official-boundaries
+* NASA, night light: https://earthobservatory.nasa.gov/features/NightLights/page3.php
 * Oak Ridge, landscan: https://landscan.ornl.gov/
 ### Subnational boundaries
 * OCHA: https://data.humdata.org/search?q=subnational&ext_search_source=main-nav
@@ -147,3 +147,6 @@ Depends on what is available for each country. For example, if a country's offic
 * Twitter MAU, selected countries: https://www.businessofapps.com/data/twitter-statistics/ (Hootsuite/We Are Social)
 * https://www.arabsocialmediareport.com/home/index.aspx
 * https://investor.twitterinc.com/financial-information/quarterly-results/default.aspx
+### Not used currently
+* World Bank, boundaries: https://datacatalog.worldbank.org/dataset/world-bank-official-boundaries/resource/e2ced400-e63e-415b-9c4d-8138fdc21bb0, https://datacatalog.worldbank.org/dataset/world-subnational-boundaries, https://datacatalog.worldbank.org/dataset/world-bank-official-boundaries
+* Natural Earth, https://www.naturalearthdata.com/downloads/50m-cultural-vectors/

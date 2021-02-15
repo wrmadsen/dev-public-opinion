@@ -30,7 +30,7 @@ gdp_ppp_raw <- read_csv("data/raw/API_NY.GDP.MKTP.PP.KD_DS2_en_csv_v2_1928416.cs
 hootsuite_raw <- read_excel("data/raw/twitter_hootsuite.xlsx", skip = 1)
 
 # Load CLEA election data
-load("data/clea_lc_20201216.rdata")
+#load("data/election/clea_lc_20201216.rdata")
 
 ###### Load data to use in collecting Tweets
 # Load leader data from REIGN
@@ -57,6 +57,16 @@ cities_raw <- st_read("data/raw/World_Cities-shp/World_Cities.shp")
 # Natural Earth urban landscan of cities
 landscan_raw <- st_read("data/ne_10m_urban_areas_landscan/ne_10m_urban_areas_landscan.shp")
 
+# Natural Earth, populated places, points
+pop_points_raw <- st_read("data/ne_10m_populated_places/ne_10m_populated_places.shp")
+
+# NASA night light data
+night_light_raw <- read_stars("data/BlackMarble_2016_01deg_gray_geo.tif")
+
+# NASA HBASE, human settlement
+hbase_raw <- read_stars("data/01F_hbase_non_hbase_percentage_utm_1000m/01F_hbase_non_hbase_percentage_utm_1000m.tif")
+
+
 ###### Load region data
 # GDL shapefiles
 # save(gdl_shp_raw, file = "data/gdl_shp_raw.rdata") # save as rdata to speed up loading after first time
@@ -65,8 +75,8 @@ load("data/gdl_shp_raw.rdata")
 
 # GPW data
 # Load GPW4 Admin Unit data
-# gpw_raw <- list.files(pattern = "gpw_v4_admin_unit.+\\.csv", recursive = TRUE) %>%
-#   map_df(~read_csv(.))
+gpw_raw <- list.files(pattern = "gpw_v4_admin_unit.+\\.shp", recursive = TRUE) %>%
+  map_df(~st_read(.))
 
 # Load GPW4 Admin Unit shapefiles
 ## Nigeria
@@ -78,6 +88,7 @@ load("data/gdl_shp_raw.rdata")
 
 # Natural Earth cultural country boundaries
 #ne_raw <- st_read("data/ne_50m_admin_0_countries/ne_50m_admin_0_countries.shp")
+
 
 # OCHA boundary data
 ocha_raw <- st_read("data/nga_adm_osgof_20190417/nga_admbnda_adm1_osgof_20190417.shp")
