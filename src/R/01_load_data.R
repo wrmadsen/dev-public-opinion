@@ -55,23 +55,22 @@ afri_polis_raw <- read_excel("data/raw/Africapolis_agglomeration_2015.xlsx", ski
 cities_raw <- st_read("data/raw/World_Cities-shp/World_Cities.shp")
 
 # Natural Earth urban landscan of cities
-landscan_raw <- st_read("data/ne_10m_urban_areas_landscan/ne_10m_urban_areas_landscan.shp")
+#landscan_raw <- st_read("data/ne_10m_urban_areas_landscan/ne_10m_urban_areas_landscan.shp")
 
 # Natural Earth, populated places, points
-pop_points_raw <- st_read("data/ne_10m_populated_places/ne_10m_populated_places.shp")
+#pop_points_raw <- st_read("data/ne_10m_populated_places/ne_10m_populated_places.shp")
 
 # NASA night light data
-night_light_raw <- read_stars("data/BlackMarble_2016_01deg_gray_geo.tif")
+#night_light_raw <- read_stars("data/BlackMarble_2016_01deg_gray_geo.tif")
 
 # NASA HBASE, human settlement
-hbase_raw <- read_stars("data/01F_hbase_non_hbase_percentage_utm_1000m/01F_hbase_non_hbase_percentage_utm_1000m.tif")
+#hbase_raw <- read_stars("data/01F_hbase_non_hbase_percentage_utm_1000m/01F_hbase_non_hbase_percentage_utm_1000m.tif")
 
 
 ###### Load region data
 # GDL shapefiles
 # save(gdl_shp_raw, file = "data/gdl_shp_raw.rdata") # save as rdata to speed up loading after first time
 load("data/gdl_shp_raw.rdata")
-
 
 # GPW data
 # Load GPW4 Admin Unit data
@@ -89,9 +88,8 @@ gpw_raw <- list.files(pattern = "gpw_v4_admin_unit.+\\.shp", recursive = TRUE) %
 # Natural Earth cultural country boundaries
 #ne_raw <- st_read("data/ne_50m_admin_0_countries/ne_50m_admin_0_countries.shp")
 
-
 # OCHA boundary data
-ocha_raw <- st_read("data/nga_adm_osgof_20190417/nga_admbnda_adm1_osgof_20190417.shp")
+#ocha_raw <- st_read("data/nga_adm_osgof_20190417/nga_admbnda_adm1_osgof_20190417.shp")
 
 # GADM subnational admin boundaries
 gadm_1_raw <- list.files(pattern="gadm36.+1\\.shp$", full.names = TRUE, recursive = TRUE) %>%
@@ -107,3 +105,4 @@ stears_15_raw <- fromJSON("data/election/nigeria2015.json")
 afg_19_raw <- read_csv("data/election/2019-Presidential-national-presidential.csv")
 afg_14_raw <- read_csv("data/election/2014-Presidential-national-presidential.csv")
 afg_09_raw <- read_csv("data/election/2009-Presidential-national-presidential.csv")
+

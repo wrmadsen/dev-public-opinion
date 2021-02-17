@@ -6,6 +6,7 @@ To do:
 * Check leader names, tidy (issue with family names)
 * Add election data
 * Decide on which day a leader's term ends
+* Overlapping scraper circles: true centroids? 
 
 ## Research design
 ### How can public Twitter data be used to increase political accountability?

@@ -80,8 +80,9 @@ cpi <- cpi_raw %>%
 
 # WGI, Voice and accountability
 ## paste the first row with the column name and assigning them as column names
-colnames(wgi_raw) <- paste0(colnames(wgi_raw), wgi_raw[1, ])
-wgi <- wgi_raw %>%
+wgi <- wgi_raw
+colnames(wgi) <- paste0(colnames(wgi_raw), wgi_raw[1, ])
+wgi <- wgi %>%
   rename_with(~gsub("\\.\\.\\.\\d*", "_", .)) %>%
   slice(-1) %>%
   pivot_longer(cols = c(3:ncol(.)),

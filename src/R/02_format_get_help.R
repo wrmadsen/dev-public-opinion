@@ -1,12 +1,6 @@
 ###### Format data for getting Tweets
 
 ###### Clean
-# Geocodes
-# cap_geo <- cap_geo_raw %>%
-#   clean_names() %>%
-#   mutate(geocode = paste0(capital_latitude, ",", capital_longitude, ",20km")) %>%
-#   select(country = country_name, capital = capital_name, geocode)
-
 # Leadership from REIGN
 reign <- reign_raw %>%
   clean_names() %>%
@@ -36,13 +30,33 @@ reign <- reign_raw %>%
 gpw <- gpw_raw %>%
   clean_names() %>%
   arrange(countrynm, name1, name2, name3, name4, name5, name6) %>%
-  select(countrynm, name1, name2, name3, name4, name5, name6, total_a_km, un_2020_e)
+  mutate(across(c(countrynm, name1, name2, name3, name4, name5, name6), as.character),
+         across(c(countrynm, name1, name2, name3, name4, name5, name6), ~if_else(. == "NA", NA_character_, .)),
+         gpw_smallest = case_when(!is.na(name6) ~ name6, # create variable with most granular GPW name
+                                  !is.na(name5) ~ name5,
+                                  !is.na(name4) ~ name4,
+                                  !is.na(name3) ~ name3,
+                                  !is.na(name2) ~ name2,
+                                  !is.na(name1) ~ name1),
+         gpw_id = row_number()
+  ) %>%
+  select(gpw_id, countrynm, gpw_smallest, name1, name2, name3, name4, name5, name6, total_a_km, un_2020_e)
+
+sapply(gpw, class)
 
 ###### Format GADM subnational boundary data
 # Only includes certain countries we'd picked out
 gadm_1 <- gadm_1_raw %>%
   clean_names() %>%
-  select(name_0, name_1, engtype_1, geometry)
+  transmute(across(c(name_0, name_1, engtype_1), as.character),
+            geometry,
+            gadm_id = row_number()
+            )
+
+# Simplify and transform to BNG for plotting
+gadm_1_simp <- gadm_1 %>%
+  st_transform(27700) %>%
+  st_simplify(., dTolerance = 1000)
 
 ###### Create scraper locations object
 # Join region polygons and admin points and calculate smallest distance
@@ -51,67 +65,109 @@ scrape_regions <- st_join(gadm_1, gpw) %>%
   arrange(countrynm, name1, name2) %>%
   st_transform(., 27700) # British National Grid to work in meters, required for the scraping radius
 
+scrape_regions
+
+sapply(scrape_regions, class)
+
+###### Calculate radius per point
+## https://github.com/r-spatial/sf/issues/1290
 ## Add GPW points to dataframe with region polygon geometry
 ## Ensures that points geometry are in same order as polygon region geometry
+
+## Rename GPW points geometry before joining
 gpw_bng <- gpw %>%
-  st_transform(., 27700) %>%
-  select(-c(total_a_km, un_2020_e))
+  st_transform(., 27700) %>% # transform to BNG
+  select(-c(total_a_km, un_2020_e)) %>%
+  as.data.frame() %>%
+  rename(geometry_point = geometry)
 
-scrape_points <- scrape_regions %>%
-  as_tibble() %>%
-  select(-geometry) %>%
-  left_join(., gpw_bng, by = c("countrynm", "name1", "name2", "name3", "name4", "name5", "name6")) %>%
-  st_as_sf() %>%
-  mutate(across(1:10, as.character),
-         across(1:10, ~if_else(. == "NA", NA_character_, .)),
-         gpw_smallest = case_when(!is.na(name6) ~ name6, # create variable with most granular GPW name
-                                  !is.na(name5) ~ name5,
-                                  !is.na(name4) ~ name4,
-                                  !is.na(name3) ~ name3,
-                                  !is.na(name2) ~ name2,
-                                  !is.na(name1) ~ name1)
-         ) %>%
-  select(name_0, name_1, engtype_1, gpw_smallest,
-         gpw_1 = name1, gpw_2 = name2, gpw_3 = name3, gpw_4 = name4, gpw_5 = name5, gpw_6 = name6,
-         total_a_km, un_2020_e, geometry) %>%
-  arrange(name_0, name_1, gpw_smallest)
-
-# Calculate smallest distance
 ## Convert to linestring before calculating distance
-## https://github.com/r-spatial/sf/issues/1290
-scrape_regions_line <- st_geometry(obj = scrape_regions) %>%
-  st_cast(to = "LINESTRING")
+scrape_regions_line <- scrape_regions %>%
+  st_cast(to = "MULTILINESTRING", ) %>%
+  as.data.frame() %>% # convert to df to rename geometry to be able to join with points geometry
+  rename(geometry_line = geometry)
 
-scrape_points$radius <- st_distance(scrape_regions_line, scrape_points, by_element = TRUE) # in meters
+## Join points and lines before finding smallest distance between the two (which is the radius for each point's circle)
+### Ensures they are in correct order and match
+scrape_find_radius <- left_join(scrape_regions_line, gpw_bng,
+                                by = c("gpw_id", "countrynm", "gpw_smallest", "name1", "name2", "name3", "name4", "name5", "name6"))
 
-scrape_points <- scrape_points %>%
-  mutate(radius_m = as.double(radius))
+dist_lines <- st_as_sf(scrape_find_radius$geometry_line)
+dist_points <- st_as_sf(scrape_find_radius$geometry_point)
+
+# Calculate distances, in metres
+distance <- st_distance(dist_lines, dist_points,
+                         by_element = TRUE,
+                         which = "Euclidean"
+                         )
+
+# Find smallest distance, i.e. radius
+radius <- distances %>%
+  as_tibble() %>%
+  mutate(point = row_number()) %>%
+  pivot_longer(cols = 1:ncol(.)-1, names_to = "line", values_to = "distance") %>%
+  mutate(line = gsub("V", "", line) %>% as.integer,
+         ) %>%
+  group_by(line) %>%
+  slice_min(distance_m) %>%
+  arrange(line)
+
+scrape_find_radius$radius <- distance
 
 # Create circle polygon showing scraping area
 ## Reproject to 27700 first in order to buffer in meters
+#scrape_find_radius$geometry_point <- st_as_sf(scrape_find_radius$geometry_point)
+scrape_points <- scrape_find_radius %>%
+  mutate(radius_m = as.double(radius)) %>%
+  select(-geometry_line) %>%
+  rename(geometry = geometry_point) %>%
+  as_tibble() %>%
+  st_as_sf()
+
 scrape_circles <- scrape_points %>%
-  st_transform(., 27700) %>%
-  st_buffer(., scrape_points$radius_m)
+  st_buffer(., .$radius_m)
+
+## Simplify circles for plotting
+scrape_circles_simp <- st_simplify(scrape_circles, dTolerance = 1000)
 
 # Create main scraper locations object
-## Can also subset number of locations used for each region
-scrape_locations <- scrape_points %>%
+## Could add code to subset number of locations used for each region
+## e.g. three most populous, with largest circles, random, etc.
+scrape_locations_sf <- scrape_points %>%
   st_transform(4326) %>% # transform back to 4326 to get long and lat
   mutate(x = st_coordinates(geometry)[,1],
          y = st_coordinates(geometry)[,2]
   ) %>%
-  mutate(area_circle = st_area(scrape_circles$geometry),
-         area_circle_km = as.double(area_circle)/1000000,
+  mutate(area_circle_m = st_area(scrape_circles$geometry),
+         area_circle_km = as.double(area_circle_m)/1000000,
          radius_km = radius_m/1000,
          geocode = paste0(x, ",", y, ",", radius_km, "km")
-  ) %>%
-  group_by()
+  )
 
+## Subset variables for join
+scrape_locations <- scrape_locations_sf %>%
+  as_tibble() %>%
+  select(country = name_0, region = name_1, region_type = engtype_1, gpw_smallest, geocode)
 
-###### Bind data
-get_help <- reign %>%
-  left_join(cap_geo, by = "country") %>%
-  mutate(proxy_no = rep(1:nrow(proxy), length.out = nrow(.))) %>% # repeat 1-300 to add proxy IPs
-  left_join(proxy, by = "proxy_no") %>% # add rotating proxies
-  mutate(port = as.integer(port))
+## Number of locations per country
+scrape_locations %>%
+  group_by(country) %>%
+  summarise(n = n())
 
+## Number of points at lowest GPW admin level
+scrape_locations_sf %>%
+  as_tibble() %>%
+  group_by(gpw_smallest) %>%
+  transmute(name1, name2, name3, name_0, name_1, gpw_smallest, n = n()) %>%
+  arrange(-n)
+
+###### Join data
+# Takes a while to join
+scraper_help <- reign %>%
+  left_join(scrape_locations, by = "country")
+#mutate(proxy_no = rep(1:nrow(proxy), length.out = nrow(.))) %>% # repeat 1-300 to add proxy IPs
+#left_join(proxy, by = "proxy_no") %>% # add rotating proxies
+#mutate(port = as.integer(port))
+
+scraper_help %>%
+  filter(country == "Nigeria")

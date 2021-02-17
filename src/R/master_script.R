@@ -9,7 +9,7 @@ source("src/R/01_load_data.R")
 # Format data
 source("src/R/02_format_data.R")
 
-# Format Get help data
+# Format scraper help data
 source("src/R/02_format_get_help.R")
 
 # Get tweets
