@@ -74,37 +74,17 @@ subnat %>%
 scrape_circles_simp %>%
   filter(name_0 == "Nigeria") %>%
   #filter(name_1 == "Borno") %>%
+  filter(covered == 1) %>%
   ggplot() +
-  geom_sf(colour = "orange", fill = NA,  show.legend = FALSE) +
+  geom_sf(aes(colour = as.factor(covered)), fill = NA,  show.legend = TRUE) +
   geom_sf(data = scrape_points[scrape_points$name_0 == "Nigeria",],
-          aes(size = un_2020_e), fill = "pink", shape = 21) +
+          fill = "pink", shape = 21) +
   geom_sf_label(data = gadm_1_simp[gadm_1_simp$name_0 == "Nigeria",],
-               aes(label = name_1)) +
+                aes(label = name_1)) +
   geom_sf(data = gadm_1_simp[gadm_1_simp$name_0 == "Nigeria",],
           colour = "black", fill = NA) +
+  #facet_wrap(~covered) +
   labs(title = "Scraper locations in Nigeria")
-
-# Borno to check overlapping circles
-scrape_circles_simp$name_1 %>% unique()
-
-prob_countries <- c("Kano",
-                    #"Lagos",
-                    "Bauchi",
-                    "Borno",
-                    "Ondo"
-                    #"Delta"
-                    )
-
-scrape_circles_simp %>%
-  filter(name_1 %in% prob_countries)
-
-ggplot() +
-  geom_sf(data = scrape_circles_simp[scrape_circles_simp$name_1 %in% prob_countries,], fill = NA) +
-  #geom_sf(data = scrape_points[scrape_points$name_1 %in% prob_countries,], fill = NA) +
-  #geom_sf(data = gadm_1_simp[gadm_1_simp$name_1 %in% "Borno",], colour = "blue", fill = NA) +
-  geom_sf(data = gadm_1_simp[gadm_1_simp$name_1 %in% prob_countries,], colour = "black", fill = NA) + # regions
-  #geom_sf_label(data = gadm_1_simp[gadm_1_simp$name_0 == "Nigeria",], aes(label = name_1)) + # region names
-  labs(title = "Scraper circles for Borno in Nigeria: Solving the overlaps")
 
 # Plot GADM region polygons against GPW admin points
 gpw %>%

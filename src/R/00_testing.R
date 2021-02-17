@@ -18,3 +18,5 @@ distance <- st_distance(dist_lines, dist_points,
 plot(dist_points)
 
 plot(dist_lines)
+
+plot(scrape_circles_union)

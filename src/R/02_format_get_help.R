@@ -42,8 +42,6 @@ gpw <- gpw_raw %>%
   ) %>%
   select(gpw_id, countrynm, gpw_smallest, name1, name2, name3, name4, name5, name6, total_a_km, un_2020_e)
 
-sapply(gpw, class)
-
 ###### Format GADM subnational boundary data
 # Only includes certain countries we'd picked out
 gadm_1 <- gadm_1_raw %>%
@@ -51,7 +49,7 @@ gadm_1 <- gadm_1_raw %>%
   transmute(across(c(name_0, name_1, engtype_1), as.character),
             geometry,
             gadm_id = row_number()
-            )
+  )
 
 # Simplify and transform to BNG for plotting
 gadm_1_simp <- gadm_1 %>%
@@ -64,10 +62,6 @@ gadm_1_simp <- gadm_1 %>%
 scrape_regions <- st_join(gadm_1, gpw) %>%
   arrange(countrynm, name1, name2) %>%
   st_transform(., 27700) # British National Grid to work in meters, required for the scraping radius
-
-scrape_regions
-
-sapply(scrape_regions, class)
 
 ###### Calculate radius per point
 ## https://github.com/r-spatial/sf/issues/1290
@@ -97,20 +91,9 @@ dist_points <- st_as_sf(scrape_find_radius$geometry_point)
 
 # Calculate distances, in metres
 distance <- st_distance(dist_lines, dist_points,
-                         by_element = TRUE,
-                         which = "Euclidean"
-                         )
-
-# Find smallest distance, i.e. radius
-radius <- distances %>%
-  as_tibble() %>%
-  mutate(point = row_number()) %>%
-  pivot_longer(cols = 1:ncol(.)-1, names_to = "line", values_to = "distance") %>%
-  mutate(line = gsub("V", "", line) %>% as.integer,
-         ) %>%
-  group_by(line) %>%
-  slice_min(distance_m) %>%
-  arrange(line)
+                        by_element = TRUE,
+                        which = "Euclidean"
+)
 
 scrape_find_radius$radius <- distance
 
@@ -122,10 +105,34 @@ scrape_points <- scrape_find_radius %>%
   select(-geometry_line) %>%
   rename(geometry = geometry_point) %>%
   as_tibble() %>%
-  st_as_sf()
+  st_as_sf() %>%
+  mutate(row_number = row_number())
 
+## Identify points/circles that are covered by another
+### Check for each point if any points fall under its radius
+point_distances <- st_distance(scrape_points, scrape_points)
+
+points_covered <- point_distances %>%
+  as_tibble() %>%
+  mutate(point1 = row_number()) %>%
+  pivot_longer(1:ncol(.)-1, names_to = "point2", values_to = "distance_m") %>%
+  mutate(point2 = gsub("V", "", point2) %>% as.integer,
+         distance_m = as.double(distance_m)
+         ) %>%
+  left_join(., scrape_points %>% as.data.frame() %>% select(row_number, radius_m),  # join dataset with radius column
+            by = c("point1" = "row_number")) %>%
+  # check if distance to another point is lower than radius, remove distance to itself (0)
+  filter(distance_m != 0) %>%
+  mutate(covered = if_else(distance_m - radius_m < 0, 1, 0)) %>%
+  group_by(point1) %>%
+  summarise(covered = max(covered)) %>%
+  select(point1, covered) %>%
+  arrange(point1) 
+
+# Add coverage and buffer to create scraper circles
 scrape_circles <- scrape_points %>%
-  st_buffer(., .$radius_m)
+  st_buffer(., .$radius_m) %>%
+  left_join(., points_covered, by = c("row_number" = "point1"))
 
 ## Simplify circles for plotting
 scrape_circles_simp <- st_simplify(scrape_circles, dTolerance = 1000)
@@ -134,6 +141,7 @@ scrape_circles_simp <- st_simplify(scrape_circles, dTolerance = 1000)
 ## Could add code to subset number of locations used for each region
 ## e.g. three most populous, with largest circles, random, etc.
 scrape_locations_sf <- scrape_points %>%
+  left_join(., points_covered, by = c("row_number" = "point1")) %>%
   st_transform(4326) %>% # transform back to 4326 to get long and lat
   mutate(x = st_coordinates(geometry)[,1],
          y = st_coordinates(geometry)[,2]
@@ -160,6 +168,15 @@ scrape_locations_sf %>%
   group_by(gpw_smallest) %>%
   transmute(name1, name2, name3, name_0, name_1, gpw_smallest, n = n()) %>%
   arrange(-n)
+
+## Number of locations covered by another
+table(scrape_locations_sf$covered)
+
+## Covered locations are much smaller than those covered
+scrape_locations_sf %>%
+  as_tibble() %>%
+  group_by(covered) %>%
+  summarise(mean_area_circle_km = mean(area_circle_km))
 
 ###### Join data
 # Takes a while to join
