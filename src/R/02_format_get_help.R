@@ -108,31 +108,52 @@ scrape_points <- scrape_find_radius %>%
   st_as_sf() %>%
   mutate(row_number = row_number())
 
+# Add buffer to create scraper circles
+scrape_circles <- scrape_points %>%
+  st_buffer(., .$radius_m)
+
 ## Identify points/circles that are covered by another
-### Check for each point if any points fall under its radius
+### Check for each circles if the other circles cover it
+for (i in 1:800){
+  
+  # Check if covered by
+  covered_binary <- st_covered_by(scrape_circles[i,], scrape_circles[-i,])
+  
+  # Print
+  print(paste(i, covered_binary))
+  
+}
+
+scrape_circles[lengths(st_covered_by(scrape_circles, scrape_circles)) == 0,]
+
+
+
+
+
 point_distances <- st_distance(scrape_points, scrape_points)
 
-points_covered <- point_distances %>%
+points_covered <- x
+point_distances %>%
   as_tibble() %>%
   mutate(point1 = row_number()) %>%
   pivot_longer(1:ncol(.)-1, names_to = "point2", values_to = "distance_m") %>%
   mutate(point2 = gsub("V", "", point2) %>% as.integer,
          distance_m = as.double(distance_m)
-         ) %>%
-  left_join(., scrape_points %>% as.data.frame() %>% select(row_number, radius_m),  # join dataset with radius column
+  ) %>%
+  left_join(., scrape_points %>% as.data.frame() %>% select(row_number, radius_m_1 = radius_m),  # radius for point 1
             by = c("point1" = "row_number")) %>%
+  left_join(., scrape_points %>% as.data.frame() %>% select(row_number, radius_m_2 = radius_m),  # radius for point 2
+            by = c("point2" = "row_number")) %>%
   # check if distance to another point is lower than radius, remove distance to itself (0)
   filter(distance_m != 0) %>%
-  mutate(covered = if_else(distance_m - radius_m < 0, 1, 0)) %>%
+  mutate(diameter_m_2 = radius_m_2*2)
+  mutate(covered = if_else(distance_m - radius_m_1 < 0, 1, 0))
   group_by(point1) %>%
   summarise(covered = max(covered)) %>%
   select(point1, covered) %>%
   arrange(point1) 
 
-# Add coverage and buffer to create scraper circles
-scrape_circles <- scrape_points %>%
-  st_buffer(., .$radius_m) %>%
-  left_join(., points_covered, by = c("row_number" = "point1"))
+
 
 ## Simplify circles for plotting
 scrape_circles_simp <- st_simplify(scrape_circles, dTolerance = 1000)

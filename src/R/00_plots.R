@@ -74,7 +74,7 @@ subnat %>%
 scrape_circles_simp %>%
   filter(name_0 == "Nigeria") %>%
   #filter(name_1 == "Borno") %>%
-  filter(covered == 1) %>%
+  #filter(covered == 1) %>%
   ggplot() +
   geom_sf(aes(colour = as.factor(covered)), fill = NA,  show.legend = TRUE) +
   geom_sf(data = scrape_points[scrape_points$name_0 == "Nigeria",],
