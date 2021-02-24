@@ -1,30 +1,41 @@
 ###### Format data for getting Tweets
 
-###### Clean
-# Leadership from REIGN
+###### Create REIGN for which names to scrape by which frequency
 reign <- reign_raw %>%
   clean_names() %>%
   select(country, leader, year, month) %>%
   filter(lag(leader) != leader | lead(leader) != leader) %>%
-  mutate(date_type = if_else(lead(leader) != leader, "end", "start"),
+  mutate(date_type = if_else(lead(leader) != leader, "term_end", "term_start"),
          date = paste0(year, "-", str_pad(month, 2, "left", pad = "0"), "-01"),
          date = as.Date(date),
   ) %>%
-  filter(!(year < 2006 & date_type == "end" | date_type == "start" & lead(year) < 2006)) %>% # drop terms before 2006 (Twitter's founding)
+  # drop terms before 2006 (Twitter's founding)
+  filter(!(year < 2006 & date_type == "term_end" | date_type == "term_start" & lead(year) < 2006)) %>%
   select(country, leader, date_type, date) %>%
   group_by(country, leader, date_type) %>%
   mutate(term_n = paste0("term ", 1:n())) %>% # count terms per leader NEED TO ADJUST FOR NAMES, e.g. Løkke, father-son?
   ungroup() %>%
   pivot_wider(names_from = date_type, values_from = date) %>%
-  mutate(start = if_else(is.na(start), end, start),
+  mutate(term_start = if_else(is.na(term_start), term_end, term_start),
   ) %>%
   rowwise() %>%
-  mutate(date = list(seq.Date(start, end, by = "day"))) %>%
+  mutate(date = list(seq.Date(term_start, term_end, by = 3))) %>% # choose scraping frequency, day, week, or number of days
   tidyr::unnest(date) %>%
   mutate(country = case_when(country == "USA" ~ "United States",
                              TRUE ~ country),
-         date_plus_one = date + days(1)) %>%
+         plus_1 = date + days(1),
+         plus_3 = date + days(3),
+         plus_7 = date + days(7) # end of week
+         ) %>%
   filter(date >= as.Date("2006-07-15")) # when Twitter full version went live
+
+head(reign)
+
+###### Format election dataset with period to scrape each candidate from
+## Choose how long back you want to scrape data for losing election candidates
+candidates_scrape %>%
+  mutate(elex_start = (elex_date + months(2)) %>% floor_date(., unit = "month") # eg beginning of month two months ago
+         )
 
 ###### GPW admin unit data
 gpw <- gpw_raw %>%
@@ -108,61 +119,20 @@ scrape_points <- scrape_find_radius %>%
   st_as_sf() %>%
   mutate(row_number = row_number())
 
-# Add buffer to create scraper circles
+## Add buffer to create scraper circles
 scrape_circles <- scrape_points %>%
   st_buffer(., .$radius_m)
 
-## Identify points/circles that are covered by another
-### Check for each circles if the other circles cover it
-for (i in 1:800){
-  
-  # Check if covered by
-  covered_binary <- st_covered_by(scrape_circles[i,], scrape_circles[-i,])
-  
-  # Print
-  print(paste(i, covered_binary))
-  
-}
-
-scrape_circles[lengths(st_covered_by(scrape_circles, scrape_circles)) == 0,]
-
-
-
-
-
-point_distances <- st_distance(scrape_points, scrape_points)
-
-points_covered <- x
-point_distances %>%
-  as_tibble() %>%
-  mutate(point1 = row_number()) %>%
-  pivot_longer(1:ncol(.)-1, names_to = "point2", values_to = "distance_m") %>%
-  mutate(point2 = gsub("V", "", point2) %>% as.integer,
-         distance_m = as.double(distance_m)
-  ) %>%
-  left_join(., scrape_points %>% as.data.frame() %>% select(row_number, radius_m_1 = radius_m),  # radius for point 1
-            by = c("point1" = "row_number")) %>%
-  left_join(., scrape_points %>% as.data.frame() %>% select(row_number, radius_m_2 = radius_m),  # radius for point 2
-            by = c("point2" = "row_number")) %>%
-  # check if distance to another point is lower than radius, remove distance to itself (0)
-  filter(distance_m != 0) %>%
-  mutate(diameter_m_2 = radius_m_2*2)
-  mutate(covered = if_else(distance_m - radius_m_1 < 0, 1, 0))
-  group_by(point1) %>%
-  summarise(covered = max(covered)) %>%
-  select(point1, covered) %>%
-  arrange(point1) 
-
-
-
 ## Simplify circles for plotting
 scrape_circles_simp <- st_simplify(scrape_circles, dTolerance = 1000)
+
+## Overlapping circles does not seem to be fixable by simply checking which circles are within one another
+## can instead use the extent to which they overlap to filter out
 
 # Create main scraper locations object
 ## Could add code to subset number of locations used for each region
 ## e.g. three most populous, with largest circles, random, etc.
 scrape_locations_sf <- scrape_points %>%
-  left_join(., points_covered, by = c("row_number" = "point1")) %>%
   st_transform(4326) %>% # transform back to 4326 to get long and lat
   mutate(x = st_coordinates(geometry)[,1],
          y = st_coordinates(geometry)[,2]
@@ -190,19 +160,17 @@ scrape_locations_sf %>%
   transmute(name1, name2, name3, name_0, name_1, gpw_smallest, n = n()) %>%
   arrange(-n)
 
-## Number of locations covered by another
-table(scrape_locations_sf$covered)
-
 ## Covered locations are much smaller than those covered
-scrape_locations_sf %>%
-  as_tibble() %>%
-  group_by(covered) %>%
-  summarise(mean_area_circle_km = mean(area_circle_km))
+# scrape_locations_sf %>%
+#   as_tibble() %>%
+#   group_by(covered) %>%
+#   summarise(mean_area_circle_km = mean(area_circle_km))
 
 ###### Join data
 # Takes a while to join
 scraper_help <- reign %>%
-  left_join(scrape_locations, by = "country")
+  left_join(scrape_locations, by = "country") %>%
+  filter(!is.na(geocode))
 #mutate(proxy_no = rep(1:nrow(proxy), length.out = nrow(.))) %>% # repeat 1-300 to add proxy IPs
 #left_join(proxy, by = "proxy_no") %>% # add rotating proxies
 #mutate(port = as.integer(port))

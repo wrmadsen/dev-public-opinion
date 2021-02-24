@@ -6,7 +6,9 @@ To do:
 * Check leader names, tidy (issue with family names)
 * Add election data
 * Decide on which day a leader's term ends
-* Overlapping scraper circles: true centroids? 
+* Collect data for two individuals during same period - during election period, etc. (e.g. from two months before election)
+* Overlapping scraper circles
+* Events data to explain or validate changes in public opinion (qualitative/visual validation)
 
 ## Research design
 ### How can public Twitter data be used to increase political accountability?
@@ -18,10 +20,13 @@ Using Twitter data, I aim to estimate public opinion and investigate to what ext
 2. Tweet analysis:
 	* Sentiment analysis: Classifying each Tweet
 	* Extracting individual-level covariates (gender, age, location, etc.)
-3. Public opinion prediction:
-	* Simple favourability proportion (% share who favours a leader over time)
-4. Comparison and validation
+3. Public opinion prediction: Simple favourability proportion (% share who favours a leader over time)
+	* Machine learning with training data in the form of election data and other sources
+	* MRP
+	* Census-weighting: Population, internet use, 
+4. Validation
 	* Election data
+	* Events data
 	* Differences by regions, characteristics, events, etc.
 	* Rates of change: If overall share is too biased, changes in sentiment may be a better and more reliable predictor
 5. Problems
@@ -36,37 +41,16 @@ Next focus is being able to gather Tweets from different locations within a coun
 1. Add locations/cities for each country to scraper help data based on what is available in covariate data
 2. Scrape tweets for locations in each country
 
-How to decide on coordinates and radius of scraping locations:
-Since the scraping of Tweets is done selecting a point and a radius, I need to decide on a strategy for choosing which and how many points to be scraped within subnational regions.
-* Scrape by city data: Africapolis, Global Data Lab. Choose one or several cities within subnational regions. Scrape each city by the smallest possible circle which contains the city's boundary. To capture citizens outside of these urbans areas, the circle could be extend to a radius from the centroid to the nearest polygon border.
-* Scrape points by a mix of populous and random GPW population rasters. Siginificant processing required and problems with rasters crossing different countries and regions. Little difference compared to using less demanding city data.
-* Scrape by the largest possible circle which can fit within the region polygon
-* Scrape by night light data to fit the largest possible circle around a lit point with a region polygon
+##### Combine GPW points and GADM boundaries to create scraper circles
+1. Join GPW administrative unit points with GADM subnational boundaries
+2. For each GPW point, representing the centroid of a subnational region, create the largest possible circle fitting within the given region (This is done by taking the radius as the distance to the nearest region border)
+3. GPW points are then subset for computational reasons. Methods can include discarding circles which are overlapped by others, represent less population, randomly, and other factors.
+4. Circles, represented by the center's longitude and latitude and the radius, are then used to scrape Tweets
 
-Use GPW population count raster data, converted to polygons, to determine scraping locations and radius. With high spatial granularity down to 1 km and data across years (2010, 2015, 2020), these can be used for a consistent way of finding a radius. 
-* Seems to have a raster dataset including population by sex and age
-* Can add city and other point data to visualise significant cities (data from Africapolis, Global Data Lab).
-Considerations:
-* Can a GPW polygon cross two countries? GPW4 documentation suggests they cannot because they use international boundaries (p. 5). Some countries were not adjusted (p. 38). Check if those on the border align with those you end up scraping (i.e. does a boundary line go through a polygon?)
-* MAUP problem (p. 26), which could be interesting to discuss.
-* GWR?
-
-Method:
-1. Choose areas to scrape within a country:
-	a. Randomly
-	b. By one or several variables
-		* For example, choose X largest within each subnational region, or X randomly among a subset (e.g. those with a greater population than Y) in each region
-2. Discard or include areas that border several countries. Needs to distinguish between a land or water border. Perhaps GPW includes country data?
-
-1. Bind GPW raster/polygon population data with subnational boundaries and city points
-	a. Subnational boundaries can be Eurostat `gaul1` or OCHA for higher granularity. `gaul1` is perhaps too imprecise, since its join gives duplicates, suggesting that a GPW centroid can cross `gaul1` admins.
-	b. City points is great for visualisation - can just be added later
-2. For each day, scrape Tweets in several polygons within each subnational boundary for every country
-
-Use Admin Unit data to choose cities or regions, then use GDP raster data to choose exact locations. For example, choose one region and then select three most populous rasters within that region. Admin Unit data gives valuable covariates. Consider that this needs to be done for several regions for each day. Check out O'Grady's slides on the problems of inferring higher level values to individuals, which would be a necessary evil here.
+Admin Unit data gives valuable covariates. Consider that this needs to be done for several regions for each day. Check out O'Grady's slides on the problems of inferring higher level values to individuals, which would be a necessary evil here.
 
 #### Which countries?
-Tentative group: Nigeria, Iraq, Phillipines, Egypt, Tunis, Russia, Turkey, Malaysia, Zimbabwe
+Tentative group: Nigeria, Iraq, Phillipines, Egypt, Tunis, Russia, Turkey, Malaysia, Zimbabwe, Afghanistan
 Looking at differences in English-speaking proportion, number of Twitter users, electoral corruption and other characteristics, we can discuss the consequences of the accuracy of the Twitter public opinion by country.
 
 * Which cities or locations to choose should considered in light of the available covariate statistics, e.g. income level, education level, and other demographics, as it should be used for weighting.
@@ -98,17 +82,29 @@ Depends on what is available for each country. For example, if a country's offic
 
 * Compare against country with rich polling data, e.g. US or UK.
 
+#### Afghanistan:
+About 2019 election, "Saturday’s vote was marred by violence, Taliban threats and widespread allegations of mismanagement and abuse" by [Gannon](https://globalnews.ca/news/5966475/afghanistan-election-political-chaos/). Investigate if predictions can somehow be validated by comparing to province-level death tolls, Taliban control.
+
+Compare with electoral complaints on province-level.
+
+#### Nigeria
+
+
 ## Data
 ### Twitter
 * Tweets from [Twitter's API](https://developer.twitter.com/en/docs)
-### Polling
+### Surveys
 * Europe Elects: https://europeelects.eu/data/
 * Asia Foundation, Afghanistan surveys: https://asiafoundation.org/where-we-work/afghanistan/survey/download-data-form/
+* Global Barometer Surveys, Waves 1-3: https://www.globalbarometer.net/survey_sc
+* Pew, Global Attitudes: https://www.pewresearch.org/global/datasets/
+* Check Wikipedia election pages
+* https://libguides.princeton.edu/politics/opinion/international
 ### Election
 * CLEA: http://www.electiondataarchive.org/data-and-documentation.php
 * Afghanistan Election Data: https://afghanistanelectiondata.org/
 * Nigeria elections, Stears: https://nigeriaelections.stearsng.com/president/2019 (confirm data's accuracy against Reuters?)
-### Scraping help data
+### Leader data
 * Country leaders data, [REIGN](https://oefdatascience.github.io/REIGN.github.io/menu/reign_current.html)
 ### Spatial
 * GDL shapefiles: https://globaldatalab.org/shdi/shapefiles/

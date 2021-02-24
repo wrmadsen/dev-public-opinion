@@ -76,15 +76,20 @@ scrape_circles_simp %>%
   #filter(name_1 == "Borno") %>%
   #filter(covered == 1) %>%
   ggplot() +
-  geom_sf(aes(colour = as.factor(covered)), fill = NA,  show.legend = TRUE) +
+  geom_sf(colour = "orange", fill = NA,  show.legend = TRUE) +
   geom_sf(data = scrape_points[scrape_points$name_0 == "Nigeria",],
           fill = "pink", shape = 21) +
   geom_sf_label(data = gadm_1_simp[gadm_1_simp$name_0 == "Nigeria",],
                 aes(label = name_1)) +
   geom_sf(data = gadm_1_simp[gadm_1_simp$name_0 == "Nigeria",],
           colour = "black", fill = NA) +
-  #facet_wrap(~covered) +
-  labs(title = "Scraper locations in Nigeria")
+  facet_wrap(~name_0) +
+  labs(title = "Scraper locations in Nigeria: Problem of choosing circles",
+       subtitle = "Each orange circle and red point is a potential location for which to scrape Tweets.")
+
+# tm_shape(scrape_circles_simp) +
+#   tm_shape(gadm_1_simp) +
+#   tm_facets(by = "name_0")
 
 # Plot GADM region polygons against GPW admin points
 gpw %>%

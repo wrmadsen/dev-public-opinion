@@ -98,10 +98,12 @@ gadm_1_raw <- list.files(pattern="gadm36.+1\\.shp$", full.names = TRUE, recursiv
 ###### Election data
 
 # Nigeria presidential elections, from Stears
+##
 stears_19_raw <- fromJSON("data/election/nigeria2019.json")
 stears_15_raw <- fromJSON("data/election/nigeria2015.json")
 
 # Afghanistan
+## 
 afg_19_raw <- read_csv("data/election/2019-Presidential-national-presidential.csv")
 afg_14_raw <- read_csv("data/election/2014-Presidential-national-presidential.csv")
 afg_09_raw <- read_csv("data/election/2009-Presidential-national-presidential.csv")

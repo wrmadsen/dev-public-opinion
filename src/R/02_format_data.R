@@ -173,6 +173,7 @@ afri_polis <- afri_polis_raw %>%
 ###### Format election data
 
 # Nigeria, format Presidentials election data, from inspecting Stears website
+## Initial formatting
 nga_p_19 <- stears_19_raw %>%
   as_tibble() %>%
   select(president) %>%
@@ -184,9 +185,24 @@ nga_p_15 <- stears_15_raw[1] %>%
   as_tibble() %>%
   unnest()
 
+# missing 2011 election, check INEC (Independent National Electoral Commission, Nigeria)
+
 nga_pres <- bind_rows(nga_p_15, nga_p_19) %>%
   mutate(across(c(total_votes, votes), ~gsub(",", "", .) %>% as.integer),
-         year = as.integer(year))
+         year = as.integer(year),
+         # election date, from Wikipedia, if held over several days, take first day
+         elex_date = case_when(year == 2019 ~ as.Date("2019-02-23"),
+                               year == 2015 ~ as.Date("2015-03-28")
+         ),
+         country = "Nigeria"
+  )
+
+## Extract top candidates for each available election to use for scraping
+candidates_nga <- nga_pres %>%
+  group_by(country, elex_date, candidate) %>%
+  summarise(votes = sum(votes)) %>%
+  group_by(elex_date) %>%
+  slice_max(votes, n = 2) 
 
 # Afghanistan president data
 afg_19 <- afg_19_raw %>%
@@ -213,4 +229,33 @@ afg_09 <- afg_09_raw %>%
   mutate(year = 2009)
 
 afg_pres <- bind_rows(afg_09, afg_14) %>%
-  bind_rows(afg_19)
+  bind_rows(afg_19) %>%
+  rename(candidate = name) %>%
+  filter(!candidate %in% c("votes")) %>%
+  # add election date, first day if several (but second round)
+  mutate(elex_date = case_when(year == 2009 ~ as.Date("2009-08-20"),
+                               year == 2014 ~ as.Date("2014-06-14"), # second round
+                               year == 2019 ~ as.Date("2019-09-28")
+  ),
+  country = "Afghanistan"
+  )
+
+candidates_afg <- afg_pres %>%
+  group_by(country, elex_date, candidate) %>%
+  summarise(votes = sum(votes)) %>%
+  group_by(elex_date) %>%
+  slice_max(votes, n = 2)
+
+
+# Bind candidates data for scraping
+candidates_scrape <- candidates_nga %>%
+  bind_rows(candidates_afg) %>%
+  mutate(candidate = gsub("Dr. ", "", candidate)  # correct, reformat names
+  )
+
+## Unique candidates
+candidates_scrape$candidate %>% unique()
+
+# Bind low-level election data for validation
+
+
