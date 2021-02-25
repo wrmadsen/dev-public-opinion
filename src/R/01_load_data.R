@@ -92,8 +92,12 @@ gpw_raw <- list.files(pattern = "gpw_v4_admin_unit.+\\.shp", recursive = TRUE) %
 #ocha_raw <- st_read("data/nga_adm_osgof_20190417/nga_admbnda_adm1_osgof_20190417.shp")
 
 # GADM subnational admin boundaries
-gadm_1_raw <- list.files(pattern="gadm36.+1\\.shp$", full.names = TRUE, recursive = TRUE) %>%
-  map_df(~st_read(.))
+# gadm_1_raw <- list.files(pattern="gadm36.+1\\.shp$", full.names = TRUE, recursive = TRUE) %>%
+#   map_df(~st_read(.))
+## Afghanistan (district level), Nigeria
+## Choosing level of data per country depends partly on available validation data (e.g. election results)
+gadm_1_raw <- list.files(pattern="gadm36.+sf\\.rds$", full.names = TRUE, recursive = TRUE) %>%
+  map_df(~readRDS(.))
 
 ###### Election data
 
