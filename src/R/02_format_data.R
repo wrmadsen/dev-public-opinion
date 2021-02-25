@@ -188,6 +188,7 @@ nga_p_15 <- stears_15_raw[1] %>%
 # missing 2011 election, check INEC (Independent National Electoral Commission, Nigeria)
 
 nga_pres <- bind_rows(nga_p_15, nga_p_19) %>%
+  rename(name = candidate) %>%
   mutate(across(c(total_votes, votes), ~gsub(",", "", .) %>% as.integer),
          year = as.integer(year),
          # election date, from Wikipedia, if held over several days, take first day
@@ -199,10 +200,10 @@ nga_pres <- bind_rows(nga_p_15, nga_p_19) %>%
 
 ## Extract top candidates for each available election to use for scraping
 candidates_nga <- nga_pres %>%
-  group_by(country, elex_date, candidate) %>%
+  group_by(country, elex_date, name) %>%
   summarise(votes = sum(votes)) %>%
   group_by(elex_date) %>%
-  slice_max(votes, n = 2) 
+  slice_max(votes, n = 2)
 
 # Afghanistan president data
 afg_19 <- afg_19_raw %>%
@@ -230,8 +231,7 @@ afg_09 <- afg_09_raw %>%
 
 afg_pres <- bind_rows(afg_09, afg_14) %>%
   bind_rows(afg_19) %>%
-  rename(candidate = name) %>%
-  filter(!candidate %in% c("votes")) %>%
+  filter(!name %in% c("votes")) %>%
   # add election date, first day if several (but second round)
   mutate(elex_date = case_when(year == 2009 ~ as.Date("2009-08-20"),
                                year == 2014 ~ as.Date("2014-06-14"), # second round
@@ -241,20 +241,18 @@ afg_pres <- bind_rows(afg_09, afg_14) %>%
   )
 
 candidates_afg <- afg_pres %>%
-  group_by(country, elex_date, candidate) %>%
+  group_by(country, elex_date, name) %>%
   summarise(votes = sum(votes)) %>%
   group_by(elex_date) %>%
   slice_max(votes, n = 2)
 
-
 # Bind candidates data for scraping
-candidates_scrape <- candidates_nga %>%
+candidates <- candidates_nga %>%
   bind_rows(candidates_afg) %>%
-  mutate(candidate = gsub("Dr. ", "", candidate)  # correct, reformat names
-  )
+  select(-votes)
 
 ## Unique candidates
-candidates_scrape$candidate %>% unique()
+candidates$name %>% unique()
 
 # Bind low-level election data for validation
 
