@@ -15,6 +15,10 @@ To do:
 
 Using Twitter data, I aim to estimate public opinion and investigate to what extent and how these estimates can be used to increase political accountability. 
 
+## Hypotheses
+A model using region-level differences will predict more accurately than a model using only individual covariates?
+A 
+
 ## Pipeline
 1. Data collection: Tweets, covariates, electoral results, survey results, language demographics
 2. Tweet analysis:
@@ -102,8 +106,9 @@ Compare with electoral complaints on province-level.
 * https://libguides.princeton.edu/politics/opinion/international
 ### Election
 * CLEA: http://www.electiondataarchive.org/data-and-documentation.php
-* Afghanistan Election Data: https://afghanistanelectiondata.org/
-* Nigeria elections, Stears: https://nigeriaelections.stearsng.com/president/2019 (confirm data's accuracy against Reuters?)
+* Afghanistan, Presidential: https://afghanistanelectiondata.org/, https://github.com/nditech/af-elections-data
+* Nigeria, Presidential: Stears: https://nigeriaelections.stearsng.com/president/2019 (confirm data's accuracy against Reuters?)
+* Pakistan, General Assembly: https://github.com/colincookman/pakistan_elections
 ### Leader data
 * Country leaders data, [REIGN](https://oefdatascience.github.io/REIGN.github.io/menu/reign_current.html)
 ### Spatial
@@ -116,6 +121,7 @@ Compare with electoral complaints on province-level.
 ### Subnational boundaries
 * OCHA: https://data.humdata.org/search?q=subnational&ext_search_source=main-nav
 * GADM: https://gadm.org/index.html
+* Pakistani constituencies: https://data.humdata.org/dataset/national-constituency-boundaries-pakistan
 ### Subnational
 * Population: http://data.un.org/Data.aspx?d=POP&f=tableCode:240#POP
 * Population: https://stats.oecd.org/Index.aspx?Datasetcode=CITIES
