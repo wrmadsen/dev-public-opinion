@@ -1,41 +1,66 @@
 ###### Format data for getting Tweets
 
-###### Create REIGN for which names to scrape by which frequency
-reign <- reign_raw %>%
+###### Format REIGN data with leadership and term variables
+leaders <- reign_raw %>%
   clean_names() %>%
-  select(country, leader, year, month) %>%
-  filter(lag(leader) != leader | lead(leader) != leader) %>%
-  mutate(date_type = if_else(lead(leader) != leader, "term_end", "term_start"),
+  select(country, name = leader, year, month) %>%
+  filter(country %in% c("Nigeria", "Afghanistan")) %>% # filter countries
+  # get start and end of term for each leader, need to use row_number to get last term of last country
+  filter(lag(name) != name | lead(name) != name | row_number() == n()) %>%
+  # note term number, several sequentially count as one
+  mutate(date_type = if_else(lead(name) != name | row_number() == n(), "term_end", "term_start"),
          date = paste0(year, "-", str_pad(month, 2, "left", pad = "0"), "-01"),
-         date = as.Date(date),
+         date = as.Date(date)
   ) %>%
-  # drop terms before 2006 (Twitter's founding)
+  # drop leaders with terms that ended before 2006 (Twitter's founding)
   filter(!(year < 2006 & date_type == "term_end" | date_type == "term_start" & lead(year) < 2006)) %>%
-  select(country, leader, date_type, date) %>%
-  group_by(country, leader, date_type) %>%
-  mutate(term_n = paste0("term ", 1:n())) %>% # count terms per leader NEED TO ADJUST FOR NAMES, e.g. Løkke, father-son?
+  select(country, name, date_type, date) %>%
+  group_by(country, name, date_type) %>%
+  mutate(term_n = paste0("term ", 1:n())) %>% # count terms per leader - NEED TO ADJUST FOR NAMES, e.g. Løkke, father-son?
   ungroup() %>%
   pivot_wider(names_from = date_type, values_from = date) %>%
   mutate(term_start = if_else(is.na(term_start), term_end, term_start),
   ) %>%
+  rename(start = term_start, end = term_end)
+
+###### Format election candidates data
+## Choose how long back you want to scrape data for losing election candidates
+candidates_scrape <- candidates %>%
+  ungroup() %>%
+  mutate(elex_start = (elex_date - months(2)) %>% floor_date(., unit = "month") # eg beginning of month two months ago
+  ) %>%
+  rename(start = elex_start, end = elex_date)
+
+##### Bind leaders with candidates and choose scraping frequency
+names_scrape <- x
+leaders %>%
+  select(-term_n) %>%
+  mutate(type = "leader") %>%
+  bind_rows(candidates_scrape) %>%
+  mutate(type = if_else(is.na(type), "candidate", type)) %>%
+  arrange(country, end) %>%
+  mutate(name = case_when(name %in% c("Hamed Karzai", "Hamid Karzai") ~ "Karzai",
+                          name %in% c("Dr. Abdullah Abdullah", "Abdullah Abdullah") ~ "Abdullah",
+                          name %in% c("Dr. Mohammad Ashraf Ghani Ahmadzai", "Mohammad Ashraf Ghani", "Ashraf Ghani") ~ "Ghani",
+                          name == "Muhammadu Buhari" ~ "Buhari",
+                          name %in% c("Goodluck Jonathan") ~ "Goodluck Jonathan",
+                          name %in% c("Atiku Abudakar") ~ "Abudakar",
+                          TRUE ~ name)
+  ) %>%
   rowwise() %>%
-  mutate(date = list(seq.Date(term_start, term_end, by = 3))) %>% # choose scraping frequency, day, week, or number of days
+  # choose scraping frequency, day, week, or a number of days
+  ## Floor start and ceiling end of term period
+  mutate(date = list(seq.Date(floor_date(start, "month"), ceiling_date(end, "month"), by = 3))) %>%
   tidyr::unnest(date) %>%
-  mutate(country = case_when(country == "USA" ~ "United States",
-                             TRUE ~ country),
-         plus_1 = date + days(1),
-         plus_3 = date + days(3),
-         plus_7 = date + days(7) # end of week
-         ) %>%
+  transmute(country = case_when(country == "USA" ~ "United States",
+                                TRUE ~ country),
+            name,
+            date = ymd_hm(paste(date, "00:00")), # scrape start time (since)
+            plus_2 = ymd_hm(paste(date + days(2), "23:59")), # scrape end time (to)
+  ) %>%
   filter(date >= as.Date("2006-07-15")) # when Twitter full version went live
 
-head(reign)
-
-###### Format election dataset with period to scrape each candidate from
-## Choose how long back you want to scrape data for losing election candidates
-candidates_scrape %>%
-  mutate(elex_start = (elex_date + months(2)) %>% floor_date(., unit = "month") # eg beginning of month two months ago
-         )
+head(names_scrape)
 
 ###### GPW admin unit data
 gpw <- gpw_raw %>%
@@ -140,24 +165,35 @@ scrape_locations_sf <- scrape_points %>%
   mutate(area_circle_m = st_area(scrape_circles$geometry),
          area_circle_km = as.double(area_circle_m)/1000000,
          radius_km = radius_m/1000,
-         geocode = paste0(x, ",", y, ",", radius_km, "km")
-  )
+         geocode = paste0(x, ",", y, ",", radius_km, "km"),
+         location = paste0(name_1, "_", str_to_title(gpw_smallest))
+  ) %>%
+  mutate(location_no = as.factor(location) %>% as.numeric)
+
+names(scrape_locations_sf)
 
 ## Subset variables for join
-scrape_locations <- scrape_locations_sf %>%
+scrape_locations_tbl <- scrape_locations_sf %>%
   as_tibble() %>%
-  select(country = name_0, region = name_1, region_type = engtype_1, gpw_smallest, geocode)
+  select(country = name_0, region = name_1, region_type = engtype_1, location, location_no, geocode)
+
+## Check if a location is duplicated
+scrape_locations_sf %>%
+  as_tibble() %>%
+  group_by(gpw_smallest) %>%
+  mutate(n = n()) %>%
+  arrange(-n, gpw_smallest)
 
 ## Number of locations per country
-scrape_locations %>%
+scrape_locations_tbl %>%
   group_by(country) %>%
   summarise(n = n())
 
 ## Number of points at lowest GPW admin level
 scrape_locations_sf %>%
   as_tibble() %>%
-  group_by(gpw_smallest) %>%
-  transmute(name1, name2, name3, name_0, name_1, gpw_smallest, n = n()) %>%
+  group_by(location) %>%
+  transmute(name1, name2, name3, name_0, name_1, location, n = n()) %>%
   arrange(-n)
 
 ## Covered locations are much smaller than those covered
@@ -168,7 +204,7 @@ scrape_locations_sf %>%
 
 ###### Join data
 # Takes a while to join
-scraper_help <- reign %>%
+scraper_help <- names_scrape %>%
   left_join(scrape_locations, by = "country") %>%
   filter(!is.na(geocode))
 #mutate(proxy_no = rep(1:nrow(proxy), length.out = nrow(.))) %>% # repeat 1-300 to add proxy IPs
