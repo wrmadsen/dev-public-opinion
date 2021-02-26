@@ -11,12 +11,13 @@ source_python("src/py/get_tweets.py", convert = FALSE)
 #get_tweets("Buhari", "en", "", 100000, "2019-01-01", "2019-03-01", "data/tweets/buhari.json")
 
 ###### Get tweets without point data
-names_scrape %>%
+scrape_data %>%
   filter(country == "Nigeria" & date > as.Date("2019-01-10") & date < as.Date("2019-03-01")) %>%
-  mutate(file_path = paste0("data/tweets/without/", country, "/", name, "_", paste(date), ".json"), # name of file to be saved
+  mutate(file_path = paste0("data/tweets/without/", name, "_", paste(date), ".json"), # name of file to be saved
          date = paste0(date, " 00:00:00"),
          date_end = paste0(date_end, " 23:59:59")
   ) %>%
+  view
   mutate(tweets = pmap(list(name, date, date_end, file_path),
                        ~get_tweets(..1,
                                    "en",

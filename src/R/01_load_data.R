@@ -97,8 +97,10 @@ gpw_raw <- list.files(pattern = "gpw_v4_admin_unit.+\\.shp", recursive = TRUE) %
 #   map_df(~st_read(.))
 ## Afghanistan (district level), Nigeria
 ## Choosing level of data per country depends partly on available validation data (e.g. election results)
-gadm_1_raw <- list.files(pattern="gadm36.+sf\\.rds$", full.names = TRUE, recursive = TRUE) %>%
-  map_df(~readRDS(.))
+#gadm_1_raw <- list.files(pattern="gadm36.+sf\\.rds$", full.names = TRUE, recursive = TRUE)
+gadm_1_raw <- c("https://biogeo.ucdavis.edu/data/gadm3.6/Rsf/gadm36_NGA_0_sf.rds",
+                "https://biogeo.ucdavis.edu/data/gadm3.6/Rsf/gadm36_AFG_0_sf.rds") %>%
+  map_df(~readRDS(url(.)))
 
 ###### Election data
 
