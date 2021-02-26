@@ -19,3 +19,4 @@ library(rvest) # reading html websites
 library(maps)
 library(ggmap)
 library(stars) # rasters
+library(maptools)

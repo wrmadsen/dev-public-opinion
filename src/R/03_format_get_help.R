@@ -63,17 +63,35 @@ head(names_scrape)
 
 ###### Format GADM boundary data
 # Only includes certain countries we'd picked out
-gadm_1 <- gadm_1_raw %>%
+gadm <- gadm_1_raw %>%
   clean_names() %>%
   transmute(country = as.character(name_0),
             geometry,
             #gadm_id = row_number()
   )
 
-# Simplify and transform to BNG for plotting
-gadm_1_simp <- gadm_1 %>%
-  st_transform(27700) %>%
-  st_simplify(., dTolerance = 1000)
+# Simplify country boundaries for plotting
+gadm_simp <- gadm %>%
+  st_simplify(., dTolerance = 0.1)
+
+###### Create smallest-possible circle via centroid
+# Convert GADM to line
+gadm_line <- gadm %>%
+  st_cast(to = "MULTILINESTRING")
+
+# Find centroids
+## If a point is outside of country, use another function
+gadm_cent <- st_centroid(gadm_line)
+
+# Calculate largest distance to 
+gadm_cent$distance <- st_distance(gadm_line$geometry, gadm_cent$geometry,
+                                  by_element = TRUE,
+                                  which = "Hausdorff"
+)
+
+# Create circles with buffer
+gadm_circ <- gadm_cent %>%
+  st_buffer(., .$distance)
 
 ###### Join data
 # Takes a while to join
