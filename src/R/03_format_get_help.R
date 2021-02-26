@@ -29,7 +29,7 @@ candidates_scrape <- candidates %>%
   ungroup() %>%
   mutate(elex_start = (elex_date - months(2)) %>% floor_date(., unit = "month") # eg beginning of month two months ago
   ) %>%
-  rename(start = elex_start, end = elex_date)
+  select(country, name, start = elex_start, end = elex_date)
 
 ##### Bind leaders with candidates and choose scraping frequency
 names_scrape <- leaders %>%
