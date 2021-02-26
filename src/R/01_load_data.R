@@ -74,6 +74,7 @@ load("data/gdl_shp_raw.rdata")
 
 # GPW data
 # Load GPW4 Admin Unit data
+## https://sedac.ciesin.columbia.edu/data/set/gpw-v4-admin-unit-center-points-population-estimates-rev11
 gpw_raw <- list.files(pattern = "gpw_v4_admin_unit.+\\.shp", recursive = TRUE) %>%
   map_df(~st_read(.))
 

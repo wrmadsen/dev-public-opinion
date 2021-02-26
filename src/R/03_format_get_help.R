@@ -32,8 +32,7 @@ candidates_scrape <- candidates %>%
   rename(start = elex_start, end = elex_date)
 
 ##### Bind leaders with candidates and choose scraping frequency
-names_scrape <- x
-leaders %>%
+names_scrape <- leaders %>%
   select(-term_n) %>%
   mutate(type = "leader") %>%
   bind_rows(candidates_scrape) %>%
@@ -50,13 +49,13 @@ leaders %>%
   rowwise() %>%
   # choose scraping frequency, day, week, or a number of days
   ## Floor start and ceiling end of term period
-  mutate(date = list(seq.Date(floor_date(start, "month"), ceiling_date(end, "month"), by = 3))) %>%
+  mutate(date = list(seq.Date(floor_date(start, "month"), ceiling_date(end, "month"), by = 7))) %>%
   tidyr::unnest(date) %>%
   transmute(country = case_when(country == "USA" ~ "United States",
                                 TRUE ~ country),
             name,
-            date = ymd_hm(paste(date, "00:00")), # scrape start time (since)
-            plus_2 = ymd_hm(paste(date + days(2), "23:59")), # scrape end time (to)
+            date = date, # scrape start time (since)
+            date_end = date + days(6), # scrape end time (to)
   ) %>%
   filter(date >= as.Date("2006-07-15")) # when Twitter full version went live
 
@@ -82,7 +81,7 @@ gpw <- gpw_raw %>%
 # Only includes certain countries we'd picked out
 gadm_1 <- gadm_1_raw %>%
   clean_names() %>%
-  transmute(across(c(name_0, name_1, engtype_1), as.character),
+  transmute(across(c(name_0, name_1, engtype_1, name_2, engtype_2, name_3, engtype_3), as.character),
             geometry,
             gadm_id = row_number()
   )
@@ -96,6 +95,7 @@ gadm_1_simp <- gadm_1 %>%
 # Join region polygons and admin points and calculate smallest distance
 # Cut off to only include GPW points which are within GADM regions
 scrape_regions <- st_join(gadm_1, gpw) %>%
+  filter(!is.na(gpw_smallest)) %>% # drop regions with no points
   arrange(countrynm, name1, name2) %>%
   st_transform(., 27700) # British National Grid to work in meters, required for the scraping radius
 
@@ -164,37 +164,48 @@ scrape_locations_sf <- scrape_points %>%
   ) %>%
   mutate(area_circle_m = st_area(scrape_circles$geometry),
          area_circle_km = as.double(area_circle_m)/1000000,
-         radius_km = radius_m/1000,
-         geocode = paste0(x, ",", y, ",", radius_km, "km"),
-         location = paste0(name_1, "_", str_to_title(gpw_smallest))
-  ) %>%
-  mutate(location_no = as.factor(location) %>% as.numeric)
+         radius_km = radius_m/1000)
 
 names(scrape_locations_sf)
 
 ## Subset variables for join
 scrape_locations_tbl <- scrape_locations_sf %>%
   as_tibble() %>%
-  select(country = name_0, region = name_1, region_type = engtype_1, location, location_no, geocode)
+  transmute(country = name_0,
+            region = name_1,
+            region_type = engtype_1,
+            sub_region = if_else(is.na(name_2), name_1, name_2),
+            sub_region_type = if_else(is.na(engtype_2), engtype_1, engtype_2),
+            location = if_else(is.na(name_2),
+                               paste0(name_1, "_", str_to_title(gpw_smallest)), # if name 2 is not available
+                               paste0(name_1, "_", name_2, "_", str_to_title(gpw_smallest)) # if name 2 is available
+                               ),
+            location_no = as.factor(location) %>% as.numeric,
+            geocode = paste0(x, ",", y, ",", radius_km, "km"),
+            total_a_km,
+            un_2020_e,
+            area_circle_km,
+            radius_km
+  ) %>%
+  # subset circles within each region
+  group_by(country, sub_region) %>%
+  slice_max(un_2020_e, n = 1) # most populous
+
+head(scrape_locations_tbl)
 
 ## Check if a location is duplicated
-scrape_locations_sf %>%
-  as_tibble() %>%
-  group_by(gpw_smallest) %>%
-  mutate(n = n()) %>%
-  arrange(-n, gpw_smallest)
+scrape_locations_tbl %>%
+  #filter(country == "Nigeria") %>%
+  group_by(location) %>%
+  summarise(freq = n()) %>%
+  arrange(-freq, location) %>%
+  group_by(freq) %>%
+  summarise(n = n())
 
 ## Number of locations per country
 scrape_locations_tbl %>%
   group_by(country) %>%
   summarise(n = n())
-
-## Number of points at lowest GPW admin level
-scrape_locations_sf %>%
-  as_tibble() %>%
-  group_by(location) %>%
-  transmute(name1, name2, name3, name_0, name_1, location, n = n()) %>%
-  arrange(-n)
 
 ## Covered locations are much smaller than those covered
 # scrape_locations_sf %>%
@@ -205,11 +216,11 @@ scrape_locations_sf %>%
 ###### Join data
 # Takes a while to join
 scraper_help <- names_scrape %>%
-  left_join(scrape_locations, by = "country") %>%
-  filter(!is.na(geocode))
+  left_join(scrape_locations_tbl, by = "country") %>%
+  filter(!is.na(geocode)) %>%
+  arrange(date)
+
 #mutate(proxy_no = rep(1:nrow(proxy), length.out = nrow(.))) %>% # repeat 1-300 to add proxy IPs
 #left_join(proxy, by = "proxy_no") %>% # add rotating proxies
 #mutate(port = as.integer(port))
 
-scraper_help %>%
-  filter(country == "Nigeria")

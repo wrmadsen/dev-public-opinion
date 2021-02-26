@@ -5,9 +5,7 @@ To do:
 * Check same spatial projections
 * Check leader names, tidy (issue with family names)
 * Add election data
-* Decide on which day a leader's term ends
-* Collect data for two individuals during same period - during election period, etc. (e.g. from two months before election)
-* Overlapping scraper circles
+* How to choose circles to scrape within each region? Also need to deal with overlap of circles
 * Events data to explain or validate changes in public opinion (qualitative/visual validation)
 
 ## Research design
@@ -16,8 +14,8 @@ To do:
 Using Twitter data, I aim to estimate public opinion and investigate to what extent and how these estimates can be used to increase political accountability. 
 
 ## Hypotheses
-A model using region-level differences will predict more accurately than a model using only individual covariates?
-A 
+* A model using region-level differences will have a higher accuracy than a model using only individual covariates? What is it validated against?
+* 
 
 ## Pipeline
 1. Data collection: Tweets, covariates, electoral results, survey results, language demographics

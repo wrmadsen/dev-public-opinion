@@ -72,7 +72,7 @@ subnat %>%
 ###### Methodology plots
 # Plot scraper circles, ALL
 scrape_circles_simp %>%
-  filter(name_0 == "Nigeria") %>%
+  filter(name_0 == "Pakistan") %>%
   #filter(name_1 == "Borno") %>%
   #filter(covered == 1) %>%
   ggplot() +
