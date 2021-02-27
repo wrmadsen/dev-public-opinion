@@ -20,3 +20,4 @@ library(maps)
 library(ggmap)
 library(stars) # rasters
 library(maptools)
+library(spatstat)

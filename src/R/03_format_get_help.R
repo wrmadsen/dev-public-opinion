@@ -74,24 +74,51 @@ gadm <- gadm_1_raw %>%
 gadm_simp <- gadm %>%
   st_simplify(., dTolerance = 0.1)
 
-###### Create smallest-possible circle via centroid
-# Convert GADM to line
-gadm_line <- gadm %>%
-  st_cast(to = "MULTILINESTRING")
+###### Create smallest-possible circle
+# Turn to sp and then owin
+get_smallest_circle <- function(sf){
+  
+  # Turn to owin
+  owin <- sf %>%
+    st_transform(27700) %>%
+    as_Spatial(.) %>%
+    as.owin(.)
+  
+  # Find smallest-possible circle
+  circ <- boundingcircle(owin)
+  
+}
 
-# Find centroids
-## If a point is outside of country, use another function
-gadm_cent <- st_centroid(gadm_line)
+# For loop
+circs <- c()
 
-# Calculate largest distance to 
-gadm_cent$distance <- st_distance(gadm_line$geometry, gadm_cent$geometry,
-                                  by_element = TRUE,
-                                  which = "Hausdorff"
-)
+for (i in 1:nrow(gadm)){
+  
+  # Turn to owin
+  owin <- gadm[i,] %>%
+    st_transform(3857) %>%
+    as_Spatial() %>%
+    as.owin()
+  
+  # Find smallest-possible circle
+  circ <- boundingcircle(owin) %>%
+    st_as_sf() %>%
+    st_set_crs(3857)
+  
+  # Add to list
+  circs[i] <- circ$geom
+  
+}
 
-# Create circles with buffer
-gadm_circ <- gadm_cent %>%
-  st_buffer(., .$distance)
+gadm_circ <- gadm %>%
+  as.data.frame() %>%
+  select(-geometry) %>%
+  st_set_geometry(., st_sfc(circs, crs = 3857)) %>%
+  st_transform(4326)
+
+ggplot() +
+  geom_sf(data = gadm_simp) +
+  geom_sf(data = gadm_circ, fill = NA)
 
 ###### Join data
 # Takes a while to join
