@@ -7,8 +7,8 @@ use_python("/usr/local/bin/python3", required = TRUE)
 # Source get_tweets Python function
 source_python("src/py/get_tweets.py", convert = FALSE)
 
-# Test
-#get_tweets("Buhari", "en", "", 100000, "2019-01-01", "2019-03-01", "data/tweets/buhari.json")
+# Check data
+scrape_data
 
 # Get tweets without point data -------
 scrape_data %>%
@@ -17,7 +17,6 @@ scrape_data %>%
          date = paste0(date, " 00:00:00"),
          date_end = paste0(date_end, " 23:59:59")
   ) %>%
-  view
   mutate(tweets = pmap(list(name, date, date_end, file_path),
                        ~get_tweets(..1,
                                    "en",
