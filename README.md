@@ -13,7 +13,6 @@ Using Twitter data, I aim to estimate public opinion and investigate to what ext
 
 ## Hypotheses
 * A model using region-level differences will have a higher accuracy than a model using only individual covariates? What is it validated against?
-* 
 
 ## Pipeline
 1. Data collection: Tweets, covariates, electoral results, survey results, language demographics
@@ -36,30 +35,13 @@ Using Twitter data, I aim to estimate public opinion and investigate to what ext
 ### Get Tweets
 `Python`'s [twint](https://github.com/twintproject/twint) module allows us to scrape Tweets in a scalable way. With `R`'s [reticulate](https://rstudio.github.io/reticulate/) package, I call our `Python` function from `R`.
 
-#### Locations within each country
-Next focus is being able to gather Tweets from different locations within a country. This can serve to see differences between regions as well as assisting a weighting scheme.
-1. Add locations/cities for each country to scraper help data based on what is available in covariate data
-2. Scrape tweets for locations in each country
-
-##### Combine GPW points and GADM boundaries to create scraper circles
-1. Join GPW administrative unit points with GADM subnational boundaries
-2. For each GPW point, representing the centroid of a subnational region, create the largest possible circle fitting within the given region (This is done by taking the radius as the distance to the nearest region border)
-3. GPW points are then subset for computational reasons. Methods can include discarding circles which are overlapped by others, represent less population, randomly, and other factors.
-4. Circles, represented by the center's longitude and latitude and the radius, are then used to scrape Tweets
-
-Admin Unit data gives valuable covariates. Consider that this needs to be done for several regions for each day. Check out O'Grady's slides on the problems of inferring higher level values to individuals, which would be a necessary evil here.
+Tweets are scraped by two methods:
+	1. Tweets which mention a leader
+	2. Tweets which mention a leader and give coordinates with the smallest-possible circle of a country
 
 #### Which countries?
 Tentative group: Nigeria, Iraq, Phillipines, Egypt, Tunis, Russia, Turkey, Malaysia, Zimbabwe, Afghanistan
 Looking at differences in English-speaking proportion, number of Twitter users, electoral corruption and other characteristics, we can discuss the consequences of the accuracy of the Twitter public opinion by country.
-
-* Which cities or locations to choose should considered in light of the available covariate statistics, e.g. income level, education level, and other demographics, as it should be used for weighting.
-* Tweets gathered within the radius of city A may not be in city A's country if it is close to a border
-https://stackoverflow.com/questions/21708488/get-country-and-continent-from-longitude-and-latitude-point-in-r/21727515
-
-Visualising within-country clusters:
-https://gis.stackexchange.com/questions/119736/ggmap-create-circle-symbol-where-radius-represents-distance-miles-or-km
-https://stackoverflow.com/questions/34183049/plot-circle-with-a-certain-radius-around-point-on-a-map-in-ggplot2
 
 #### Rotating proxies: Robin Hood method:
 If Twitter blocks my IP, it may be necessary to automatically change IP proxies throughout the scraping of Tweets. A VPN may help with this as well. Otherwise, a proxy service may be required.
