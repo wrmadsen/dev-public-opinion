@@ -249,6 +249,7 @@ candidates_afg <- afg_pres %>%
 # Bind candidates data for scraping
 candidates <- candidates_nga %>%
   bind_rows(candidates_afg) %>%
+  ungroup() %>%
   select(-votes)
 
 ## Unique candidates
