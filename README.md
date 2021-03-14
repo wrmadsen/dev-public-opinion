@@ -46,8 +46,10 @@ Looking at differences in English-speaking proportion, number of Twitter users, 
 #### Rotating proxies: Robin Hood method:
 If Twitter blocks my IP, it may be necessary to automatically change IP proxies throughout the scraping of Tweets. A VPN may help with this as well. Otherwise, a proxy service may be required.
 
-### Sentiment analysis
-https://www.tidytextmining.com/index.html
+### Text analysis
+
+The following resources were either used or considered during the text analysis:
+* Tidy Text: https://www.tidytextmining.com/index.html
 
 ### Individual-level characteristics
 * Age, race, gender: https://github.com/wri/demographic-identifier
