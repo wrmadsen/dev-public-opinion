@@ -1,6 +1,6 @@
-###### Plots
+# Plots
 
-###### English-speakers plot
+# English-speakers plot ------
 # Plot different data on English speakers
 supp %>%
   ggplot(.,
@@ -22,6 +22,7 @@ supp %>%
   geom_label_repel(aes(label = paste0(country, " ", year))) +
   labs(title = "English-speaking share by voice and accountability index")
 
+# Raw tweets plots -----
 # Plot number of tweets every week
 tweets %>%
   filter(country == "Nigeria") %>%
@@ -60,45 +61,8 @@ ggplot() +
   theme_bw()
 
 
-# Plot shapefiles data from GDL
-subnat %>%
-  filter(country == "Afghanistan") %>%
-  #filter(year == 2018) %>%
-  ggplot(.) +
-  geom_sf(aes(fill = popshare)) +
-  geom_text(aes(label = region, x = centroid_X, y = centroid_Y)) +
-  facet_wrap(~year)
-
-###### Methodology plots
-# Plot scraper circles, ALL
-scrape_circles_simp %>%
-  filter(name_0 == "Pakistan") %>%
-  #filter(name_1 == "Borno") %>%
-  #filter(covered == 1) %>%
-  ggplot() +
-  geom_sf(colour = "orange", fill = NA,  show.legend = TRUE) +
-  geom_sf(data = scrape_points[scrape_points$name_0 == "Nigeria",],
-          fill = "pink", shape = 21) +
-  geom_sf_label(data = gadm_1_simp[gadm_1_simp$name_0 == "Nigeria",],
-                aes(label = name_1)) +
-  geom_sf(data = gadm_1_simp[gadm_1_simp$name_0 == "Nigeria",],
-          colour = "black", fill = NA) +
-  facet_wrap(~name_0) +
-  labs(title = "Scraper locations in Nigeria: Problem of choosing circles",
-       subtitle = "Each orange circle and red point is a potential location for which to scrape Tweets.")
-
-# tm_shape(scrape_circles_simp) +
-#   tm_shape(gadm_1_simp) +
-#   tm_facets(by = "name_0")
-
-# Plot GADM region polygons against GPW admin points
-gpw %>%
-  filter(countrynm == "Nigeria") %>%
-  #filter(name_1 == "Balqa") %>%
-  ggplot() +
-  geom_sf(aes(colour = name3), show.legend = FALSE) +
-  geom_sf(data = gadm_1[gadm_1$name_0 == "Nigeria",], colour = "black", fill = NA) + 
-  geom_sf_label(data = gadm_1[gadm_1$name_0 == "Nigeria",], aes(label = name_1)) +
-  #coord_sf(xlim = c(35, 37), ylim = c(31.5, 32.5), expand = FALSE) +
-  NULL
-
+# Methodology plots -----
+# Plot scraper circles
+ggplot() +
+  geom_sf(data = gadm_simp) +
+  geom_sf(data = gadm_circ, fill = NA)
