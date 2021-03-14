@@ -1,9 +1,9 @@
 ###### Format data
 
-###### Format and bind supplementary data
+# Format and bind supplementary data ------
 # This will serve to decide and describe the countries in focus
 
-###### Clean
+## Clean supplementary -----
 # UN language population
 ## Appears to only show population by primary language
 ## May use rural, urban distinctions for weighting
@@ -117,7 +117,7 @@ hootsuite <- hootsuite_raw %>%
   transmute(country,
             twitter_users = as.numeric(users)*1000) # thousands
 
-###### Bind
+## Bind supplementary ------
 supp <- cpi %>%
   full_join(ethno_sub, by = c("country", "year" = "total_yr")) %>%
   left_join(wiki_eng, by = "country") %>%
@@ -131,7 +131,7 @@ supp <- cpi %>%
   ) %>%
   filter(!is.na(eng_prop))
 
-###### Format region data
+# Format region data ------
 
 # GDL data
 gdl <- gdl_raw %>%
@@ -152,12 +152,12 @@ gdl_simp <- gdl_sf %>%
   mutate(geometry = st_simplify(geometry, dTolerance = 0.05)) %>%
   bind_cols(gdl_centroids)
 
-###### Format city data
-###### Africapolis
+# Format city data -------
+# Africapolis
 afri_polis <- afri_polis_raw %>%
   clean_names()
 
-###### Cities, ArcGIS, long and lat
+# Cities, ArcGIS, long and lat
 # cities <- cities_raw %>%
 #   st_as_sf() %>%
 #   st_transform(., 4326) %>%
@@ -170,7 +170,7 @@ afri_polis <- afri_polis_raw %>%
 # 
 # st_sf(cities$geometry)
 
-###### Format election data
+# Format election data -------
 
 # Nigeria, format Presidentials election data, from inspecting Stears website
 ## Initial formatting

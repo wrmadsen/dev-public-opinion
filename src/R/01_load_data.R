@@ -1,6 +1,6 @@
 ###### Load data
 
-###### Load supplementary data
+# Load supplementary data -----
 # English speakers data from the UN
 un_lang_raw <- read_csv("data/raw/UNdata_Export_20210203_194758725.csv")
 
@@ -32,11 +32,11 @@ hootsuite_raw <- read_excel("data/raw/twitter_hootsuite.xlsx", skip = 1)
 # Load CLEA election data
 #load("data/election/clea_lc_20201216.rdata")
 
-###### Load data to use in collecting Tweets
+# Load data to use in collecting Tweets ------
 # Load leader data from REIGN
 reign_raw <- read_csv("data/raw/REIGN_2021_2.csv")
 
-###### Load subnational data
+# Load subnational data -----
 
 # Load Global Data Lab data
 ## https://globaldatalab.org/areadata/download_files/
@@ -45,8 +45,7 @@ gdl_raw <- read_csv("data/raw/GDL-AreaData390 (1).csv")
 # Subnational infant mortality
 ## https://sedac.ciesin.columbia.edu/data/set/povmap-global-subnational-infant-mortality-rates-v2/data-download
 
-
-###### Load cities data
+# Load cities data ------
 # Africapolis
 ## https://africapolis.org/data
 afri_polis_raw <- read_excel("data/raw/Africapolis_agglomeration_2015.xlsx", skip = 15)
@@ -66,8 +65,7 @@ cities_raw <- st_read("data/raw/World_Cities-shp/World_Cities.shp")
 # NASA HBASE, human settlement
 #hbase_raw <- read_stars("data/01F_hbase_non_hbase_percentage_utm_1000m/01F_hbase_non_hbase_percentage_utm_1000m.tif")
 
-
-###### Load region data
+# Load region data ------
 # GDL shapefiles
 # save(gdl_shp_raw, file = "data/gdl_shp_raw.rdata") # save as rdata to speed up loading after first time
 load("data/gdl_shp_raw.rdata")
@@ -102,15 +100,13 @@ gadm_1_raw <- c("https://biogeo.ucdavis.edu/data/gadm3.6/Rsf/gadm36_NGA_0_sf.rds
                 "https://biogeo.ucdavis.edu/data/gadm3.6/Rsf/gadm36_AFG_0_sf.rds") %>%
   map_df(~readRDS(url(.)))
 
-###### Election data
+# Election data ------
 
 # Nigeria presidential elections, from Stears
-##
 stears_19_raw <- fromJSON("data/election/nigeria2019.json")
 stears_15_raw <- fromJSON("data/election/nigeria2015.json")
 
 # Afghanistan
-## 
 afg_19_raw <- read_csv("data/election/2019-Presidential-national-presidential.csv")
 afg_14_raw <- read_csv("data/election/2014-Presidential-national-presidential.csv")
 afg_09_raw <- read_csv("data/election/2009-Presidential-national-presidential.csv")

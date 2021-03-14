@@ -1,6 +1,6 @@
 ###### Load tweets
 
-###### Load all Tweets
+# Load all Tweets ------
 # Circa size of Tweets
 file.size("data/tweets/nigeria")/1000 # mb
 

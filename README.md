@@ -1,11 +1,9 @@
 # Estimating public opinion in developing countries using social media
 This project outlines a strategy and its feasibility and limitations in estimating public opinion in English-speaking developing countries. This may have consequences for the idea of political and electoral accountability, the social contract, depending on how our strategy can reliably produce estimates of public opinion. These estimates may serve as a comparison against official electoral results.
 
-To do:
-* Check same spatial projections
+To-do:
+* Double-check spatial projections
 * Check leader names, tidy (issue with family names)
-* Add election data
-* How to choose circles to scrape within each region? Also need to deal with overlap of circles
 * Events data to explain or validate changes in public opinion (qualitative/visual validation)
 
 ## Research design

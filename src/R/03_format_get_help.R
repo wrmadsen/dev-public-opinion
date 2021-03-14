@@ -1,6 +1,7 @@
 ###### Format data for getting Tweets
 
-###### Format REIGN data with leadership and term variables
+# Format REIGN data -----
+## Leadership and term variables
 leaders <- reign_raw %>%
   clean_names() %>%
   select(country, name = leader, year, month) %>%
@@ -23,7 +24,7 @@ leaders <- reign_raw %>%
   ) %>%
   rename(start = term_start, end = term_end)
 
-###### Format election candidates data
+# Format election candidates data ------
 ## Choose how long back you want to scrape data for losing election candidates
 candidates_scrape <- candidates %>%
   ungroup() %>%
@@ -61,7 +62,7 @@ names_scrape <- leaders %>%
 
 head(names_scrape)
 
-###### Format GADM boundary data
+# Format GADM boundary data ------
 # Only includes certain countries we'd picked out
 gadm <- gadm_1_raw %>%
   clean_names() %>%
@@ -74,21 +75,7 @@ gadm <- gadm_1_raw %>%
 gadm_simp <- gadm %>%
   st_simplify(., dTolerance = 0.1)
 
-###### Create smallest-possible circle
-# Turn to sp and then owin
-get_smallest_circle <- function(sf){
-  
-  # Turn to owin
-  owin <- sf %>%
-    st_transform(27700) %>%
-    as_Spatial(.) %>%
-    as.owin(.)
-  
-  # Find smallest-possible circle
-  circ <- boundingcircle(owin)
-  
-}
-
+# Create smallest-possible circles ------
 # For loop
 circs <- c()
 
@@ -96,7 +83,7 @@ for (i in 1:nrow(gadm)){
   
   # Turn to owin
   owin <- gadm[i,] %>%
-    st_transform(3857) %>%
+    st_transform(3857) %>% # need planar projection
     as_Spatial() %>%
     as.owin()
   
@@ -120,7 +107,7 @@ ggplot() +
   geom_sf(data = gadm_simp) +
   geom_sf(data = gadm_circ, fill = NA)
 
-###### Join data
+# Join data -----
 # Takes a while to join
 scrape_data <- names_scrape %>%
   left_join(gadm_1_simp, by = "country") %>%

@@ -1,6 +1,6 @@
 ###### Get Tweets with Python's twint
 
-###### Set up
+# Set up ------
 # python version
 use_python("/usr/local/bin/python3", required = TRUE)
 
@@ -10,7 +10,7 @@ source_python("src/py/get_tweets.py", convert = FALSE)
 # Test
 #get_tweets("Buhari", "en", "", 100000, "2019-01-01", "2019-03-01", "data/tweets/buhari.json")
 
-###### Get tweets without point data
+# Get tweets without point data -------
 scrape_data %>%
   filter(country == "Nigeria" & date > as.Date("2019-01-10") & date < as.Date("2019-03-01")) %>%
   mutate(file_path = paste0("data/tweets/without/", name, "_", paste(date), ".json"), # name of file to be saved
@@ -30,7 +30,7 @@ scrape_data %>%
   )
   )
 
-###### Get tweets with point data
+# Get tweets with point data ------
 scraper_help %>%
   filter(country == "Nigeria" & date > as.Date("2019-01-10") & date < as.Date("2019-03-01")) %>%
   transmute(name,

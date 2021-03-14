@@ -1,6 +1,6 @@
 ###### Format tweets
 
-###### Tidy and format tweets
+# Tidy and format tweets ------
 tweets <- tweets_raw %>%
   # select(contains("hashtags.")) %>%
   # view()
