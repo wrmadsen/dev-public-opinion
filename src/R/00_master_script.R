@@ -23,6 +23,8 @@ source("src/R/05_load_tweets.R")
 source("src/R/06_format_tweets.R")
 
 # Sentiment analysis
+source("src/R/07_sentiment_analysis.R")
+
 # Extract individual-level covariates
 # Esimate public support by country and region
 # MRP model to predict by region?
