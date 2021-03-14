@@ -8,11 +8,16 @@ tweets <- tweets_raw %>%
   # unite(col = "urls_", contains("urls."), na.rm = TRUE) %>%
   # relocate(matches("//d|0"), .after = last_col()) %>%
   mutate(date = as.Date(date),
-         leader = gsub("data.+/|_.+", "", filename)
+         week = floor_date(date, "week"),
+         leader = gsub("data.+/|_.+", "", filename),
   ) %>%
-  left_join()
-  select(id, username, name, date, country, leader, place)
+  left_join(., 
+            distinct(candidates, country, name),
+            by = c("leader" = "name")) %>%
+  select(id, username, name, date, week, country, leader, place, tweet)
 
-tweets
+# Print head
+head(tweets)
 
-names(tweets)
+# Dimensions
+dim(tweets)
