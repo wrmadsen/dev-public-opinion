@@ -76,7 +76,7 @@ gadm_simp <- gadm %>%
   st_simplify(., dTolerance = 0.1)
 
 # Create smallest-possible circles ------
-# For loop
+# For loop to find circle for each country
 circs <- c()
 
 for (i in 1:nrow(gadm)){
@@ -87,29 +87,57 @@ for (i in 1:nrow(gadm)){
     as_Spatial() %>%
     as.owin()
   
-  # Find smallest-possible circle
+  # Create smallest-possible circle
   circ <- boundingcircle(owin) %>%
     st_as_sf() %>%
     st_set_crs(3857)
   
-  # Add to list
+  # Add to vector
   circs[i] <- circ$geom
   
 }
 
-gadm_circ <- gadm %>%
+# Add smallest-possible circles (spc) to dataframe
+small_circs <- gadm %>%
   as.data.frame() %>%
+  mutate(id = row_number()) %>%
   select(-geometry) %>%
   st_set_geometry(., st_sfc(circs, crs = 3857)) %>%
   st_transform(4326)
 
-ggplot() +
-  geom_sf(data = gadm_simp) +
-  geom_sf(data = gadm_circ, fill = NA)
+# Find centre and calculate radius
+small_centres <- small_circs %>%
+  st_transform(., 27700) %>% # convert to British National Grid to work in meters, required for calculating radius
+  st_centroid()
+
+# Convert to linestring before calculating distance
+small_lines <- small_circs %>%
+  st_transform(., 27700) %>% # convert to British National Grid to work in meters, required for the scraping radius
+  st_cast(to = "MULTILINESTRING")
+
+# Calculate radius in metres
+small_circs$radius <- st_distance(small_lines$geometry, small_centres$geometry,
+                                  by_element = TRUE,
+                                  which = "Euclidean"
+)
+
+# Get coordinates of centres in longitude and latitude before joining
+small_centres_4326 <- small_centres %>%
+  st_transform(4326) %>%
+  st_coordinates() %>%
+  as_tibble() %>%
+  transmute(x = X,
+            y = Y,
+            id = row_number())
+
+# Add centre points to dataset
+country_geocode <- small_circs %>%
+  left_join(small_centres_4326, by = "id", keep = FALSE) %>%
+  as_tibble() %>%
+  transmute(country, geocode = paste0(x, ",", y, ",", radius/1000, "km"))
 
 # Join data -----
 # Takes a while to join
 scrape_data <- names_scrape %>%
-  left_join(gadm_1_simp, by = "country") %>%
-  #filter(!is.na(geocode)) %>%
+  left_join(country_geocode, by = "country") %>%
   arrange(name, date)
