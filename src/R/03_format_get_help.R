@@ -140,4 +140,4 @@ country_geocode <- small_circs %>%
 # Takes a while to join
 scrape_data <- names_scrape %>%
   left_join(country_geocode, by = "country") %>%
-  arrange(name, date)
+  arrange(name, desc(date)) # descending to get recent tweets first

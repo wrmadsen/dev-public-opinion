@@ -8,11 +8,13 @@ use_python("/usr/local/bin/python3", required = TRUE)
 source_python("src/py/get_tweets.py", convert = FALSE)
 
 # Check data
-scrape_data
+head(scrape_data)
+
+# Function
+get_tweets()
 
 # Get tweets without point data -------
 scrape_data %>%
-  filter(country == "Nigeria" & date > as.Date("2019-01-10") & date < as.Date("2019-03-01")) %>%
   mutate(file_path = paste0("data/tweets/without/", name, "_", paste(date), ".json"), # name of file to be saved
          date = paste0(date, " 00:00:00"),
          date_end = paste0(date_end, " 23:59:59")
@@ -21,7 +23,7 @@ scrape_data %>%
                        ~get_tweets(..1,
                                    "en",
                                    "", # no geocode
-                                   10, # limit
+                                   1000, # limit
                                    ..2,
                                    ..3,
                                    ..4
@@ -30,19 +32,17 @@ scrape_data %>%
   )
 
 # Get tweets with point data ------
-scraper_help %>%
-  filter(country == "Nigeria" & date > as.Date("2019-01-10") & date < as.Date("2019-03-01")) %>%
-  transmute(name,
-            geocode,
-            file_path = paste0("data/tweets/with/", country, "/", name, "_", location, "_", paste(date), ".json"),
-            date = paste0(date, " 00:00:00"),
-            date_end = paste0(date_end, " 23:59:59")
+scrape_data %>%
+  #filter(date %in% seq(as.Date("2019-01-01"), as.Date("2019-02-01"), by = "day")) %>%
+  mutate(file_path = paste0("data/tweets/with/", name, "_", paste(date), ".json"), # name of file to be saved
+         date = paste0(date, " 00:00:00"),
+         date_end = paste0(date_end, " 23:59:59")
   ) %>%
   mutate(tweets = pmap(list(name, geocode, date, date_end, file_path),
                        ~get_tweets(..1,
                                    "en",
-                                   ..2,
-                                   10,
+                                   ..2, # geocode
+                                   10000, # limit
                                    ..3,
                                    ..4,
                                    ..5
