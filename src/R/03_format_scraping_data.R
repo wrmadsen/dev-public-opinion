@@ -1,5 +1,5 @@
-# Create scraper data
-create_scrape_data <- function(reign, candidates_scrape, days){
+# Create scraper frequency
+create_scrape_freq <- function(reign, candidates_scrape, days){
   
   # Create object to GET tweets with
   # Each row will present a round of scraping
@@ -55,7 +55,7 @@ create_smallest_possible <- function(gadm){
     
   }
   
-  # Add to GADM to include country and id variables 
+  # Get country and id variables from GADM and add vector
   gadm %>%
     as_tibble() %>%
     transmute(id = row_number(), country, geom = small_circs) %>%
@@ -78,7 +78,7 @@ find_centre_and_radius <- function(small_circs){
     st_cast(to = "MULTILINESTRING")
   
   # Find and add radius in metres
-  small_circs$radius_m <- st_distance(small_lines$geometry, small_centres$geometry,
+  small_circs$radius_m <- st_distance(small_lines$geom, small_centres$geom,
                                       by_element = TRUE,
                                       which = "Euclidean"
   )
