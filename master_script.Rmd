@@ -7,29 +7,34 @@ output: html_document
 # Set up
 ```{r set-up}
 # Load packages
-source("src/R/00_packages.R")
+library(tidyverse)
+library(readxl)
+library(lubridate)
+library(stringr)
+library(janitor)
+library(rgdal) # for shapefiles
+library(sf) # manipulating spatial data
+library(lme4) # for glmer, etc. modelling
+library(httr)
+library(ggrepel)
+library(reticulate) # using python code in R
+library(vroom) # loading data faster
+library(ndjson)
+library(quanteda)
+library(jsonlite)
+library(tidytext)
+library(rvest) # reading html websites
+library(maps)
+library(ggmap)
+library(stars) # rasters
+library(maptools)
+library(spatstat)
+library(textdata)
 
 # Source Python twint function
 use_python("/usr/local/bin/python3", required = TRUE)
 
 source_python("src/py/get_tweets.py", convert = FALSE)
-
-```
-
-# Load and clean raw data
-```{r raw-data, eval = FALSE}
-# Only run if raw data changes
-
-# Load raw data
-#source("src/R/01_load_raw.R")
-
-# Format raw data
-#source("src/R/02_format_data.R")
-
-# Save data
-save(supp, reign, candidates, nga_pres, afg_pres,
-     gadm, senti_lexicons,
-     file = "data/formatted_data.RData")
 
 ```
 
@@ -43,7 +48,7 @@ load("data/formatted_data.RData")
 source("src/R/03_format_scraping_data.R")
 
 # Choose how long back you want to scrape data for losing election candidates
-candidates_scrape <- candidates %>%
+people_to_scrape <- candidates %>%
   ungroup() %>%
   # eg beginning of month two months ago
   mutate(elex_start = (elex_date - months(2)) %>% floor_date(., unit = "month")
@@ -51,7 +56,7 @@ candidates_scrape <- candidates %>%
   select(country, name, start = elex_start, end = elex_date)
 
 # Create object with scraping frequency and names
-scrape_freq_names <- create_scrape_freq(reign, candidates_scrape, days = 7)
+scrape_freq_names <- create_scrape_freq(reign, people_to_scrape, days = 7)
 
 # Create smallest possible circles
 small_circs <- create_smallest_possible(gadm)
@@ -76,9 +81,10 @@ scrape_data <- scrape_freq_names %>%
 source("src/R/04_get_tweets.R")
 
 # Get tweets without points
-get_tweets_r(scrape_data, path = "data-raw/tweets/without/", limit = 1000, geocode = "")
+get_tweets_r(scrape_data, path = "data-raw/tweets/without/", limit = FALSE, include_geocode = FALSE)
 
 # Get tweets with points
+get_tweets_r(scrape_data, path = "data-raw/tweets/without/", limit = FALSE, include_geocode = TRUE)
 
 
 ```
@@ -86,18 +92,31 @@ get_tweets_r(scrape_data, path = "data-raw/tweets/without/", limit = 1000, geoco
 # Load raw tweets
 ```{r load-tweets, eval = FALSE}
 source("src/R/05_load_tweets.R")
+source("src/R/06_format_tweets.R")
 
-# Map across function load all Tweets
-tweets_raw <- list.files("data-raw/tweets", full.names = TRUE, recursive = TRUE) %>%
+# Map across function load all Tweets across hundreds of JSONs
+tweets_raw_list <- list.files("data-raw/tweets",
+                              full.names = TRUE, recursive = TRUE) %>%
   purrr::map(~read_tweets_back(.))
 
 # Bind tweets into dataframe
-tweets_raw_df <- tweets_raw %>%
-  bind_rows()
+tweets_raw <- bind_raw_tweets(tweets_raw_list)
+
+# Format and add variables, including leader and country
+tweets_formatted <- format_tweets(tweets_raw, candidates)
+
+# Save as single object
+save(tweets_formatted, file = "data/tweets_formatted.csv")
 
 
 ```
 
+# Load tweets
+```{r format-tweets}
+load("data/tweets_raw.RData")
+```
+
+# Sentiment analysis
 
 # Plots
 ```{r}
