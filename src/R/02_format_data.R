@@ -51,6 +51,8 @@ ethno <- ethno_raw %>%
                             total_yr)
   )
 
+#save(ethno, file = "data/ethno.RData")
+
 ## Subset key variables
 ethno_sub <- ethno %>%
   select(country, eng_total, total_yr)
@@ -133,6 +135,15 @@ supp <- cpi %>%
 
 # Format region data ------
 
+# Format GADM boundary data ------
+# Only includes certain countries we'd picked out
+gadm <- gadm_1_raw %>%
+  clean_names() %>%
+  transmute(country = as.character(name_0),
+            geometry,
+            #gadm_id = row_number()
+  )
+
 # GDL data
 gdl <- gdl_raw %>%
   clean_names()
@@ -145,7 +156,7 @@ gdl_sf <- st_as_sf(gdl_shp_raw)
 gdl_centroids <- st_centroid(gdl_sf$geometry) %>%
   st_coordinates %>%
   as_tibble() %>%
-  rename_with(~paste0("centroid_", tolower(.)))
+  rename_with(~paste0("centroigdl_shp_rawd_", tolower(.)))
 
 # Simplify and add centroids
 gdl_simp <- gdl_sf %>%
@@ -172,6 +183,29 @@ afri_polis <- afri_polis_raw %>%
 
 # Format election data -------
 
+## Reign ----
+## Leadership and term variables
+reign <- reign_raw %>%
+  clean_names() %>%
+  select(country, name = leader, year, month) %>%
+  # get start and end of term for each leader, need to use row_number to get last term of last country
+  filter(lag(name) != name | lead(name) != name | row_number() == n()) %>%
+  # note term number, several sequentially count as one
+  mutate(date_type = if_else(lead(name) != name | row_number() == n(), "term_end", "term_start"),
+         date = paste0(year, "-", str_pad(month, 2, "left", pad = "0"), "-01"),
+         date = as.Date(date)
+  ) %>%
+  # drop leaders with terms that ended before 2006 (Twitter's founding)
+  filter(!(year < 2006 & date_type == "term_end" | date_type == "term_start" & lead(year) < 2006)) %>%
+  select(country, name, date_type, date) %>%
+  group_by(country, name, date_type) %>%
+  mutate(term_n = paste0("term ", 1:n())) %>% # count terms per leader - NEED TO ADJUST FOR NAMES, e.g. Løkke, father-son?
+  ungroup() %>%
+  pivot_wider(names_from = date_type, values_from = date) %>%
+  mutate(term_start = if_else(is.na(term_start), term_end, term_start),
+  ) %>%
+  rename(start = term_start, end = term_end)
+
 # Nigeria, format Presidentials election data, from inspecting Stears website
 ## Initial formatting
 nga_p_19 <- stears_19_raw %>%
@@ -187,6 +221,7 @@ nga_p_15 <- stears_15_raw[1] %>%
 
 # missing 2011 election, check INEC (Independent National Electoral Commission, Nigeria)
 
+# Bind and save Nigerian presidential election data
 nga_pres <- bind_rows(nga_p_15, nga_p_19) %>%
   rename(name = candidate) %>%
   mutate(across(c(total_votes, votes), ~gsub(",", "", .) %>% as.integer),
@@ -212,7 +247,6 @@ afg_19 <- afg_19_raw %>%
   ) %>%
   pivot_longer(cols = c(4:ncol(.)), values_to = "votes") %>%
   mutate(year = 2019)
-
 
 afg_14 <- afg_14_raw %>%
   rename(province = name,
@@ -255,6 +289,7 @@ candidates <- candidates_nga %>%
 ## Unique candidates
 candidates$name %>% unique()
 
-# Bind low-level election data for validation
-
-
+# Combine sentiment lexicons
+senti_lexicons <- afinn %>%
+  full_join(bing %>% rename(bing_sentiment = sentiment)) %>%
+  full_join(nrc %>% rename(nrc_sentiment = sentiment))
