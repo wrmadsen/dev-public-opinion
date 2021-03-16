@@ -15,10 +15,10 @@ source("src/R/00_packages.R")
 # Only run if raw data changes
 
 # Load raw data
-source("src/R/01_load_raw.R")
+#source("src/R/01_load_raw.R")
 
 # Format raw data
-source("src/R/02_format_data.R")
+#source("src/R/02_format_data.R")
 
 # Save data
 save(supp, reign, candidates, nga_pres, afg_pres,
@@ -36,10 +36,11 @@ load("data/formatted_data.RData")
 ```{r get-tweets}
 source("src/R/03_format_get_help.R")
 
-## Choose how long back you want to scrape data for losing election candidates
+# Choose how long back you want to scrape data for losing election candidates
 candidates_scrape <- candidates %>%
   ungroup() %>%
-  mutate(elex_start = (elex_date - months(2)) %>% floor_date(., unit = "month") # eg beginning of month two months ago
+  # eg beginning of month two months ago
+  mutate(elex_start = (elex_date - months(2)) %>% floor_date(., unit = "month")
   ) %>%
   select(country, name, start = elex_start, end = elex_date)
 
@@ -47,11 +48,19 @@ candidates_scrape <- candidates %>%
 scrape_data <- create_scrape_data(reign, candidates_scrape, days = 7)
 
 # Create smallest possible circles
-create_smallest_possible(gadm[1])
+small_circs <- create_smallest_possible(gadm)
 
-# Add smallest possible circle
-add_smallest_possible()
+# Find radius and centre coordinates
+centre_and_radius <- find_centre_and_radius(small_circs)
 
+# Create geocodes
+geocodes <- centre_and_radius %>%
+  transmute(country, geocode = paste0(x, ",", y, ",", radius/1000, "km"))
+
+# Join data -----
+scrape_data <- names_scrape %>%
+  left_join(country_geocode, by = "country") %>%
+  arrange(name, desc(date)) # descending to get recent tweets first
 
 ```
 
