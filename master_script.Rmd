@@ -4,9 +4,15 @@ author: "William Rohde Madsen"
 output: html_document
 ---
 
+# Set up
+```{r set-up}
 # Load packages
-```{r packages}
 source("src/R/00_packages.R")
+
+# Source Python twint function
+use_python("/usr/local/bin/python3", required = TRUE)
+
+source_python("src/py/get_tweets.py", convert = FALSE)
 
 ```
 
@@ -32,9 +38,9 @@ save(supp, reign, candidates, nga_pres, afg_pres,
 load("data/formatted_data.RData")
 ```
 
-# Get Tweets
+# Format scraping data
 ```{r get-tweets}
-source("src/R/03_format_get_help.R")
+source("src/R/03_format_scraping_data.R")
 
 # Choose how long back you want to scrape data for losing election candidates
 candidates_scrape <- candidates %>%
@@ -44,8 +50,8 @@ candidates_scrape <- candidates %>%
   ) %>%
   select(country, name, start = elex_start, end = elex_date)
 
-# Create scraping object
-scrape_data <- create_scrape_data(reign, candidates_scrape, days = 7)
+# Create object with scraping frequency and names
+scrape_freq_names <- create_scrape_freq(reign, candidates_scrape, days = 7)
 
 # Create smallest possible circles
 small_circs <- create_smallest_possible(gadm)
@@ -55,14 +61,43 @@ centre_and_radius <- find_centre_and_radius(small_circs)
 
 # Create geocodes
 geocodes <- centre_and_radius %>%
-  transmute(country, geocode = paste0(x, ",", y, ",", radius/1000, "km"))
+  transmute(country, geocode = paste0(x, ",", y, ",", radius_m/1000, "km"))
 
 # Join data -----
-scrape_data <- names_scrape %>%
-  left_join(country_geocode, by = "country") %>%
+scrape_data <- scrape_freq_names %>%
+  left_join(geocodes, by = "country") %>%
+  filter(!is.na(geocode)) %>%
   arrange(name, desc(date)) # descending to get recent tweets first
 
 ```
+
+# Get tweets
+```{r get-tweets, eval = FALSE}
+source("src/R/04_get_tweets.R")
+
+# Get tweets without points
+get_tweets_r(scrape_data, path = "data-raw/tweets/without/", limit = 1000, geocode = "")
+
+# Get tweets with points
+
+
+```
+
+# Load raw tweets
+```{r load-tweets, eval = FALSE}
+source("src/R/05_load_tweets.R")
+
+# Map across function load all Tweets
+tweets_raw <- list.files("data-raw/tweets", full.names = TRUE, recursive = TRUE) %>%
+  purrr::map(~read_tweets_back(.))
+
+# Bind tweets into dataframe
+tweets_raw_df <- tweets_raw %>%
+  bind_rows()
+
+
+```
+
 
 # Plots
 ```{r}
