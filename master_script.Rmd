@@ -1,0 +1,65 @@
+---
+title: "dev-public-opinion"
+author: "William Rohde Madsen"
+output: html_document
+---
+
+# Load packages
+```{r packages}
+source("src/R/00_packages.R")
+
+```
+
+# Load and clean raw data
+```{r raw-data, eval = FALSE}
+# Only run if raw data changes
+
+# Load raw data
+source("src/R/01_load_raw.R")
+
+# Format raw data
+source("src/R/02_format_data.R")
+
+# Save data
+save(supp, reign, candidates, nga_pres, afg_pres,
+     gadm, senti_lexicons,
+     file = "data/formatted_data.RData")
+
+```
+
+# Load prepared data
+```{r load-data}
+load("data/formatted_data.RData")
+```
+
+# Get Tweets
+```{r get-tweets}
+source("src/R/03_format_get_help.R")
+
+## Choose how long back you want to scrape data for losing election candidates
+candidates_scrape <- candidates %>%
+  ungroup() %>%
+  mutate(elex_start = (elex_date - months(2)) %>% floor_date(., unit = "month") # eg beginning of month two months ago
+  ) %>%
+  select(country, name, start = elex_start, end = elex_date)
+
+# Create scraping object
+scrape_data <- create_scrape_data(reign, candidates_scrape, days = 7)
+
+# Create smallest possible circles
+create_smallest_possible(gadm[1])
+
+# Add smallest possible circle
+add_smallest_possible()
+
+
+```
+
+# Plots
+```{r}
+# Simply GADM for plotting ease
+gadm_simp <- gadm %>%
+  st_simplify(., dTolerance = 0.1)
+
+```
+
