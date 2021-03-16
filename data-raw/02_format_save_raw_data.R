@@ -1,6 +1,6 @@
 ###### Format data
 
-# Format and bind supplementary data ------
+# Format data ------
 # This will serve to decide and describe the countries in focus
 
 ## Clean supplementary -----
@@ -133,9 +133,9 @@ supp <- cpi %>%
   ) %>%
   filter(!is.na(eng_prop))
 
-# Format region data ------
+## Format region data ------
 
-# Format GADM boundary data ------
+## Format GADM boundary data ------
 # Only includes certain countries we'd picked out
 gadm <- gadm_1_raw %>%
   clean_names() %>%
@@ -163,7 +163,7 @@ gdl_simp <- gdl_sf %>%
   mutate(geometry = st_simplify(geometry, dTolerance = 0.05)) %>%
   bind_cols(gdl_centroids)
 
-# Format city data -------
+## Format city data -------
 # Africapolis
 afri_polis <- afri_polis_raw %>%
   clean_names()
@@ -174,16 +174,16 @@ afri_polis <- afri_polis_raw %>%
 #   st_transform(., 4326) %>%
 #   clean_names() %>%
 #   arrange(cntry_name)
-# 
+#
 # cities %>%
 #   st_cast("POINT") %>%
 #   st_distance(st_centroid(cities))
-# 
+#
 # st_sf(cities$geometry)
 
-# Format election data -------
+## Format election data -------
 
-## Reign ----
+## Format reign ----
 ## Leadership and term variables
 reign <- reign_raw %>%
   clean_names() %>%
@@ -293,3 +293,9 @@ candidates$name %>% unique()
 senti_lexicons <- afinn %>%
   full_join(bing %>% rename(bing_sentiment = sentiment)) %>%
   full_join(nrc %>% rename(nrc_sentiment = sentiment))
+
+# Save formatted data ----
+save(supp, reign, candidates, nga_pres, afg_pres,
+     gadm, senti_lexicons,
+     file = "data/formatted_data.RData")
+
