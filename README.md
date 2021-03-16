@@ -50,6 +50,7 @@ If Twitter blocks my IP, it may be necessary to automatically change IP proxies 
 
 The following resources were either used or considered during the text analysis:
 * Tidy Text: https://www.tidytextmining.com/index.html
+* tokenizers package: https://cran.r-project.org/web/packages/tokenizers/index.html
 
 ### Individual-level characteristics
 * Age, race, gender: https://github.com/wri/demographic-identifier
