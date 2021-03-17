@@ -1,16 +1,16 @@
 # Estimating public opinion in developing countries using social media
 This project outlines a strategy and its feasibility and limitations in estimating public opinion in English-speaking developing countries. This may have consequences for the idea of political and electoral accountability, the social contract, depending on how our strategy can reliably produce estimates of public opinion. These estimates may serve as a comparison against official electoral results.
 
-## Reproduce my work
-```
-library(devtools)
-devtools::install_github("williamrohdemadsen/dev-public-opinion", auth_token =  " 76ec7fb0f2100d8fd7c3c340c4719ff70620a125")
-```
-
-To-do:
+### To-do:
 * Double-check spatial projections
 * Check leader names, tidy (issue with family names)
 * Events data to explain or validate changes in public opinion (qualitative/visual validation)
+
+### Download analysis as a package:
+```
+library(devtools)
+devtools::install_github("williamrohdemadsen/dev-public-opinion", build_vignettes = FALSE, auth_token =  " 76ec7fb0f2100d8fd7c3c340c4719ff70620a125")
+```
 
 ## Research design
 ### How can public Twitter data be used to increase political accountability?
