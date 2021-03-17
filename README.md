@@ -9,7 +9,7 @@ This project outlines a strategy and its feasibility and limitations in estimati
 ### Download analysis as a package:
 ```
 library(devtools)
-devtools::install_github("williamrohdemadsen/dev-public-opinion", build_vignettes = FALSE, auth_token =  " 76ec7fb0f2100d8fd7c3c340c4719ff70620a125")
+devtools::install_github("williamrohdemadsen/dev-public-opinion", build_vignettes = TRUE, auth_token =  " 76ec7fb0f2100d8fd7c3c340c4719ff70620a125")
 ```
 
 ## Research design
