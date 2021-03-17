@@ -1,13 +1,14 @@
-###### Load tweets
+#' Read tweets
+#'
+#' @param json_path
+#' @return List of raw tweets tibbles.
+read_tweets_back <- function(json_path){
 
-# Function to read in and add file name as column
-read_tweets_back <- function(json){
-  
-  df <- stream_in(file(json)) %>%
+  df <- stream_in(file(json_path)) %>%
     as_tibble()
-  
-  df$filename <- json
-  
+
+  df$filename <- json_path
+
   df
-  
+
 }

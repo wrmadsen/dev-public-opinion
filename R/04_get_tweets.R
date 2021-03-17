@@ -1,8 +1,12 @@
-###### Get Tweets with Python's twint
-
-# Get tweets without point data -------
+#' Get tweets
+#'
+#' @param scrape_data
+#' @param path
+#' @param limit
+#' @param include_geocode
+#' @return Raw tweets saved to path in a JSON per period
 get_tweets_r <- function(scrape_data, path = "data-raw/tweets/without/", limit = FALSE, include_geocode = FALSE){
-  
+
   scrape_data %>%
     mutate(file_path = paste0(path, name, "_", paste(date), ".json"), # name of file to be saved
            date = paste0(date, " 00:00:00"),
@@ -21,6 +25,6 @@ get_tweets_r <- function(scrape_data, path = "data-raw/tweets/without/", limit =
                          )
     )
     )
-  
+
 }
 
