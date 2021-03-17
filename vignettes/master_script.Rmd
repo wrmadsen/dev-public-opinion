@@ -47,7 +47,6 @@ source_python("src/py/get_tweets.py", convert = FALSE)
 
 # Format scraping data
 ```{r get-tweets}
-
 # Choose how long back you want to scrape data for losing election candidates
 people_to_scrape <- candidates %>%
   ungroup() %>%
