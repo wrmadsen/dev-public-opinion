@@ -30,6 +30,7 @@ library(stars) # rasters
 library(maptools)
 library(spatstat)
 library(textdata)
+library(devtools)
 
 # Source Python twint function
 use_python("/usr/local/bin/python3", required = TRUE)
@@ -40,12 +41,12 @@ source_python("src/py/get_tweets.py", convert = FALSE)
 
 # Load prepared data
 ```{r load-data}
-load("data/formatted_data.RData")
+#load("data/formatted_data.RData")
+
 ```
 
 # Format scraping data
 ```{r get-tweets}
-source("src/R/03_format_scraping_data.R")
 
 # Choose how long back you want to scrape data for losing election candidates
 people_to_scrape <- candidates %>%
@@ -78,8 +79,6 @@ scrape_data <- scrape_freq_names %>%
 
 # Get tweets
 ```{r get-tweets, eval = FALSE}
-source("src/R/04_get_tweets.R")
-
 # Get tweets without points
 get_tweets_r(scrape_data, path = "data-raw/tweets/without/", limit = FALSE, include_geocode = FALSE)
 
@@ -91,9 +90,6 @@ get_tweets_r(scrape_data, path = "data-raw/tweets/without/", limit = FALSE, incl
 
 # Load raw tweets
 ```{r load-tweets, eval = FALSE}
-source("src/R/05_load_tweets.R")
-source("src/R/06_format_tweets.R")
-
 # Map across function load all Tweets across hundreds of JSONs
 tweets_raw_list <- list.files("data-raw/tweets",
                               full.names = TRUE, recursive = TRUE) %>%
@@ -113,16 +109,99 @@ save(tweets_formatted, file = "data/tweets_formatted.csv")
 
 # Load tweets
 ```{r format-tweets}
-load("data/tweets_raw.RData")
+
 ```
 
 # Sentiment analysis
+```{r sentiment-analysis}
+# Tidytext format ------
+# Convert to tidytext format
+tweets_tidy <- tweets_corpus %>%
+  unnest_tokens(word, tweet)
+
+```
+
+# Train model
+```{r train-model}
+
+```
+
 
 # Plots
 ```{r}
 # Simply GADM for plotting ease
 gadm_simp <- gadm %>%
   st_simplify(., dTolerance = 0.1)
+
+# Plots
+
+# English-speakers plot ------
+# Plot different data on English speakers
+supp %>%
+  ggplot(.,
+         aes(x = eng_prop_wiki,
+             y = eng_prop) # ethno
+  ) +
+  geom_point() +
+  geom_label_repel(aes(label = paste0(country, " ", year))) +
+  labs(title = "Different sources on English speakers per country")
+
+# Plot English speaking population against corruption index
+supp %>%
+  #filter(wgi_est < 1) %>%
+  filter(twitter_users_pc < 0.3) %>%
+  ggplot(.,
+         aes(x = twitter_users_pc,
+             y = eng_prop)) +
+  geom_point() +
+  geom_label_repel(aes(label = paste0(country, " ", year))) +
+  labs(title = "English-speaking share by voice and accountability index")
+
+# Raw tweets plots -----
+# Plot number of tweets every week
+tweets %>%
+  filter(country == "Nigeria") %>%
+  mutate(week = floor_date(date, unit = "week"),
+         month = floor_date(date, unit = "month")
+  ) %>%
+  group_by(month, country, leader) %>%
+  summarise(n = n()) %>%
+  ggplot(.,
+         aes(x = month,
+             y = n)) +
+  geom_col() +
+  labs(title = "Number of Tweets mentioning Buhari in Lagos, Nigeria",
+       subtitle = paste0(nrow(tweets), " tweets from Lagos")
+  ) 
+
+
+# Map Tweets as points
+world1 <- map("world", plot = FALSE, fill = TRUE) %>% sf::st_as_sf()
+sf::st_as_sf(map("africa", plot = FALSE, fill = TRUE))
+
+# Nigeria NE
+nigeria_sf <- world1 %>% filter(ID == "Nigeria")
+
+tweets_n <- nrow(tweets)
+tweets_n_w_points <- nrow(tweets[!is.na(tweets$place_coordinates_0),])
+
+ggplot() +
+  geom_sf(data = nigeria_sf) +
+  coord_sf(xlim = c(8.5, 9.5), ylim = c(7, 7.7), expand = FALSE) +
+  geom_point(data = tweets, aes(x = place_coordinates_0, y = place_coordinates_1),
+             size = 0.7) +
+  labs(title = "Lagos in Nigeria: Tweets which included point spatial data",
+       subtitle = paste0(tweets_n_w_points, " of ", tweets_n, " tweets include spatial data")
+  ) +
+  theme_bw()
+
+
+# Methodology plots -----
+# Plot scraper circles
+ggplot() +
+  geom_sf(data = gadm_simp) +
+  geom_sf(data = gadm_circ, fill = NA)
+
 
 ```
 
