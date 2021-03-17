@@ -2,8 +2,10 @@
 This project outlines a strategy and its feasibility and limitations in estimating public opinion in English-speaking developing countries. This may have consequences for the idea of political and electoral accountability, the social contract, depending on how our strategy can reliably produce estimates of public opinion. These estimates may serve as a comparison against official electoral results.
 
 ## Reproduce my work
-`library(devtools)`
-`devtools::install_github("williamrohdemadsen/dev-public-opinion", auth_token =  " 76ec7fb0f2100d8fd7c3c340c4719ff70620a125")`
+```
+library(devtools)
+devtools::install_github("williamrohdemadsen/dev-public-opinion", auth_token =  " 76ec7fb0f2100d8fd7c3c340c4719ff70620a125")
+```
 
 To-do:
 * Double-check spatial projections
