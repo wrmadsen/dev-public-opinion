@@ -27,3 +27,6 @@
 *.rds
 *.sav
 *.idea
+
+# include formatted data
+!data/*
