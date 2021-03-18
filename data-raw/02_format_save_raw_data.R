@@ -1,6 +1,5 @@
 ###### Format data
 
-# Format data ------
 # This will serve to decide and describe the countries in focus
 
 ## Clean supplementary -----
@@ -50,8 +49,6 @@ ethno <- ethno_raw %>%
                             str_extract(total_src, "\\d+") %>% as.integer,
                             total_yr)
   )
-
-#save(ethno, file = "data/ethno.RData")
 
 ## Subset key variables
 ethno_sub <- ethno %>%
@@ -136,6 +133,8 @@ supp <- cpi %>%
 ## Format region data ------
 
 ## Format GADM boundary data ------
+
+### National boundaries
 # Only includes certain countries we'd picked out
 gadm <- gadm_1_raw %>%
   clean_names() %>%
@@ -148,38 +147,9 @@ gadm <- gadm_1_raw %>%
 gdl <- gdl_raw %>%
   clean_names()
 
-###### GDL region shapefiles
-# Convert sp into sf dataframe
-gdl_sf <- st_as_sf(gdl_shp_raw)
+### Subnational boundaries
 
-# Get centroids
-gdl_centroids <- st_centroid(gdl_sf$geometry) %>%
-  st_coordinates %>%
-  as_tibble() %>%
-  rename_with(~paste0("centroigdl_shp_rawd_", tolower(.)))
 
-# Simplify and add centroids
-gdl_simp <- gdl_sf %>%
-  mutate(geometry = st_simplify(geometry, dTolerance = 0.05)) %>%
-  bind_cols(gdl_centroids)
-
-## Format city data -------
-# Africapolis
-afri_polis <- afri_polis_raw %>%
-  clean_names()
-
-# Cities, ArcGIS, long and lat
-# cities <- cities_raw %>%
-#   st_as_sf() %>%
-#   st_transform(., 4326) %>%
-#   clean_names() %>%
-#   arrange(cntry_name)
-#
-# cities %>%
-#   st_cast("POINT") %>%
-#   st_distance(st_centroid(cities))
-#
-# st_sf(cities$geometry)
 
 ## Format election data -------
 
@@ -299,3 +269,37 @@ save(supp, reign, candidates, nga_pres, afg_pres,
      gadm, senti_lexicons,
      file = "data/formatted_data.RData")
 
+
+# Not currently used ----
+# ###### GDL region shapefiles
+# # Convert sp into sf dataframe
+# gdl_sf <- st_as_sf(gdl_shp_raw)
+#
+# # Get centroids
+# gdl_centroids <- st_centroid(gdl_sf$geometry) %>%
+#   st_coordinates %>%
+#   as_tibble() %>%
+#   rename_with(~paste0("centroigdl_shp_rawd_", tolower(.)))
+#
+# # Simplify and add centroids
+# gdl_simp <- gdl_sf %>%
+#   mutate(geometry = st_simplify(geometry, dTolerance = 0.05)) %>%
+#   bind_cols(gdl_centroids)
+#
+# ## Format city data -------
+# # Africapolis
+# afri_polis <- afri_polis_raw %>%
+#   clean_names()
+
+# Cities, ArcGIS, long and lat
+# cities <- cities_raw %>%
+#   st_as_sf() %>%
+#   st_transform(., 4326) %>%
+#   clean_names() %>%
+#   arrange(cntry_name)
+#
+# cities %>%
+#   st_cast("POINT") %>%
+#   st_distance(st_centroid(cities))
+#
+# st_sf(cities$geometry)
