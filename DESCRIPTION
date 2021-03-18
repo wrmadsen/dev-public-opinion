@@ -20,4 +20,5 @@ Imports:
 	lubridate,
 	sf,
 	spatstat,
-	jsonlite
+	jsonlite,
+	reticulate
