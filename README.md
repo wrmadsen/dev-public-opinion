@@ -2,14 +2,17 @@
 This project outlines a strategy and its feasibility and limitations in estimating public opinion in English-speaking developing countries. This may have consequences for the idea of political and electoral accountability, the social contract, depending on how our strategy can reliably produce estimates of public opinion. These estimates may serve as a comparison against official electoral results.
 
 ### To-do:
-* Double-check spatial projections
-* Check leader names, tidy (issue with family names)
+* Train data
 * Events data to explain or validate changes in public opinion (qualitative/visual validation)
+* Any traditional polling available? (A consideration when adding new countries)
+* Add other countries, including developed countries for comparison
+* Translate non-English tweets? (Lucas et al 2015; de Vries, Schoonevelde and Schumacher 2018)
 
 ### Download analysis as a package:
 ```
 library(devtools)
 devtools::install_github("williamrohdemadsen/dev-public-opinion", build_vignettes = TRUE, auth_token =  " 76ec7fb0f2100d8fd7c3c340c4719ff70620a125")
+library(devpublicopinion)
 ```
 
 ## Research design
