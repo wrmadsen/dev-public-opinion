@@ -28,7 +28,6 @@ library(ggmap)
 library(stars) # rasters
 library(maptools)
 library(spatstat)
-
 library(koRpus)
 library(quanteda)
 library(textdata)
@@ -103,7 +102,7 @@ tweets_formatted <- format_tweets(tweets_raw, candidates)
 
 # Add point data if possible
 
-
+# Add region data and other covariates (add candidates here?)
 
 # Save as single object
 save(tweets_formatted, file = "data/tweets_formatted.csv")
