@@ -8,19 +8,10 @@ create_scrape_freq <- function(reign, people_to_scrape, days){
   # Create object to GET tweets with
   # Each row will present a round of scraping
   reign %>%
-    select(-term_n) %>%
     mutate(type = "leader") %>%
     bind_rows(people_to_scrape) %>%
     mutate(type = if_else(is.na(type), "candidate", type)) %>%
     arrange(country, end) %>%
-    mutate(name = case_when(name %in% c("Hamed Karzai", "Hamid Karzai") ~ "Karzai",
-                            name %in% c("Dr. Abdullah Abdullah", "Abdullah Abdullah") ~ "Abdullah",
-                            name %in% c("Dr. Mohammad Ashraf Ghani Ahmadzai", "Mohammad Ashraf Ghani", "Ashraf Ghani") ~ "Ghani",
-                            name == "Muhammadu Buhari" ~ "Buhari",
-                            name %in% c("Goodluck Jonathan") ~ "Goodluck Jonathan",
-                            name %in% c("Atiku Abudakar") ~ "Abudakar",
-                            TRUE ~ name)
-    ) %>%
     rowwise() %>%
     # Choose scraping frequency, day, week, or a number of days
     # Floor start and ceiling end of term period
@@ -32,24 +23,25 @@ create_scrape_freq <- function(reign, people_to_scrape, days){
               date = date, # scrape start time (since)
               date_end = date + days(days-1), # scrape end time (to)
     ) %>%
-    filter(date >= as.Date("2006-07-15")) # when Twitter full version went live
-
+    filter(date >= as.Date("2006-07-15")) %>% # when Twitter full version went live
+    filter(!is.na(name)) %>%
+    arrange(country, name, date)
 
 }
 
 #' Create smallest possible circles
 #'
-#' @param gadm sf object with national boundaries.
+#' @param boundaries_national sf object with national boundaries.
 #' @return smallest possible circles.
-create_smallest_possible <- function(gadm){
+create_smallest_possible <- function(boundaries_national){
 
   # For loop to find circle for each country
   small_circs <- c()
 
-  for (i in 1:nrow(gadm)){
+  for (i in 1:nrow(boundaries_national)){
 
     # Create smallest-possible circle
-    small_circ <- gadm[i,] %>%
+    small_circ <- boundaries_national[i,] %>%
       st_transform(3857) %>% # need planar projection
       as_Spatial() %>%
       as.owin() %>% # convert to owin to use boundingcircle()
@@ -63,7 +55,7 @@ create_smallest_possible <- function(gadm){
   }
 
   # Get country and id variables from GADM and add vector
-  gadm %>%
+  boundaries_national %>%
     as_tibble() %>%
     transmute(id = row_number(), country, geom = small_circs) %>%
     st_as_sf(crs = 3857) %>%

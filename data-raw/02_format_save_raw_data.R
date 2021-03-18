@@ -116,7 +116,7 @@ hootsuite <- hootsuite_raw %>%
   transmute(country,
             twitter_users = as.numeric(users)*1000) # thousands
 
-## Bind supplementary ------
+# Bind supplementary ------
 supp <- cpi %>%
   full_join(ethno_sub, by = c("country", "year" = "total_yr")) %>%
   left_join(wiki_eng, by = "country") %>%
@@ -130,25 +130,23 @@ supp <- cpi %>%
   ) %>%
   filter(!is.na(eng_prop))
 
-## Format region data ------
+# Format GADM boundary data ------
 
-## Format GADM boundary data ------
-
-### National boundaries
-# Only includes certain countries we'd picked out
-gadm <- gadm_1_raw %>%
+## National boundaries 0 ----
+boundaries_national <- gadm_0_raw %>%
   clean_names() %>%
   transmute(country = as.character(name_0),
-            geometry,
-            #gadm_id = row_number()
+            geometry
   )
 
-# GDL data
-gdl <- gdl_raw %>%
-  clean_names()
-
-### Subnational boundaries
-
+## Sub-national boundaries ----
+boundaries_subnational <- gadm_1_raw %>%
+  clean_names() %>%
+  transmute(country = as.character(name_0),
+            region_1 = as.character(name_1),
+            type_1 = type_1,
+            geometry
+  )
 
 
 ## Format election data -------
@@ -169,12 +167,17 @@ reign <- reign_raw %>%
   filter(!(year < 2006 & date_type == "term_end" | date_type == "term_start" & lead(year) < 2006)) %>%
   select(country, name, date_type, date) %>%
   group_by(country, name, date_type) %>%
-  mutate(term_n = paste0("term ", 1:n())) %>% # count terms per leader - NEED TO ADJUST FOR NAMES, e.g. Løkke, father-son?
+  # count terms per leader - NEED TO ADJUST FOR NAMES, e.g. Løkke, father-son?
+  mutate(term_n = paste0("term ", 1:n())) %>%
   ungroup() %>%
   pivot_wider(names_from = date_type, values_from = date) %>%
   mutate(term_start = if_else(is.na(term_start), term_end, term_start),
   ) %>%
-  rename(start = term_start, end = term_end)
+  # match between reign and candidates objects
+  left_join(., name_lookup, by = c("name" = "from")) %>%
+  select(-name) %>%
+  rename(start = term_start, end = term_end, name = common)
+
 
 # Nigeria, format Presidentials election data, from inspecting Stears website
 ## Initial formatting
@@ -208,7 +211,8 @@ candidates_nga <- nga_pres %>%
   group_by(country, elex_date, name) %>%
   summarise(votes = sum(votes)) %>%
   group_by(elex_date) %>%
-  slice_max(votes, n = 2)
+  slice_max(votes, n = 2) %>%
+  ungroup()
 
 # Afghanistan president data
 afg_19 <- afg_19_raw %>%
@@ -248,13 +252,16 @@ candidates_afg <- afg_pres %>%
   group_by(country, elex_date, name) %>%
   summarise(votes = sum(votes)) %>%
   group_by(elex_date) %>%
-  slice_max(votes, n = 2)
+  slice_max(votes, n = 2) %>%
+  ungroup()
 
 # Bind candidates data for scraping
 candidates <- candidates_nga %>%
   bind_rows(candidates_afg) %>%
-  ungroup() %>%
-  select(-votes)
+  # match between reign and candidates objects
+  left_join(., name_lookup, by = c("name" = "from")) %>%
+  select(-c(votes, name)) %>%
+  rename(name = common)
 
 ## Unique candidates
 candidates$name %>% unique()
@@ -266,12 +273,15 @@ senti_lexicons <- afinn %>%
 
 # Save formatted data ----
 save(supp, reign, candidates, nga_pres, afg_pres,
-     gadm, senti_lexicons,
+     boundaries_national, boundaries_subnational, senti_lexicons,
      file = "data/formatted_data.RData")
 
 
 # Not currently used ----
 # ###### GDL region shapefiles
+# # GDL data
+# gdl <- gdl_raw %>%
+#   clean_names()
 # # Convert sp into sf dataframe
 # gdl_sf <- st_as_sf(gdl_shp_raw)
 #
