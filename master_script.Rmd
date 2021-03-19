@@ -13,6 +13,8 @@ library(readxl)
 library(lubridate)
 library(stringr)
 library(janitor)
+library(zoo)
+library(RcppRoll)
 library(rgdal) # for shapefiles
 library(sf) # manipulating spatial data
 library(lme4) # for glmer, etc. modelling
@@ -34,34 +36,36 @@ library(textdata)
 library(tidytext)
 library(SnowballC)
 
+load_all()
+
 # Source Python twint function
 use_python("/usr/local/bin/python3", required = TRUE)
 
-source_python("src/py/get_tweets.py", convert = FALSE)
+source_python("py/get_tweets.py", convert = FALSE)
 
 ```
 
 # Load prepared data
 ```{r load-data}
 load("data/formatted_data.RData")
-load("data/tweets_formatted.RData")
+load("data/tweets_raw.RData")
 ```
 
 # Get and save tweets
 ```{r scraping-data}
-# Choose how long back you want to scrape data for losing election candidates
+# People to scrape
+# For losing candidates in an election, scrape tweets mentioning them two months before election
 people_to_scrape <- candidates %>%
-  ungroup() %>%
-  # eg beginning of month two months ago
   mutate(elex_start = (elex_date - months(2)) %>% floor_date(., unit = "month")
   ) %>%
   select(country, name, start = elex_start, end = elex_date)
 
 # Create object with scraping frequency and names
+# People names must match between reign and people_to_scrape
 scrape_freq_names <- create_scrape_freq(reign, people_to_scrape, days = 7)
 
 # Create smallest possible circles
-small_circs <- create_smallest_possible(gadm)
+small_circs <- create_smallest_possible(boundaries_national)
 
 # Find radius and centre coordinates
 centre_and_radius <- find_centre_and_radius(small_circs)
@@ -78,35 +82,39 @@ scrape_data <- scrape_freq_names %>%
 
 ```
 
+
 ```{r get-tweets, eval = FALSE}
 # Get tweets without points
-get_tweets_r(scrape_data, path = "data-raw/tweets/without/", limit = FALSE, include_geocode = FALSE)
+get_tweets_r(scrape_data, limit = 1000000, include_geocode = FALSE)
 
 # Get tweets with points
-get_tweets_r(scrape_data, path = "data-raw/tweets/without/", limit = FALSE, include_geocode = TRUE)
-
+get_tweets_r(scrape_data, limit = 1000000, include_geocode = TRUE)
 
 ```
 
-```{r load-tweets, eval = FALSE}
+
+```{r bind-and-save-tweets, eval = FALSE}
 # Map across function load all Tweets across hundreds of JSONs
-tweets_raw_list <- list.files("data-raw/tweets",
-                              full.names = TRUE, recursive = TRUE) %>%
+tweets_raw_list <- list.files("data-raw/tweets", full.names = TRUE, recursive = TRUE) %>%
   purrr::map(~read_tweets_back(.))
 
 # Bind tweets into dataframe
 tweets_raw <- bind_raw_tweets(tweets_raw_list)
 
+# Save as single object
+save(tweets_raw, file = "data/tweets_raw.RData")
+
+```
+
+
+```{r format-tweets, eval = FALSE}
 # Format and add variables, including leader and country
 tweets_formatted <- format_tweets(tweets_raw, candidates)
 
-# Add point data if possible
+# Add region names
+tweets_formatted <- add_regions(tweets_formatted, boundaries_subnational)
 
-# Add region data and other covariates (add candidates here?)
-
-# Save as single object
-save(tweets_formatted, file = "data/tweets_formatted.csv")
-
+# Add regional covariates
 
 ```
 
@@ -124,20 +132,70 @@ tweets_tokens <- tweets_clean %>%
   unnest_tokens(word, tweet)
 
 # Stem and find stop words
-tweets_tokens <- tweets_tokens %>%
+tweets_tokens_stem <- tweets_tokens %>%
   mutate(word = wordStem(word),
-         stopword = if_else(word %in% get_stopwords(language = "en", source = "snowball"), TRUE, FALSE)
-         )
+         #stopword = if_else(word %in% get_stopwords(language = "en", source = "snowball"), TRUE, FALSE)
+  )
 
-get_stopwords(language = "english", source = "snowball")
+#get_stopwords(language = "english", source = "snowball")
+
+```
+
+```{r join-lexicon}
+# Unique words to join as factors for speed
+word_lvls <- unique(c(tweets_tokens$word, afinn$word))
+
+afinn <- afinn %>%
+  transmute(word = factor(word, word_lvls),
+            afinn_value = value)
+
+# Join lexicon
+senti_tweets <- tweets_tokens %>%
+  as.data.frame() %>%
+  as_tibble() %>%
+  mutate(word = factor(word, word_lvls)) %>%
+  left_join(.,
+            afinn,
+            by = "word")
+
+# Share NA in lexicon join
+table(is.na(senti_tweets$value)) %>% prop.table()
 
 ```
 
-```{r calculate-sentiment}
-# Add lexicons for sentiment analysis
+
+```{r calc-ratings}
+# Mean sentiment per tweet
+senti_mean <- senti_tweets %>%
+  group_by(id, username, date, week, country, region_1, leader) %>%
+  summarise(afinn_value = mean(afinn_value, na.rm = TRUE)) %>%
+  # if sentiment is negative, binary is 0
+  mutate(binary = if_else(afinn_value < 0, 0, 1)) %>%
+  arrange(country, region_1, leader, date)
+
+
+# Mean share of binary per day
+senti_mean_day <- x
+senti_mean %>%
+  group_by(week, country, region_1, leader, binary) %>%
+  summarise(binary_n = n()) %>%
+  group_by(week, country, region_1, leader, )
+
+
+summarise(afinn_value = mean(afinn_value, na.rm = TRUE)) %>%
+  arrange(country, region_1, leader, date) %>%
+  mutate(afinn_value_roll = roll_mean(afinn_value, n = 7)) %>%
+  arrange(country, region_1, leader, date) %>%
+  ungroup()
+
+# Plot mean rating per day
+ggplot(senti_mean_day, aes(x = date, y = afinn_value)) +
+  geom_point(aes(colour = leader)) +
+  facet_wrap(~country)
 
 
 ```
+
 
 
 # Train model
@@ -147,7 +205,7 @@ get_stopwords(language = "english", source = "snowball")
 
 
 # Plots
-```{r}
+```{r plot}
 # Simply GADM for plotting ease
 gadm_simp <- gadm %>%
   st_simplify(., dTolerance = 0.1)
