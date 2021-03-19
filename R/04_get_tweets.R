@@ -1,30 +1,33 @@
 #' Get tweets
 #'
 #' @param scrape_data
-#' @param path
 #' @param limit
 #' @param include_geocode
 #' @return Raw tweets saved to path in a JSON per period
-get_tweets_r <- function(scrape_data, path = "data-raw/tweets/without/", limit = FALSE, include_geocode = FALSE){
+get_tweets_r <- function(scrape_data, limit = 1000000, include_geocode = FALSE){
 
-  scrape_data %>%
-    mutate(file_path = paste0(path, name, "_", paste(date), ".json"), # name of file to be saved
+  # Subset based on path and geocode
+  scrape_data_sub <- scrape_data %>%
+    mutate(include_geocode = include_geocode,
+           file_path = if_else(include_geocode,
+                               paste0("data-raw/tweets/with/", name, "_", paste(date), ".json"),
+                               paste0("data-raw/tweets/without/", name, "_", paste(date), ".json")
+           ),
            date = paste0(date, " 00:00:00"),
            date_end = paste0(date_end, " 23:59:59"),
-           include_geocode = include_geocode,
            geocode = if_else(include_geocode, geocode, ""),
     ) %>%
-    mutate(tweets = pmap(list(name, geocode, date, date_end, file_path),
-                         ~get_tweets(..1,
-                                     "en",
-                                     ..2, # no geocode
-                                     FALSE, # limit
-                                     ..3,
-                                     ..4,
-                                     ..5
-                         )
-    )
+    transmute(search = name,
+              geo = geocode,
+              limit = limit,
+              since = date,
+              until = date_end,
+              path = file_path
     )
 
+  # Map across Python function
+  pmap(scrape_data_sub, get_tweets)
+
 }
+
 
