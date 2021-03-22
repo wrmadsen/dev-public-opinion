@@ -51,14 +51,18 @@ gadm_1_raw <- c("https://biogeo.ucdavis.edu/data/gadm3.6/Rsf/gadm36_NGA_1_sf.rds
 
 # Election data ------
 
-# Nigeria presidential elections, from Stears
-stears_19_raw <- fromJSON("data-raw/election/nigeria2019.json")
-stears_15_raw <- fromJSON("data-raw/election/nigeria2015.json")
+## Nigeria presidential elections ----
+## from Stears
+stears_19_raw <- fromJSON("data-raw/election/Nigeria/nigeria2019.json")
+stears_15_raw <- fromJSON("data-raw/election/Nigeria/nigeria2015.json")
 
-# Afghanistan
-afg_19_raw <- read_csv("data-raw/election/2019-Presidential-national-presidential.csv")
-afg_14_raw <- read_csv("data-raw/election/2014-Presidential-national-presidential.csv")
-afg_09_raw <- read_csv("data-raw/election/2009-Presidential-national-presidential.csv")
+# Look-up for Nigeria state abbreviations
+nga_state_abbrev <- read_csv("data-raw/election/Nigeria/nigeria_state_abbreviations.csv", skip = 1)
+
+## Afghanistan presidential -----
+afg_19_raw <- read_csv("data-raw/election/Afghanistan/2019-Presidential-national-presidential.csv")
+afg_14_raw <- read_csv("data-raw/election/Afghanistan/2014-Presidential-national-presidential.csv")
+afg_09_raw <- read_csv("data-raw/election/Afghanistan/2009-Presidential-national-presidential.csv")
 
 # Sentiment lexicons ----
 ## from textdata package
