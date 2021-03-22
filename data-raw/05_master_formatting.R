@@ -14,7 +14,7 @@ library(maptools)
 library(reticulate)
 
 # Source R functions
-list.files("R", full.names = TRUE) %>% map(source)
+list.files("R", full.names = TRUE) %>% purrr::map(source)
 
 # Load raw data -----
 source("data-raw/01_load_raw.R")
@@ -67,13 +67,16 @@ source_python("py/get_tweets.py", convert = FALSE)
 # Get total tweets
 get_tweets_total(scrape_data %>% filter(name %in% c("Ghani", "Karzai")), limit = 1000000000, include_geocode = TRUE)
 
-get_tweets_total(scrape_data %>% filter(!name %in% c("Abdullah")),
+get_tweets_total(scrape_data %>% filter(name %in% c("Ghani")),
                  limit = 1000000000, include_geocode = FALSE)
 
 
 ## Bind tweets ----
 # Map across function load all Tweets across hundreds of JSONs
-tweets_raw_list <- list.files("data-raw/tweets", full.names = TRUE, recursive = TRUE) %>%
+tweets_raw_list <- list.files("data-raw/tweets/total",
+                              full.names = TRUE, recursive = TRUE,
+                              pattern = "_with\\."
+                              ) %>%
   purrr::map(~read_tweets_back(.))
 
 # Bind tweets into dataframe
