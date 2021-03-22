@@ -125,7 +125,7 @@ format_tweets <- function(tweets_raw, candidates){
               candidates_lookup,
               by = c("leader" = "name")) %>%
     select(id, username, name, date, country, leader,
-           x, y, language, tweet)
+           x, y, language, tweet, replies_count, retweets_count, likes_count)
 
   tweets_formatted
 
@@ -143,6 +143,10 @@ add_regions <- function(tweets_formatted, boundaries_subnational){
     filter(!is.na(x)) %>%
     st_as_sf(., coords = c("x", "y"), crs = 4326)
 
+  tweets_no_points <- tweets_formatted %>%
+    filter(is.na(x)) %>%
+    select(-c(x, y))
+
   # Find intersections between points and polygons
   intersections <- st_intersects(tweets_points, boundaries_subnational)
 
@@ -152,14 +156,22 @@ add_regions <- function(tweets_formatted, boundaries_subnational){
     transmute(region_id = row_number(),
               region_1)
 
-  # Add regions and bind non-point tweets back together
-  tweets_points %>%
+  # Add regions to tweets with points
+  tweets_w_regions <- tweets_points %>%
     mutate(region_id = as.integer(intersections)
     ) %>%
-    left_join(., region_look_up, by = "region_id") %>%
-    bind_rows(tweets_formatted %>%
-                filter(is.na(x)) %>%
-                select(-c(x, y))
-    )
+    left_join(., region_look_up, by = "region_id")
+
+  # Add non-point tweets back if there are any
+  if (nrow(tweets_no_points) == 0) {
+
+    tweets_w_regions
+
+  } else {
+
+  tweets_w_regions %>%
+    bind_rows(tweets_no_points)
+
+  }
 
 }
