@@ -50,91 +50,90 @@ load("data/formatted_data.RData")
 
 # Sentiment analysis
 ```{r prepare-text}
-# Clean from patterns and turn to lower-case
-tweets_clean <- tweets_formatted %>%
-  as.data.frame() %>%
-  select(-c(geometry)) %>%
-  tibble() %>%
-  mutate(tweet = tolower(tweet),
-         tweet = remove_patterns_in_tweet(tweet),
-         tweet = str_squish(tweet) # removes repeated white space
-  )
-
-# Save stopwords
-stop_words <- get_stopwords(language = "en", source = "snowball") %>%
-  tibble() %>%
-  transmute(word, stem = SnowballC::wordStem(word))
-
-# Convert to tokens and stem
-tweets_tokens <- tweets_clean %>%
-  unnest_tokens(word, tweet) %>%
-  mutate(stem = SnowballC::wordStem(word),
-         stop_word = if_else(word %in% stop_words$word | word %in% stop_words$stem,
-                             TRUE, FALSE)
-         )
-
-
+# Create tweets tokens
+tweets_tokens <- create_tweet_tokens(tweets_formatted)
 
 ```
 
 ```{r join-lexicon}
-# Unique words to join as factors for speed
-stem_lvls <- unique(c(tweets_tokens$stem, afinn_stem$stem))
-
-# Join lexicon
-senti_tweets <- tweets_tokens %>%
-  mutate(stem = factor(stem, stem_lvls)) %>%
-  left_join(.,
-            afinn_stem,
-            by = "stem") %>%
-  arrange(country, region_1, leader, date)
+# Join sentiment values by stem
+senti_tweets <- join_sentiment_by_stem(tweet_tokens, afinn_stem)
 
 # Share of tweets with no lexicon match for any of their stemmed words
 (share_tweets_no_senti <- senti_tweets %>%
-  group_by(id, username, language) %>%
-  summarise(afinn_mean = mean(afinn_value, na.rm = TRUE)) %>%
-  group_by(is.na(afinn_mean), language == "en") %>%
-  summarise(n = n())
-  )
+    group_by(id, username, language) %>%
+    summarise(afinn_mean = mean(afinn_value, na.rm = TRUE)) %>%
+    group_by(is.na(afinn_mean), language == "en") %>%
+    summarise(n = n())
+)
 
 ```
 
 # Raw estimates
-```{r raw-estimates}
-# Mean sentiment per tweet
-senti_mean <- senti_tweets %>%
-  group_by(id, username, date, week = floor_date(date, "week"), country, region_1, leader) %>%
-  summarise(afinn_mean = mean(afinn_value, na.rm = TRUE)) %>%
-  ungroup() %>%
-  filter(!is.na(afinn_mean)) %>% # drop lexicon NAs
-  mutate(binary = if_else(afinn_mean < 0, 0, 1)) # if sentiment is negative, binary is 0
+```{r tweets-per-weel}
+# Summarise tweets per week
+tweets_n_per_week <- tweets_formatted %>%
+  as.data.frame() %>%
+  select(-geometry) %>%
+  group_by(country, leader, week = floor_date(date, "week")) %>%
+  summarise(n = n())
 
-# Mean sentiment per week
-senti_mean %>%
-  group_by(week, country, region_1, leader) %>%
-  summarise(afinn_mean = mean(afinn_mean, na.rm = TRUE)) %>%
-  group_by(country, region_1, leader) %>%
-  mutate(afinn_roll = roll_mean(afinn_mean, n = 7, fill = TRUE)) %>%
-  filter(leader == "Buhari") %>%
-  ggplot(., aes(x = week, y = afinn_mean)) +
-  geom_point() +
-  geom_line(aes(y = afinn_roll)) +
-  facet_wrap(~region_1)
+# Mean number of tweets per week
+tweets_n_per_week %>%
+  summarise(mean = mean(n))
 
-# Plot mean rating per day
-ggplot(senti_mean_day, aes(x = date, y = afinn_value)) +
-  geom_point(aes(colour = leader)) +
-  facet_wrap(~country)
-
+# Plot
+ggplot(tweets_n_per_week, aes(x = week, y = n, col = leader)) +
+  geom_line() +
+  geom_hline(yintercept = 100) +
+  #facet_wrap(~ leader) +
+  labs(title = "Tweets per week")
 
 ```
 
 
+```{r raw-estimates}
+# Mean sentiment per tweet
+senti_mean <- create_mean_sentiment_per_tweet(senti_tweets)
+
+# Find for-against based on mean sentiment
+(cut_off_seq <- seq(-2, 2, length.out = 9) %>% round(., 2)) 
+
+senti_cut_offs <- purrr::map_dfr(seq_len(9),
+                                 function(x) senti_mean %>%
+                                   mutate(row_number = row_number())) %>%
+  group_by(row_number) %>%
+  mutate(cut_off = seq(-2, 2, length.out = 9))
+
+# Create an estimate per week per cut off
+senti_pro_shares <- find_pro_share(senti_cut_offs, n_roll = 5)
+
+# Plot pro-share by cut-offs
+senti_pro_shares %>%
+  filter(leader == "Buhari") %>%
+  ggplot(., aes(x = week, y = pro_share, colour = leader)) +
+  geom_point() +
+  geom_line(aes(y = pro_share_roll)) +
+  facet_wrap(~ cut_off) +
+  labs(title = "Raw favourability ratings for different cut-offs")
+
+
+```
 
 # Train model
 ```{r train-model}
 
 ```
+
+
+# Validate
+```{r}
+
+
+
+```
+
+
 
 
 # Plots
