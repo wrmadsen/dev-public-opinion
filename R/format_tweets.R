@@ -141,7 +141,7 @@ add_regions <- function(tweets_formatted, boundaries_subnational){
   # Convert to tweets with points to sf
   tweets_points <- tweets_formatted %>%
     filter(!is.na(x)) %>%
-    st_as_sf(., coords = c("x", "y"), crs = 4326)
+    st_as_sf(., coords = c("y", "x"), crs = 4326)
 
   tweets_no_points <- tweets_formatted %>%
     filter(is.na(x)) %>%
