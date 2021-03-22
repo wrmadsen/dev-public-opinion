@@ -75,37 +75,54 @@ join_sentiment_by_stem <- function(tweet_tokens, afinn_stem){
 create_mean_sentiment_per_tweet <- function(senti_tweets){
 
   senti_tweets %>%
-    group_by(id, username, date, week = floor_date(date, "week"), country, region_1, leader) %>%
+    group_by(id, username, date, country, region_1, leader) %>%
     summarise(afinn_mean = mean(afinn_value, na.rm = TRUE)) %>%
     ungroup() %>%
     filter(!is.na(afinn_mean)) # drop lexicon NAs
 
 }
 
+#' Create object with different cut-offs
+#' @param senti_mean
+#' @return senti_cut_offs
+create_cut_offs <- function(senti_mean){
 
-#' Calculate binary for-against based cut off of mean sentiment
+  (cut_off_seq <- seq(-2, 2, length.out = 9) %>% round(., 2))
+
+  senti_mean_w_row_no <- senti_mean %>%
+    mutate(row_number = row_number())
+
+  purrr::map_dfr(seq_len(9), function(x) senti_mean_w_row_no) %>%
+    group_by(row_number) %>%
+    mutate(cut_off = seq(-2, 2, length.out = 9))
+
+}
+
+#' Find pro share
 #' @param senti_cut_offs
 #' @param n_roll window of rolling average
 #' @return pro shares at different cut offs
 find_pro_share <- function(senti_cut_offs, n_roll = 5){
 
+  # Create binary stance against cut-off
   senti_cut_offs %>%
     mutate(stance = if_else(afinn_mean > cut_off, "pro", "con")) %>%
-    group_by(country, leader, week = floor_date(date, "week"), cut_off, stance) %>%
+    group_by(country, leader, region_1,
+             week = floor_date(date, "week"), cut_off, stance) %>%
+    # number of pros and cons per day
     summarise(n = n()) %>%
     pivot_wider(names_from = stance, values_from = n) %>%
     group_by(country, leader, cut_off) %>%
     arrange(week) %>%
+    # find pro share and rolling mean
     mutate(across(c(pro, con), ~if_else(is.na(.), as.integer(0), .)),
            total = pro + con,
            pro_share = pro/total*100,
            pro_share_roll = RcppRoll::roll_mean(pro_share, n_roll, fill = NA)
-           ) %>%
+    ) %>%
     ungroup()
 
 }
-
-
 
 
 
