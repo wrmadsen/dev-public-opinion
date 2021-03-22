@@ -148,8 +148,6 @@ boundaries_subnational <- gadm_1_raw %>%
             geometry
   )
 
-## Format election data -------
-
 ## Format reign ----
 ## Leadership and term variables
 reign <- reign_raw %>%
@@ -177,8 +175,10 @@ reign <- reign_raw %>%
   select(-name) %>%
   rename(start = term_start, end = term_end, name = common)
 
+## Format election data -------
 
-# Nigeria, format Presidentials election data, from inspecting Stears website
+### Nigeria presidential election ----
+# from inspecting Stears website
 ## Initial formatting
 nga_p_19 <- stears_19_raw %>%
   as_tibble() %>%
@@ -191,7 +191,7 @@ nga_p_15 <- stears_15_raw[1] %>%
   as_tibble() %>%
   unnest(cols = c(stateData))
 
-# missing 2011 election, check INEC (Independent National Electoral Commission, Nigeria)
+# missing 2011 election, have attempted to contact INEC (Independent National Electoral Commission, Nigeria)
 
 # Bind and save Nigerian presidential election data
 nga_pres <- bind_rows(nga_p_15, nga_p_19) %>%
@@ -205,15 +205,12 @@ nga_pres <- bind_rows(nga_p_15, nga_p_19) %>%
          country = "Nigeria"
   )
 
-## Extract top candidates for each available election to use for scraping
-candidates_nga <- nga_pres %>%
-  group_by(country, elex_date, name) %>%
-  summarise(votes = sum(votes)) %>%
-  group_by(elex_date) %>%
-  slice_max(votes, n = 2) %>%
-  ungroup()
+# Add state names from abbreviations by joining look-up table
+nga_pres <- nga_pres %>%
+  full_join(., nga_state_abbrev %>% select(-official_abbrev),
+            by = c("state" = "stears_abbrev"))
 
-# Afghanistan president data
+### Afghanistan president data ----
 afg_19 <- afg_19_raw %>%
   rename(province = name,
          total = votes
@@ -247,20 +244,38 @@ afg_pres <- bind_rows(afg_09, afg_14) %>%
   country = "Afghanistan"
   )
 
-candidates_afg <- afg_pres %>%
-  group_by(country, elex_date, name) %>%
+
+### Combine different countries' elections ----
+# Afghanistan, summarise nationally since no Tweets carry Afghan points
+afg_pres_to_bind <- afg_pres %>%
+  transmute(elex_date, country, area = "National", name, votes) %>%
+  group_by(elex_date, country, area, name) %>%
   summarise(votes = sum(votes)) %>%
-  group_by(elex_date) %>%
-  slice_max(votes, n = 2) %>%
   ungroup()
 
-# Bind candidates data for scraping
-candidates <- candidates_nga %>%
-  bind_rows(candidates_afg) %>%
-  # match between reign and candidates objects
+# Nigeria
+nga_pres_to_bind <- nga_pres %>%
+  select(elex_date, country, area = state_name, name, votes)
+
+elex_combined <- bind_rows(afg_pres_to_bind, nga_pres_to_bind) %>%
   left_join(., name_lookup, by = c("name" = "from")) %>%
-  select(-c(votes, name)) %>%
-  rename(name = common)
+  mutate(name = if_else(is.na(common), name, common)) %>%
+  select(-common)
+
+elex_master <- elex_combined %>%
+  group_by(elex_date, country, area) %>%
+  mutate(total = sum(votes),
+         share = votes/total) %>%
+  ungroup()
+
+# Subset two candidates per election with most votes for scraping
+candidates <- elex_combined %>%
+  group_by(country, elex_date, name) %>%
+  summarise(votes = sum(votes)) %>%
+  group_by(country, elex_date) %>%
+  slice_max(votes, n = 2) %>%
+  ungroup() %>%
+  select(-votes)
 
 ## Unique candidates
 candidates$name %>% unique()
