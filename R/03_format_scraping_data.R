@@ -41,11 +41,12 @@ create_smallest_possible <- function(boundaries_national){
   for (i in 1:nrow(boundaries_national)){
 
     # Create smallest-possible circle
+    # need spatstat and maptools
     small_circ <- boundaries_national[i,] %>%
-      st_transform(3857) %>% # need planar projection
-      as_Spatial() %>%
-      as.owin() %>% # convert to owin to use boundingcircle()
-      boundingcircle() %>%
+      sf::st_transform(3857) %>% # need planar projection
+      sf::as_Spatial() %>%
+      spatstat::as.owin() %>% # convert to owin to use boundingcircle()
+      spatstat::boundingcircle() %>%
       st_as_sf() %>%
       st_set_crs(3857)
 
@@ -100,3 +101,4 @@ find_centre_and_radius <- function(small_circs){
     as_tibble()
 
 }
+
