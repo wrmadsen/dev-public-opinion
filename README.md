@@ -104,6 +104,7 @@ Compare with electoral complaints on province-level.
 * Pakistan, General Assembly: https://github.com/colincookman/pakistan_elections
 * Egypt: [Presidential 2018](https://pres2018.elections.eg/results-2018), [Presidential 2014](https://pres2014.elections.eg/presidential-elections-2014-results), [Presidential 2012](http://pres2012.elections.eg/round2-results)
 	* https://github.com/p-mohamed-elsawy/subdivisions-of-egypt/blob/master/data.json?
+* Georgia: https://github.com/ForSetGeorgia/Georgian-Election-Data
 	
 NDI results: https://www.ndi.org/search?query=results
 
