@@ -51,7 +51,7 @@ load("data/formatted_data.RData")
 # Sentiment analysis
 ```{r prepare-text}
 # Create tweets tokens
-tweets_tokens <- create_tweet_tokens(tweets_formatted)
+tweets_tokens <- create_tweet_tokens(tweets_sf)
 
 ```
 
@@ -97,25 +97,19 @@ ggplot(tweets_n_per_week, aes(x = week, y = n, col = leader)) +
 senti_mean <- create_mean_sentiment_per_tweet(senti_tweets)
 
 # Find for-against based on mean sentiment
-(cut_off_seq <- seq(-2, 2, length.out = 9) %>% round(., 2)) 
-
-senti_cut_offs <- purrr::map_dfr(seq_len(9),
-                                 function(x) senti_mean %>%
-                                   mutate(row_number = row_number())) %>%
-  group_by(row_number) %>%
-  mutate(cut_off = seq(-2, 2, length.out = 9))
+senti_cut_offs <- create_cut_offs(senti_mean)
 
 # Create an estimate per week per cut off
 senti_pro_shares <- find_pro_share(senti_cut_offs, n_roll = 5)
 
 # Plot pro-share by cut-offs
 senti_pro_shares %>%
-  filter(leader == "Buhari") %>%
+  filter(leader %in% c("Buhari", "Goodluck Jonathan")) %>%
   ggplot(., aes(x = week, y = pro_share, colour = leader)) +
   geom_point() +
   geom_line(aes(y = pro_share_roll)) +
   facet_wrap(~ cut_off) +
-  labs(title = "Raw favourability ratings for different cut-offs")
+  labs(title = "Raw favourability ratings at different cut-offs")
 
 
 ```
@@ -127,7 +121,9 @@ senti_pro_shares %>%
 
 
 # Validate
-```{r}
+```{r validate-raw}
+# Validate raw estimates ----
+  
 
 
 
