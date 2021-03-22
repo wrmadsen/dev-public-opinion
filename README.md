@@ -87,6 +87,7 @@ Compare with electoral complaints on province-level.
 ## Data
 ### Twitter
 * Tweets from [Twitter's API](https://developer.twitter.com/en/docs)
+
 ### Surveys
 * Europe Elects: https://europeelects.eu/data/
 * Asia Foundation, Afghanistan surveys: https://asiafoundation.org/where-we-work/afghanistan/survey/download-data-form/
@@ -94,13 +95,21 @@ Compare with electoral complaints on province-level.
 * Pew, Global Attitudes: https://www.pewresearch.org/global/datasets/
 * Check Wikipedia election pages
 * https://libguides.princeton.edu/politics/opinion/international
+* Georgia: https://www.ndi.org/publications/results-june-2017-public-opinion-polls-georgia
+
 ### Election
 * CLEA: http://www.electiondataarchive.org/data-and-documentation.php
 * Afghanistan, Presidential: https://afghanistanelectiondata.org/, https://github.com/nditech/af-elections-data
 * Nigeria, Presidential: Stears: https://nigeriaelections.stearsng.com/president/2019 (confirm data's accuracy against Reuters?)
 * Pakistan, General Assembly: https://github.com/colincookman/pakistan_elections
+* Egypt: [Presidential 2018](https://pres2018.elections.eg/results-2018), [Presidential 2014](https://pres2014.elections.eg/presidential-elections-2014-results), [Presidential 2012](http://pres2012.elections.eg/round2-results)
+	* https://github.com/p-mohamed-elsawy/subdivisions-of-egypt/blob/master/data.json?
+	
+NDI results: https://www.ndi.org/search?query=results
+
 ### Leader data
 * Country leaders data, [REIGN](https://oefdatascience.github.io/REIGN.github.io/menu/reign_current.html)
+
 ### Spatial
 * GDL shapefiles: https://globaldatalab.org/shdi/shapefiles/
 * Africapolis, database of thousands of cities in Africa: https://africapolis.org/data
