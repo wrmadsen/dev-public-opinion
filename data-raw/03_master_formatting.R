@@ -93,14 +93,15 @@ tweets_raw <- bind_raw_tweets(tweets_raw_list)
 tweets_formatted <- format_tweets(tweets_raw, candidates)
 
 # Add region names
-tweets_formatted <- add_regions(tweets_formatted, boundaries_subnational)
+tweets_sf <- add_regions(tweets_formatted, boundaries_subnational)
 
 ## Add regional covariates to tweets -----
 
 
 # Save formatted data ----
-save(supp, reign, candidates, nga_pres, afg_pres,
+save(supp, reign, candidates,
+     elex_master,
      boundaries_national, boundaries_subnational,
-     tweets_formatted,
+     tweets_sf,
      senti_lexicons, afinn, afinn_stem,
      file = "data/formatted_data.RData")
