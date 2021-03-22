@@ -17,7 +17,7 @@ def get_tweets(search, geo, limit, since, until, path):
     c.Limit = limit
     c.Since = since
     c.Until = until
-    c.User_full = TRUE
+    c.User_full = True
     c.Output = path
     c.Store_json = True
 
@@ -28,4 +28,4 @@ def get_tweets(search, geo, limit, since, until, path):
     time.sleep(0.1)
 
 
-#get_tweets("Buhari", "en", "9.083333333,7.533333,20km",  19, "2020-12-01", "2020-12-05", wd)
+#get_tweets("Buhari", "9.083333333,7.533333,20km",  19, "2020-12-01", "2020-12-05", wd)

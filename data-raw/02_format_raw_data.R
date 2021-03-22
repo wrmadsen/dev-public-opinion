@@ -148,7 +148,6 @@ boundaries_subnational <- gadm_1_raw %>%
             geometry
   )
 
-
 ## Format election data -------
 
 ## Format reign ----
@@ -184,13 +183,13 @@ reign <- reign_raw %>%
 nga_p_19 <- stears_19_raw %>%
   as_tibble() %>%
   select(president) %>%
-  unnest() %>%
-  unnest() %>%
+  unnest(cols = c(president)) %>%
+  unnest(cols = c(president)) %>%
   filter(!is.na(candidate))
 
 nga_p_15 <- stears_15_raw[1] %>%
   as_tibble() %>%
-  unnest()
+  unnest(cols = c(stateData))
 
 # missing 2011 election, check INEC (Independent National Electoral Commission, Nigeria)
 
@@ -266,16 +265,16 @@ candidates <- candidates_nga %>%
 ## Unique candidates
 candidates$name %>% unique()
 
-# Combine sentiment lexicons
+# Combine sentiment lexicons ----
+## Prepare afinn by stemming and finding mean value of words with same stem
+afinn_stem <- afinn %>%
+  mutate(stem = SnowballC::wordStem(word)) %>%
+  group_by(stem) %>%
+  summarise(afinn_value = max(value))
+
 senti_lexicons <- afinn %>%
   full_join(bing %>% rename(bing_sentiment = sentiment)) %>%
   full_join(nrc %>% rename(nrc_sentiment = sentiment))
-
-# Save formatted data ----
-save(supp, reign, candidates, nga_pres, afg_pres,
-     boundaries_national, boundaries_subnational, senti_lexicons,
-     file = "data/formatted_data.RData")
-
 
 # Not currently used ----
 # ###### GDL region shapefiles

@@ -1,11 +1,5 @@
 ###### Load data
 
-# Packages for loading raw data
-library(tidyverse)
-library(jsonlite)
-library(sf)
-library(tidytext)
-
 # English speakers ----
 # English speakers data from the UN
 un_lang_raw <- read_csv("data-raw/other/UNdata_Export_20210203_194758725.csv")
