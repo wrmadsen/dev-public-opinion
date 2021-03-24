@@ -53,10 +53,10 @@ get_tweets_total <- function(scrape_data, limit = 1000000000, include_geocode = 
               since = paste0(date, " 00:00:00"),
               until = paste0(date_end, " 23:59:59"),
               path = if_else(include_geocode,
-                             paste0("data-raw/tweets/total/with_", name, "_",
-                                    paste(date), "_to_", paste(date_end), ".json"),
-                             paste0("data-raw/tweets/total/without_", name, "_",
-                                    paste(date), "_to_", paste(date_end), ".json")
+                             paste0("data-raw/tweets/total/", name, "_",
+                                    paste(date), "_to_", paste(date_end), "_with.json"),
+                             paste0("data-raw/tweets/total/", name, "_",
+                                    paste(date), "_to_", paste(date_end), "_without.json")
               )
     ) #%>% view
 
@@ -120,7 +120,7 @@ format_tweets <- function(tweets_raw, candidates){
     mutate(date = as.Date(date),
            week = floor_date(date, "week"),
            leader = gsub("data.+/|_.+", "", filename),
-    ) %>%
+    ) %>% view
     left_join(.,
               candidates_lookup,
               by = c("leader" = "name")) %>%
