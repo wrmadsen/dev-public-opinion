@@ -65,10 +65,10 @@ source_python("py/get_tweets.py", convert = FALSE)
 #get_tweets_per(scrape_data, limit = 1000000, include_geocode = TRUE)
 
 # Get total tweets
-get_tweets_total(scrape_data %>% filter(name %in% c("Ghani", "Karzai")), limit = 1000000000, include_geocode = TRUE)
-
-get_tweets_total(scrape_data %>% filter(name %in% c("Ghani")),
-                 limit = 1000000000, include_geocode = FALSE)
+# get_tweets_total(scrape_data %>% filter(name %in% c("Ghani", "Karzai")), limit = 1000000000, include_geocode = TRUE)
+#
+# get_tweets_total(scrape_data %>% filter(name %in% c("Ghani")),
+#                  limit = 1000000000, include_geocode = FALSE)
 
 
 ## Bind tweets ----
@@ -96,7 +96,6 @@ tweets_formatted <- format_tweets(tweets_raw, candidates)
 tweets_sf <- add_regions(tweets_formatted, boundaries_subnational)
 
 ## Add regional covariates to tweets -----
-
 
 # Save formatted data ----
 save(supp, reign, candidates,
