@@ -146,7 +146,10 @@ boundaries_subnational <- gadm_1_raw %>%
             region_1 = as.character(name_1),
             type_1 = type_1,
             geometry
-  )
+  ) %>%
+  # correct typos or adapt before joining with other objects, e.g. election data
+  mutate(region_1 = case_when(region_1 == "Nassarawa" ~ "Nasarawa",
+                              TRUE ~ region_1))
 
 ## Format reign ----
 ## Leadership and term variables
@@ -208,7 +211,16 @@ nga_pres <- bind_rows(nga_p_15, nga_p_19) %>%
 # Add state names from abbreviations by joining look-up table
 nga_pres <- nga_pres %>%
   full_join(., nga_state_abbrev %>% select(-official_abbrev),
-            by = c("state" = "stears_abbrev"))
+            by = c("state" = "stears_abbrev")) %>%
+  select(elex_date, country, region_1 = state_name, name, votes)
+
+# Add national count rows to Nigeria (to match with Tweets without points)
+nga_pres <- nga_pres %>%
+  mutate(region_1 = "National") %>%
+  group_by(elex_date, country, region_1, name) %>%
+  summarise(votes = sum(votes)) %>%
+  ungroup() %>%
+  bind_rows(nga_pres)
 
 ### Afghanistan president data ----
 afg_19 <- afg_19_raw %>%
@@ -233,6 +245,8 @@ afg_09 <- afg_09_raw %>%
   clean_names() %>%
   mutate(year = 2009)
 
+# Afghanistan, summarise nationally to match with Tweets with no points
+# Seems that most if not all Afghan tweets don't carry any points data (a Twitter policy?)
 afg_pres <- bind_rows(afg_09, afg_14) %>%
   bind_rows(afg_19) %>%
   filter(!name %in% c("votes")) %>%
@@ -242,34 +256,30 @@ afg_pres <- bind_rows(afg_09, afg_14) %>%
                                year == 2019 ~ as.Date("2019-09-28")
   ),
   country = "Afghanistan"
-  )
-
-
-### Combine different countries' elections ----
-# Afghanistan, summarise nationally since no Tweets carry Afghan points
-afg_pres_to_bind <- afg_pres %>%
-  transmute(elex_date, country, area = "National", name, votes) %>%
-  group_by(elex_date, country, area, name) %>%
+  ) %>%
+  transmute(elex_date, country, region_1 = "National", name, votes) %>%
+  group_by(elex_date, country, region_1, name) %>%
   summarise(votes = sum(votes)) %>%
   ungroup()
 
-# Nigeria
-nga_pres_to_bind <- nga_pres %>%
-  select(elex_date, country, area = state_name, name, votes)
+### Combine different countries' elections ----
 
-elex_combined <- bind_rows(afg_pres_to_bind, nga_pres_to_bind) %>%
+# Bind countries
+elex_combined <- bind_rows(afg_pres, nga_pres) %>%
   left_join(., name_lookup, by = c("name" = "from")) %>%
   mutate(name = if_else(is.na(common), name, common)) %>%
   select(-common)
 
+# Format master election object
 elex_master <- elex_combined %>%
-  group_by(elex_date, country, area) %>%
-  mutate(total = sum(votes),
-         share = votes/total) %>%
+  group_by(elex_date, country, region_1) %>%
+  mutate(votes_total = sum(votes),
+         votes_share = votes/votes_total) %>%
   ungroup()
 
 # Subset two candidates per election with most votes for scraping
 candidates <- elex_combined %>%
+  filter(region_1 == "National") %>%
   group_by(country, elex_date, name) %>%
   summarise(votes = sum(votes)) %>%
   group_by(country, elex_date) %>%
