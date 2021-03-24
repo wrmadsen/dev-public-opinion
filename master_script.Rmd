@@ -43,6 +43,9 @@ devtools::load_all()
 
 # Load prepared data
 ```{r load-data}
+# Format data
+#source("data-raw/03_master_formatting.R")
+
 # Load formatted data
 load("data/formatted_data.RData")
 
@@ -72,7 +75,7 @@ senti_tweets <- join_sentiment_by_stem(tweet_tokens, afinn_stem)
 # Raw estimates
 ```{r tweets-per-weel}
 # Summarise tweets per week
-tweets_n_per_week <- tweets_formatted %>%
+tweets_n_per_week <- tweets_sf %>%
   as.data.frame() %>%
   select(-geometry) %>%
   group_by(country, leader, week = floor_date(date, "week")) %>%
@@ -100,12 +103,12 @@ senti_mean <- create_mean_sentiment_per_tweet(senti_tweets)
 senti_cut_offs <- create_cut_offs(senti_mean)
 
 # Create an estimate per week per cut off
-senti_pro_shares <- find_pro_share(senti_cut_offs, n_roll = 5)
+raw_pro_shares <- find_pro_share(senti_cut_offs, n_roll = 5)
 
 # Plot pro-share by cut-offs
-senti_pro_shares %>%
+raw_pro_shares %>%
   filter(leader %in% c("Buhari", "Goodluck Jonathan")) %>%
-  ggplot(., aes(x = week, y = pro_share, colour = leader)) +
+  ggplot(., aes(x = date, y = pro_share, colour = leader)) +
   geom_point() +
   geom_line(aes(y = pro_share_roll)) +
   facet_wrap(~ cut_off) +
@@ -114,21 +117,32 @@ senti_pro_shares %>%
 
 ```
 
+
+
 # Train model
 ```{r train-model}
 
 ```
 
-
-# Validate
+# Validation
 ```{r validate-raw}
-# Validate raw estimates ----
-  
+# Join raw estimates to election results
+validate_elex_raw <- join_election_to_raw_senti(raw_pro_shares, elex_master)
+
+
+# Plot raw difference by days from election
+validate_elex_raw %>%
+  mutate(pro_share_diff = pro_share - votes_share,
+         pro_share_roll_diff = pro_share_roll - votes_share) %>%
+  filter(days_diff_abs < 100) %>%
+  filter(leader == "Buhari") %>%
+  ggplot(., aes(x = days_diff, y = pro_share_roll_diff)) +
+  geom_point() +
+  facet_wrap(~region_1)
 
 
 
 ```
-
 
 
 
