@@ -22,3 +22,5 @@ Imports:
 	spatstat,
 	jsonlite,
 	reticulate
+Suggests: 
+    testthat

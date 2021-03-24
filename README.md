@@ -3,7 +3,7 @@ This project outlines a strategy and its feasibility and limitations in estimati
 
 ### To-do:
 * Train data
-* Events data to explain or validate changes in public opinion (qualitative/visual validation)
+* Events data to explain or validate changes in public opinion (qualitative/visual validation), use Wikipedia, eg https://en.wikipedia.org/wiki/2019_in_Nigeria
 * Any traditional polling available? (A consideration when adding new countries)
 * Add other countries, including developed countries for comparison
 * Translate non-English tweets? (Lucas et al 2015; de Vries, Schoonevelde and Schumacher 2018)
