@@ -108,12 +108,13 @@ find_pro_share <- function(senti_cut_offs, n_roll = 5){
   senti_cut_offs %>%
     mutate(stance = if_else(afinn_mean > cut_off, "pro", "con")) %>%
     group_by(country, leader, region_1,
-             week = floor_date(date, "week"), cut_off, stance) %>%
+             date, #week = floor_date(date, "week"),
+             cut_off, stance) %>%
     # number of pros and cons per day
     summarise(n = n()) %>%
     pivot_wider(names_from = stance, values_from = n) %>%
     group_by(country, leader, cut_off) %>%
-    arrange(week) %>%
+    arrange(date) %>%
     # find pro share and rolling mean
     mutate(across(c(pro, con), ~if_else(is.na(.), as.integer(0), .)),
            total = pro + con,
