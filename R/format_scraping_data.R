@@ -1,31 +1,43 @@
 #' Create scraper frequency
 #'
 #' @param reign reign object with leaders' term length.
-#' @param people_to_scrape which people to scrape and when.
+#' @param candidates candidates of elections.
 #' @return scraping frequency dataset, where each row gives a string (a leader) and period to be used to scrape Tweets with twint.
-create_scrape_freq <- function(reign, people_to_scrape, days){
+create_scrape_freq <- function(reign, candidates){
 
-  # Create object to GET tweets with
-  # Each row will present a round of scraping
-  reign %>%
-    mutate(type = "leader") %>%
-    bind_rows(people_to_scrape) %>%
-    mutate(type = if_else(is.na(type), "candidate", type)) %>%
+  # Days per scraping period
+  days_per_scrape <- 14
+
+  # Choose scraping frequency, day, week, or a number of days
+  # Floor start and ceiling end of term period
+  scrape_names <- reign %>%
     arrange(country, end) %>%
     rowwise() %>%
-    # Choose scraping frequency, day, week, or a number of days
-    # Floor start and ceiling end of term period
-    mutate(date = list(seq.Date(floor_date(start, "month"), ceiling_date(end, "month"), by = days))) %>%
+    mutate(start = floor_date(start, "month"),
+           end = ceiling_date(end, "month"),
+           date = list(seq.Date(start,
+                                end,
+                                by = days_per_scrape))) %>%
     tidyr::unnest(date) %>%
     transmute(country = case_when(country == "USA" ~ "United States",
                                   TRUE ~ country),
               name,
               date = date, # scrape start time (since)
-              date_end = date + days(days-1), # scrape end time (to)
+              date_end = date + days(days_per_scrape-1), # scrape end time (to)
     ) %>%
     filter(date >= as.Date("2006-07-15")) %>% # when Twitter full version went live
     filter(!is.na(name)) %>%
     arrange(country, name, date)
+
+  # Add candidates (winners and losers) to scrape before election
+  candidates %>%
+    transmute(country,
+              name,
+              date = elex_date - months(4),
+              date_end = elex_date + months(1)
+              ) %>%
+    bind_rows(scrape_names)
+
 
 }
 
