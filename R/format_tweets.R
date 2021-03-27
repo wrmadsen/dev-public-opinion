@@ -33,7 +33,8 @@ get_tweets_per <- function(scrape_data, limit = 1000000, include_geocode = FALSE
   plan(multicore, workers = no_cores)
 
   # Map with future
-  future_pmap(scrape_data_sub, get_tweets, .progress = TRUE)
+  future_pwalk(scrape_data_sub, get_tweets, .progress = TRUE)
+  #future_pmap(scrape_data_sub, get_tweets, .progress = TRUE)
 
 }
 
