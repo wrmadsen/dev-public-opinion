@@ -20,6 +20,7 @@ def get_tweets(search, geo, limit, since, until, path):
     c.User_full = True
     c.Output = path
     c.Store_json = True
+    c.Hide_output = True
 
     # Run twint
     twint.run.Search(c)
