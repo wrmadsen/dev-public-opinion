@@ -118,7 +118,7 @@ find_pro_share <- function(senti_cut_offs, n_roll = 5){
     # find pro share and rolling mean
     mutate(across(c(pro, con), ~if_else(is.na(.), as.integer(0), .)),
            total = pro + con,
-           pro_share = pro/total*100,
+           pro_share = pro/total,
            pro_share_roll = RcppRoll::roll_mean(pro_share, n_roll, fill = NA)
     ) %>%
     ungroup()
