@@ -26,8 +26,14 @@ get_tweets_per <- function(scrape_data, limit = 1000000, include_geocode = FALSE
               path = file_path
     ) #%>% view
 
-  # Map across Python function
-  pmap(scrape_data_sub, get_tweets)
+  # Set up parallel queries
+  no_cores <- availableCores() - 2
+  #plan(cluster)
+  #plan(sequential)
+  plan(multicore, workers = no_cores)
+
+  # Map with future
+  future_pmap(scrape_data_sub, get_tweets, .progress = TRUE)
 
 }
 
