@@ -6,6 +6,7 @@ from multiprocessing.dummy import Pool as ThreadPool
 # Load data
 scrape_data = pd.read_csv("py/scrape_data.csv")
 
+# Set up twint function
 def get_tweets(search, since, until):
 
     c = twint.Config()
