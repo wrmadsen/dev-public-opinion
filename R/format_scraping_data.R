@@ -5,38 +5,45 @@
 #' @return scraping frequency dataset, where each row gives a string (a leader) and period to be used to scrape Tweets with twint.
 create_scrape_freq <- function(reign, candidates){
 
-  # Days per scraping period
-  days_per_scrape <- 14
+  # Period to scrape by
+  #period_to_scrape <- 12 # hours
+
+  # Format candidates data
+  candidates_to_scrape <- candidates %>%
+    transmute(country,
+              name,
+              start = elex_date - months(4),
+              end = elex_date + months(1)
+    )
 
   # Choose scraping frequency, day, week, or a number of days
   # Floor start and ceiling end of term period
-  scrape_names <- reign %>%
+  reign %>%
+    # Add candidates (winners and losers) to scrape before election
+    bind_rows(candidates_to_scrape) %>%
     arrange(country, end) %>%
     rowwise() %>%
-    mutate(start = floor_date(start, "month"),
-           end = ceiling_date(end, "month"),
-           date = list(seq.Date(start,
-                                end,
-                                by = days_per_scrape))) %>%
+    mutate(start = floor_date(start, "month") %>% paste0(., "00:00") %>% as.POSIXct(., tz="UTC"),
+           end = ceiling_date(end, "month") %>% paste0(., "23:59:59") %>% as.POSIXct(., tz="UTC")
+           ) %>%
+    mutate(date = list(seq(start,
+                           end,
+                           by = "12 hour"))) %>%
+    # mutate(start = floor_date(start, "month"),
+    #        end = ceiling_date(end, "month"))
+    # mutate(date = list(seq.Date(start,
+    #                             end,
+    #                             by = days_per_scrape))) %>%
     tidyr::unnest(date) %>%
     transmute(country = case_when(country == "USA" ~ "United States",
                                   TRUE ~ country),
               name,
-              date = date, # scrape start time (since)
-              date_end = date + days(days_per_scrape-1), # scrape end time (to)
+              date, # scrape start time (since)
+              date_end = date + hours(11) + minutes(59) + seconds(59), # scrape end time (to)
     ) %>%
     filter(date >= as.Date("2006-07-15")) %>% # when Twitter full version went live
     filter(!is.na(name)) %>%
     arrange(country, name, date)
-
-  # Add candidates (winners and losers) to scrape before election
-  candidates %>%
-    transmute(country,
-              name,
-              date = elex_date - months(4),
-              date_end = elex_date + months(1)
-              ) %>%
-    bind_rows(scrape_names)
 
 
 }
@@ -57,8 +64,8 @@ create_smallest_possible <- function(boundaries_national){
     small_circ <- boundaries_national[i,] %>%
       sf::st_transform(3857) %>% # need planar projection
       sf::as_Spatial() %>%
-      spatstat::as.owin() %>% # convert to owin to use boundingcircle()
-      spatstat::boundingcircle() %>%
+      as.owin() %>% # convert to owin to use boundingcircle()
+      boundingcircle() %>%
       st_as_sf() %>%
       st_set_crs(3857)
 
