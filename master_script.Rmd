@@ -118,9 +118,10 @@ raw_pro_shares %>%
 ```
 
 
-
 # Train model
 ```{r train-model}
+
+
 
 ```
 
@@ -129,17 +130,18 @@ raw_pro_shares %>%
 # Join raw estimates to election results
 validate_elex_raw <- join_election_to_raw_senti(raw_pro_shares, elex_master)
 
+# Summary statistics of each cut-off
+cut_off_stats <- summarise_cut_off_validation(validate_elex_raw)
 
-# Plot raw difference by days from election
-validate_elex_raw %>%
-  mutate(pro_share_diff = pro_share - votes_share,
-         pro_share_roll_diff = pro_share_roll - votes_share) %>%
-  filter(days_diff_abs < 100) %>%
-  filter(leader == "Buhari") %>%
-  ggplot(., aes(x = days_diff, y = pro_share_roll_diff)) +
+# Plot raw estimate stats of each cut-off
+cut_off_stats %>%
+  filter(days_diff < 0) %>%
+  ggplot(.,
+         aes(x = days_diff, y = abs(mean))) +
   geom_point() +
-  facet_wrap(~region_1)
-
+  geom_smooth(method = lm) +
+  facet_wrap(~ cut_off) +
+  labs(title = "Mean difference between raw estimate and election results for each cut-off value by days to election")
 
 
 ```
