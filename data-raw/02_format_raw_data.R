@@ -176,7 +176,9 @@ reign <- reign_raw %>%
   # match between reign and candidates objects
   left_join(., name_lookup, by = c("name" = "from")) %>%
   select(-name) %>%
-  rename(start = term_start, end = term_end, name = common)
+  rename(start = term_start, end = term_end, name = common) %>%
+  # drop NA names, i.e. countries or leaders not included in look-up
+  filter(!is.na(name))
 
 ## Format election data -------
 
@@ -273,19 +275,19 @@ elex_combined <- bind_rows(afg_pres, nga_pres) %>%
 # Format master election object
 elex_master <- elex_combined %>%
   group_by(elex_date, country, region_1) %>%
-  mutate(votes_total = sum(votes),
-         votes_share = votes/votes_total) %>%
-  ungroup()
+  mutate(votes_total = sum(votes)) %>%
+  ungroup() %>%
+  mutate(votes_share = votes/votes_total)
 
 # Subset two candidates per election with most votes for scraping
-candidates <- elex_combined %>%
+candidates <- elex_master %>%
   filter(region_1 == "National") %>%
-  group_by(country, elex_date, name) %>%
-  summarise(votes = sum(votes)) %>%
-  group_by(country, elex_date) %>%
-  slice_max(votes, n = 2) %>%
+  filter(!name %in% c("Other", "other")) %>%
+  group_by(elex_date, country, region_1) %>%
+  #mutate(winner = if_else(votes_share = max(votes_share) == ))
+  slice_max(votes_share, n = 2) %>%
   ungroup() %>%
-  select(-votes)
+  arrange(country, elex_date)
 
 ## Unique candidates
 candidates$name %>% unique()
