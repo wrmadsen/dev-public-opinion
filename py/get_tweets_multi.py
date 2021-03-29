@@ -13,11 +13,10 @@ def get_tweets(search, since, until):
     c.Search = search
     c.Lang = "en"
     #c.Geo = geo
-    c.Limit = 50
     c.Since = since
     c.Until = until
     #c.User_full = True
-    c.Output = "py"
+    c.Output = "data-raw/tweets/tweets_without.json"
     c.Store_json = True
     c.Hide_output = True
 
@@ -31,10 +30,9 @@ start = time.perf_counter()
 # Convert dataframe to
 records = scrape_data.to_records(index=False)
 tuples = list(records)
-print(tuples)
 
-# Get in parallel
-pool = ThreadPool(7)
+# Get tweets in parallel
+pool = ThreadPool(14)
 pool.starmap(get_tweets, tuples)
 pool.close()
 pool.join()
