@@ -14,6 +14,7 @@ library(maptools)
 library(reticulate)
 library(future)
 library(furrr)
+library(textdata)
 
 # Source R functions
 list.files("R", full.names = TRUE) %>% purrr::map(source)
@@ -46,23 +47,26 @@ scrape_data <- scrape_names %>%
   filter(!is.na(geocode)) %>%
   arrange(name, desc(date)) # descending to get recent tweets first
 
-## Get tweets ----
-# Source Python twint function
-use_python("/usr/local/bin/python3", required = TRUE)
+# Save scrape data as csv
+# Multiprocessing in Python cut time from 150 secs to 22 secs (14x as fast)
+scrape_data_csv <- scrape_data %>%
+  mutate(date = paste(date),
+         date_end = paste(date_end)) %>%
+  select(leader = name, date, date_end) %>%
+  filter(leader == "Buhari") %>%
+  filter(year(date) == 2015 & month(date) == 1 & week(date) %in% c(1,2) | year(date_end) == 2015 & month(date_end) == 1 & week(date_end) %in% c(1,2))
 
-source_python("py/get_tweets.py", convert = FALSE)
+write_csv(scrape_data_csv, "py/scrape_data.csv")
 
-# Get tweets per period
-## Get tweets without points
-get_tweets_per(scrape_data, limit = 1000000, include_geocode = FALSE)
+# Get tweets ----
+# This stage takes place in Python, outside of R, for now
+# Try to source py script with reticulate in the future to keep pipeline in R
+#use_python("/usr/local/bin/python3", required = TRUE)
+use_virtualenv("~/venv/", required = TRUE)
 
-## Get tweets with points
-get_tweets_per(scrape_data, limit = 1000000, include_geocode = TRUE)
+source_python("py/get_tweets_multi.py", convert = FALSE)
 
-# Get total tweets
-# get_tweets_total(scrape_data %>% filter(name %in% c("Ghani", "Karzai")), limit = 1000000000, include_geocode = TRUE)
-#
-# get_tweets_total(scrape_data %>% filter(name %in% c("Ghani")), limit = 1000000000, include_geocode = FALSE)
+py_run_file("py/get_tweets_multi.py")
 
 
 ## Bind tweets ----
@@ -70,7 +74,7 @@ get_tweets_per(scrape_data, limit = 1000000, include_geocode = TRUE)
 tweets_raw_list <- list.files("data-raw/tweets/total",
                               full.names = TRUE, recursive = TRUE,
                               pattern = "_with\\."
-                              ) %>%
+) %>%
   purrr::map(~read_tweets_back(.))
 
 # Bind tweets into dataframe
