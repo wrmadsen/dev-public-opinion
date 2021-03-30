@@ -51,17 +51,21 @@ For now, I use the `Pool` method of `multiprocessing` rather than `Process`. I h
 This issue may be I/O bound, so it may make sense to use more threads than is available. This [article](https://www.freecodecamp.org/news/multiprocessing-vs-multithreading-in-python-what-you-need-to-know-ef6bdc13d018/) suggests that multithreading may be better since the task is I/O heavy. That might mean I need to look into using the `threading` module.
 
 Difference between getting tweets one-a-day or over multiple days. Scraping "Buhari" during first two weeks of January 2015..
-    1. `per 1 day, threads = 7`: 351.08 seconds (188 mb), which is 0,54 mb per second
-    2. `per 2 days, threads = 7`: 457.49 seconds (222 mb), which is 0,49 mb per second
-    3. `per 7 days, threads = 7`: 1301.32 seconds (266 mb, since 7-day-periods stretched beyond)
-    4. `per 1 day, threads = 14`: 296.17 seconds (201 mb)
-    5. `per 1 day, threads = 30`: 300.39 seconds (201 mb)
-    6. `per 12 hours, threads = 14`: 287.37 seconds (118 mb)
-    7. `per 12 hours, threads = 30`: 286.12 seconds (118 mb)
+1. `per 1 day, threads = 7`: 351.08 seconds (188 mb), which is 0,54 mb per second
+2. `per 2 days, threads = 7`: 457.49 seconds (222 mb), which is 0,49 mb per second
+3. `per 7 days, threads = 7`: 1301.32 seconds (266 mb, since 7-day-periods stretched beyond)
+4. `per 1 day, threads = 14`: 296.17 seconds (201 mb)
+5. `per 1 day, threads = 30`: 300.39 seconds (201 mb)
+6. `per 12 hours, threads = 14`: 287.37 seconds (118 mb)
+7. `per 12 hours, threads = 30`: 286.12 seconds (118 mb)
+
+Imposing `limit = 20000` (per 12 hours) on the 6th scenario above, cuts the time to 199.5 seconds while only reducing tweets to 116 mb. `limit = 10000` cuts it to 104.68 seconds and 102 mb. Note that the `limit` in the 6th scenario refers to number of tweets per 12-hour-interval. `limit = 5000` cuts it to 54.8 seconds and 61 mb. These are for non-geocoded tweets.
+
+A takeaway may to impose a limit on non-geocoded tweets to save time and gather geocodes tweets, which have less volume, without a limit.
 
 Tweets are scraped by two methods:
-    1. Tweets which mention a leader
-    2. Tweets which mention a leader and give coordinates with the smallest-possible circle of a country
+1. Tweets which mention a leader
+2. Tweets which mention a leader and give coordinates with the smallest-possible circle of a country
 
 #### Which countries?
 Tentative group: Nigeria, Iraq, Phillipines, Egypt, Tunis, Russia, Turkey, Malaysia, Zimbabwe, Afghanistan
