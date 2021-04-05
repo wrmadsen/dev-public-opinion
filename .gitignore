@@ -19,7 +19,7 @@
 *.zip
 *.tif
 *.txt
-*.RData
+**/*.RData
 *.geojson
 *.html
 *.pdf
