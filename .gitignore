@@ -19,7 +19,7 @@
 *.zip
 *.tif
 *.txt
-*.rdata
+*.RData
 *.geojson
 *.html
 *.pdf
@@ -30,4 +30,4 @@
 *.idea
 
 # include formatted data
-!data/*
+#!data/*
