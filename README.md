@@ -1,6 +1,10 @@
 # Estimating public opinion in developing countries using social media
 This project outlines a strategy and its feasibility and limitations in estimating public opinion in English-speaking developing countries. This may have consequences for the idea of political and electoral accountability, the social contract, depending on how our strategy can reliably produce estimates of public opinion. These estimates may serve as a comparison against official electoral results.
 
+This is my undergraduate dissertation at UCL.
+
+The final product will be an R package to promote open-source, scalable research.
+
 ### To-do:
 * Train data
 * Events data to explain or validate changes in public opinion (qualitative/visual validation), use Wikipedia, eg https://en.wikipedia.org/wiki/2019_in_Nigeria
@@ -68,7 +72,7 @@ Tweets are collected by two methods:
 2. Tweets which mention a leader and give coordinates with the smallest-possible circle of a country
 
 #### Which countries?
-Tentative group: Nigeria, Iraq, Phillipines, Egypt, Tunis, Russia, Turkey, Malaysia, Zimbabwe, Afghanistan, Mozambique
+Tentative group: Nigeria, Iraq, Phillippines, Egypt, Tunis, Russia, Turkey, Malaysia, Zimbabwe, Afghanistan, Mozambique
 Looking at differences in English-speaking proportion, number of Twitter users, electoral corruption and other characteristics, we can discuss the consequences of the accuracy of the Twitter public opinion by country.
 
 #### Rotating proxies: Robin Hood method:
