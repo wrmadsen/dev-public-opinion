@@ -40,14 +40,14 @@ reign_raw <- read_csv("data-raw/other/REIGN_2021_2.csv")
 
 # GADM boundaries -----
 ## National
-gadm_0_raw <- c("https://biogeo.ucdavis.edu/data/gadm3.6/Rsf/gadm36_NGA_0_sf.rds",
-                "https://biogeo.ucdavis.edu/data/gadm3.6/Rsf/gadm36_AFG_0_sf.rds") %>%
-  map_df(~readRDS(url(.)))
-
-## Subnational
-gadm_1_raw <- c("https://biogeo.ucdavis.edu/data/gadm3.6/Rsf/gadm36_NGA_1_sf.rds",
-                "https://biogeo.ucdavis.edu/data/gadm3.6/Rsf/gadm36_AFG_1_sf.rds") %>%
-  map_df(~readRDS(url(.)))
+# gadm_0_raw <- c("https://biogeo.ucdavis.edu/data/gadm3.6/Rsf/gadm36_NGA_0_sf.rds",
+#                 "https://biogeo.ucdavis.edu/data/gadm3.6/Rsf/gadm36_AFG_0_sf.rds") %>%
+#   map_df(~readRDS(url(.)))
+#
+# ## Subnational
+# gadm_1_raw <- c("https://biogeo.ucdavis.edu/data/gadm3.6/Rsf/gadm36_NGA_1_sf.rds",
+#                 "https://biogeo.ucdavis.edu/data/gadm3.6/Rsf/gadm36_AFG_1_sf.rds") %>%
+#   map_df(~readRDS(url(., timeout = 120)))
 
 # Election data ------
 

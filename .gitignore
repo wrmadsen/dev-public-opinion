@@ -7,7 +7,7 @@
 *.csv
 *.json
 *.xlsx
-*xls
+*.xls
 *.shp
 *.shx
 *.sbx
@@ -19,7 +19,7 @@
 *.zip
 *.tif
 *.txt
-**/*.RData
+*.RData
 *.geojson
 *.html
 *.pdf

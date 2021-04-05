@@ -218,7 +218,7 @@ ggplot() +
 
 
 # Methodology plots -----
-# Plot scraper circles
+# Plot get circles
 ggplot() +
   geom_sf(data = gadm_simp) +
   geom_sf(data = gadm_circ, fill = NA)

@@ -279,7 +279,7 @@ elex_master <- elex_combined %>%
   ungroup() %>%
   mutate(votes_share = votes/votes_total)
 
-# Subset two candidates per election with most votes for scraping
+# Subset two candidates per election with most votes for Tweet collection
 candidates <- elex_master %>%
   filter(region_1 == "National") %>%
   filter(!name %in% c("Other", "other")) %>%

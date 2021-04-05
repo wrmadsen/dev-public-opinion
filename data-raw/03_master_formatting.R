@@ -27,9 +27,9 @@ source("data-raw/02_format_raw_data.R")
 
 # Get and format tweets -----
 
-# Create object with scraping frequency and names
-# People names must match between reign and people_to_scrape
-scrape_names <- create_scrape_freq(reign, candidates)
+# Create object with get frequency and names
+# People names must match between reign and people_to_get
+get_names <- create_get_freq(reign, candidates)
 
 # Create smallest possible circles
 small_circs <- create_smallest_possible(boundaries_national)
@@ -42,21 +42,21 @@ geocodes <- centre_and_radius %>%
   transmute(country, geocode = paste0(x, ",", y, ",", radius_m/1000, "km"))
 
 # Join data
-scrape_data <- scrape_names %>%
+get_data <- get_names %>%
   left_join(geocodes, by = "country") %>%
   filter(!is.na(geocode)) %>%
   arrange(name, desc(date)) # descending to get recent tweets first
 
-# Save scrape data as csv
+# Save get data as csv
 # Multiprocessing in Python cut time from 150 secs to 22 secs (14x as fast)
-scrape_data_csv <- scrape_data %>%
+get_data_csv <- get_data %>%
   mutate(date = paste(date),
          date_end = paste(date_end)) %>%
   select(leader = name, date, date_end) %>%
   filter(leader == "Buhari") %>%
   filter(year(date) == 2015 & month(date) == 1 & week(date) %in% c(1,2) | year(date_end) == 2015 & month(date_end) == 1 & week(date_end) %in% c(1,2))
 
-write_csv(scrape_data_csv, "py/scrape_data.csv")
+write_csv(get_data_csv, "py/get_data.csv")
 
 # Get tweets ----
 # This stage takes place in Python, outside of R, for now

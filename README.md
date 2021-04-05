@@ -42,15 +42,15 @@ Using Twitter data, I aim to estimate public opinion and investigate to what ext
 	* Bots: How many Tweets does not represent a single person's views? Check research on spotting Twitter bots.
 
 ### Get Tweets
-`Python`'s [twint](https://github.com/twintproject/twint) module allows us to scrape Tweets in a scalable way. With `R`'s [reticulate](https://rstudio.github.io/reticulate/) package, I run our `Python` script from `R`.
+`Python`'s [twint](https://github.com/twintproject/twint) module allows us to collect Tweets in a scalable way. With `R`'s [reticulate](https://rstudio.github.io/reticulate/) package, I run our `Python` script from `R`.
 
-The Python module `multiprocessing` allows us to cut down on time spent getting tweets. It runs scrapes in parallel, utilising multiple threads on your computer. The Python script is sourced from R, but it is not run within R using `reticulate` as that R package does not allow for multiprocessing.
+The Python module `multiprocessing` allows us to cut down on time spent getting tweets. It runs collections in parallel, utilising multiple threads on your computer. The Python script is sourced from R, but it is not run within R using `reticulate` as that R package does not allow for multiprocessing.
 
 For now, I use the `Pool` method of `multiprocessing` rather than `Process`. I have not tested which is quicker.
 
 This issue may be I/O bound, so it may make sense to use more threads than is available. This [article](https://www.freecodecamp.org/news/multiprocessing-vs-multithreading-in-python-what-you-need-to-know-ef6bdc13d018/) suggests that multithreading may be better since the task is I/O heavy. That might mean I need to look into using the `threading` module.
 
-Difference between getting tweets one-a-day or over multiple days. Scraping "Buhari" during first two weeks of January 2015..
+Difference between getting tweets one-a-day or over multiple days. Collecting "Buhari" during the first two weeks of January 2015..
 1. `per 1 day, threads = 7`: 351.08 seconds (188 mb), which is 0,54 mb per second
 2. `per 2 days, threads = 7`: 457.49 seconds (222 mb), which is 0,49 mb per second
 3. `per 7 days, threads = 7`: 1301.32 seconds (266 mb, since 7-day-periods stretched beyond)
@@ -63,16 +63,16 @@ Imposing `limit = 20000` (per 12 hours) on the 6th scenario above, cuts the time
 
 A takeaway may to impose a limit on non-geocoded tweets to save time and gather geocodes tweets, which have less volume, without a limit.
 
-Tweets are scraped by two methods:
+Tweets are collected by two methods:
 1. Tweets which mention a leader
 2. Tweets which mention a leader and give coordinates with the smallest-possible circle of a country
 
 #### Which countries?
-Tentative group: Nigeria, Iraq, Phillipines, Egypt, Tunis, Russia, Turkey, Malaysia, Zimbabwe, Afghanistan
+Tentative group: Nigeria, Iraq, Phillipines, Egypt, Tunis, Russia, Turkey, Malaysia, Zimbabwe, Afghanistan, Mozambique
 Looking at differences in English-speaking proportion, number of Twitter users, electoral corruption and other characteristics, we can discuss the consequences of the accuracy of the Twitter public opinion by country.
 
 #### Rotating proxies: Robin Hood method:
-It may be necessary to automatically change IP proxies during the scraping. A VPN seems to work fine. Otherwise, a proxy service may be required.
+It may be necessary to automatically change IP proxies during the collection. A VPN seems to work fine. Otherwise, a proxy service may be required.
 
 ### Text analysis
 
@@ -140,6 +140,7 @@ NDI results: https://www.ndi.org/search?query=results
 ### Subnational boundaries
 * OCHA: https://data.humdata.org/search?q=subnational&ext_search_source=main-nav
 * GADM: https://gadm.org/index.html
+* Geoboundaries: https://www.geoboundaries.org/index.html#getdata
 * Pakistani constituencies: https://data.humdata.org/dataset/national-constituency-boundaries-pakistan
 ### Subnational
 * Population: http://data.un.org/Data.aspx?d=POP&f=tableCode:240#POP
