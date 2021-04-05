@@ -15,7 +15,7 @@ The final product will be an R package to promote open-source, scalable research
 ### Download analysis as a package:
 ```
 library(devtools)
-devtools::install_github("williamrohdemadsen/dev-public-opinion", build_vignettes = TRUE, auth_token =  " 76ec7fb0f2100d8fd7c3c340c4719ff70620a125")
+devtools::install_github("williamrohdemadsen/dev-public-opinion", build_vignettes = TRUE)
 library(devpublicopinion)
 ```
 
