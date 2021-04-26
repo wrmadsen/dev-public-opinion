@@ -133,14 +133,14 @@ supp <- cpi %>%
 # Format GADM boundary data ------
 
 ## National boundaries 0 ----
-boundaries_national <- gadm_0_raw %>%
+boundaries_national <- gadm_nat_raw %>%
   clean_names() %>%
   transmute(country = as.character(name_0),
             geometry
   )
 
 ## Sub-national boundaries ----
-boundaries_subnational <- gadm_1_raw %>%
+boundaries_subnational <- gadm_sub_raw %>%
   clean_names() %>%
   transmute(country = as.character(name_0),
             region_1 = as.character(name_1),
