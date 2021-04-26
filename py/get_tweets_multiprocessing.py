@@ -23,6 +23,8 @@ def get_tweets(search, since, until):
 
     twint.run.Search(c)
 
+    time.sleep(1)
+
 start = time.perf_counter()
 
 #for index, row in get.iterrows():
@@ -33,7 +35,7 @@ records = get_data.to_records(index=False)
 tuples = list(records)
 
 # Get tweets in parallel
-pool = ThreadPool(14)
+pool = ThreadPool(10)
 pool.starmap(get_tweets, tuples)
 pool.close()
 pool.join()
