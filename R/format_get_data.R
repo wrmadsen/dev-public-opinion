@@ -3,10 +3,7 @@
 #' @param reign reign object with leaders' term length.
 #' @param candidates candidates of elections.
 #' @return get frequency dataset, where each row gives a string (a leader) and period to be used to get Tweets with twint.
-create_get_freq <- function(reign, candidates){
-
-  # Period to get by
-  #period_to_get <- 12 # hours
+create_get_freq <- function(reign, candidates, by_type = "days", by_n = 12){
 
   # Format candidates data
   candidates_to_get <- candidates %>%
@@ -16,35 +13,62 @@ create_get_freq <- function(reign, candidates){
               end = elex_date + months(1)
     )
 
-  # Choose get frequency, day, week, or a number of days
-  # Floor start and ceiling end of term period
-  reign %>%
-    # Add candidates (winners and losers) to get before election
-    bind_rows(candidates_to_get) %>%
-    arrange(country, end) %>%
-    rowwise() %>%
-    mutate(start = floor_date(start, "month") %>% paste0(., "00:00") %>% as.POSIXct(., tz="UTC"),
-           end = ceiling_date(end, "month") %>% paste0(., "23:59:59") %>% as.POSIXct(., tz="UTC")
-           ) %>%
-    mutate(date = list(seq(start,
-                           end,
-                           by = "12 hour"))) %>%
-    # mutate(start = floor_date(start, "month"),
-    #        end = ceiling_date(end, "month"))
-    # mutate(date = list(seq.Date(start,
-    #                             end,
-    #                             by = days_per_get))) %>%
-    tidyr::unnest(date) %>%
-    transmute(country = case_when(country == "USA" ~ "United States",
-                                  TRUE ~ country),
-              name,
-              date, # get start time (since)
-              date_end = date + hours(11) + minutes(59) + seconds(59), # get end time (to)
-    ) %>%
-    filter(date >= as.Date("2006-07-15")) %>% # when Twitter full version went live
-    filter(!is.na(name)) %>%
-    arrange(country, name, date)
+  if (by_type == "days"){
+    # Get by days
+    reign %>%
+      # Add candidates (winners and losers) to collect tweets for before election
+      bind_rows(candidates_to_get) %>%
+      arrange(country, end) %>%
+      rowwise() %>%
+      mutate(start = floor_date(start, "month"),
+             end = ceiling_date(end, "month")
+      ) %>%
+      mutate(date = list(seq.Date(start,
+                                  end,
+                                  by = paste0(by_n, " days")))
+      ) %>%
+      tidyr::unnest(date) %>%
+      transmute(country = case_when(country == "USA" ~ "United States",
+                                    TRUE ~ country),
+                name,
+                date , # get start time (since)
+                date_end = date + days(by_n-1), # get end time (to)
+      ) %>%
+      # when Twitter full version went live
+      filter(date >= as.Date("2006-07-15")) %>%
+      # add timestamps to days
+      mutate(date = paste0(date, " 00:00:00"),
+             date_end = paste0(date_end, " 23:59:59")) %>%
+      filter(!is.na(name)) %>%
+      arrange(country, name, date)
 
+  } else{
+
+    # Get by hours
+    reign %>%
+      # Add candidates (winners and losers) to collect tweets for before election
+      bind_rows(candidates_to_get) %>%
+      arrange(country, end) %>%
+      rowwise() %>%
+      mutate(start = floor_date(start, "month") %>% paste0(., "00:00:00") %>% as.POSIXct(., tz = "UTC"),
+             end = ceiling_date(end, "month") %>% paste0(., "23:59:59") %>% as.POSIXct(., tz = "UTC")
+      ) %>%
+      mutate(date = list(seq(start,
+                             end,
+                             by = paste0(by_n, " hour")))
+      ) %>%
+      tidyr::unnest(date) %>%
+      transmute(country = case_when(country == "USA" ~ "United States",
+                                    TRUE ~ country),
+                name,
+                date, # get start time (since)
+                date_end = date + hours(by_n-1) + minutes(59) + seconds(59), # get end time (to)
+      ) %>%
+      filter(date >= as.Date("2006-07-15")) %>% # when Twitter full version went live
+      filter(!is.na(name)) %>%
+      arrange(country, name, date)
+
+  }
 
 }
 
