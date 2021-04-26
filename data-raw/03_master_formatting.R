@@ -52,9 +52,7 @@ get_data <- get_names %>%
 get_data_csv <- get_data %>%
   mutate(date = paste(date),
          date_end = paste(date_end)) %>%
-  select(leader = name, date, date_end) %>%
-  filter(leader == "Buhari") %>%
-  filter(year(date) == 2015 & month(date) == 1 & week(date) %in% c(1,2) | year(date_end) == 2015 & month(date_end) == 1 & week(date_end) %in% c(1,2))
+  select(leader = name, date, date_end)
 
 write_csv(get_data_csv, "py/get_data.csv")
 
@@ -64,16 +62,16 @@ write_csv(get_data_csv, "py/get_data.csv")
 #use_python("/usr/local/bin/python3", required = TRUE)
 use_virtualenv("~/venv/", required = TRUE)
 
-source_python("py/get_tweets_multi.py", convert = FALSE)
+#source_python("py/get_tweets_multi.py", convert = FALSE)
 
-py_run_file("py/get_tweets_multi.py")
+#py_run_file("py/get_tweets_multi.py")
 
 
 ## Bind tweets ----
 # Map across function load all Tweets across hundreds of JSONs
-tweets_raw_list <- list.files("data-raw/tweets/total",
+tweets_raw_list <- list.files("data-raw/tweets/",
                               full.names = TRUE, recursive = TRUE,
-                              pattern = "_with\\."
+                              pattern = "_without\\."
 ) %>%
   purrr::map(~read_tweets_back(.))
 
