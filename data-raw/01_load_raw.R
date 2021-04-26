@@ -40,14 +40,13 @@ reign_raw <- read_csv("data-raw/other/REIGN_2021_2.csv")
 
 # GADM boundaries -----
 ## National
-# gadm_0_raw <- c("https://biogeo.ucdavis.edu/data/gadm3.6/Rsf/gadm36_NGA_0_sf.rds",
-#                 "https://biogeo.ucdavis.edu/data/gadm3.6/Rsf/gadm36_AFG_0_sf.rds") %>%
-#   map_df(~readRDS(url(.)))
-#
-# ## Subnational
-# gadm_1_raw <- c("https://biogeo.ucdavis.edu/data/gadm3.6/Rsf/gadm36_NGA_1_sf.rds",
-#                 "https://biogeo.ucdavis.edu/data/gadm3.6/Rsf/gadm36_AFG_1_sf.rds") %>%
-#   map_df(~readRDS(url(., timeout = 120)))
+gadm_nat_raw <- list.files(pattern = "0_sf\\.rds", recursive = TRUE) %>%
+  map_df(~readRDS(.))
+
+gadm_sub_raw <- c("data-raw/shapefiles/gadm36_AFG_1_sf.rds",
+                  "data-raw/shapefiles/gadm36_NGA_1_sf.rds",
+                  "data-raw/shapefiles/gadm36_GEO_2_sf.rds") %>%
+  map_df(~readRDS(.))
 
 # Election data ------
 
@@ -63,6 +62,10 @@ nga_state_abbrev <- read_csv("data-raw/election/Nigeria/nigeria_state_abbreviati
 afg_19_raw <- read_csv("data-raw/election/Afghanistan/2019-Presidential-national-presidential.csv")
 afg_14_raw <- read_csv("data-raw/election/Afghanistan/2014-Presidential-national-presidential.csv")
 afg_09_raw <- read_csv("data-raw/election/Afghanistan/2009-Presidential-national-presidential.csv")
+
+## Georgia presidential ----
+ge_08_raw <- read_csv("data-raw/election/Georgia/Georgia_Election_Data_2008_Presidential_EN_CSV.csv")
+ge_13_raw <- read_csv("data-raw/election/Georgia/Georgia_Election_Data_2013_Presidential_EN_CSV.csv")
 
 # Sentiment lexicons ----
 ## from textdata package
