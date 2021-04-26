@@ -7,7 +7,7 @@ from multiprocessing.dummy import Pool as ThreadPool
 get_data = pd.read_csv("py/get_data.csv")
 
 # Set up twint function
-def get_tweets(search, since, until):
+def get_tweets(search, since, until, row_no):
 
     c = twint.Config()
     c.Search = search
@@ -23,14 +23,13 @@ def get_tweets(search, since, until):
 
     twint.run.Search(c)
 
-    time.sleep(1)
+    print("row " + row_no)
+
+    time.sleep(2)
 
 start = time.perf_counter()
 
-#for index, row in get.iterrows():
-#    get_tweets(search=row['leader'], since=row['date'], until=row['date_end'])
-
-# Convert dataframe to
+# Convert dataframe to tuples
 records = get_data.to_records(index=False)
 tuples = list(records)
 
