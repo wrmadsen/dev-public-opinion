@@ -264,10 +264,37 @@ afg_pres <- bind_rows(afg_09, afg_14) %>%
   summarise(votes = sum(votes)) %>%
   ungroup()
 
-### Combine different countries' elections ----
+### Georgia presidential elections ----
+ge_08 <- ge_08_raw %>%
+  pivot_longer(cols = c(6:12), names_to = "name", values_to = "votes_share") %>%
+  clean_names() %>%
+  filter(map_level %in% c("Country", "District")) %>%
+  select(map_level, country_name, name, votes_share, votes_total = total_voter_turnout_number) %>%
+  mutate(year = 2008,
+         elex_date = as.Date("2008-01-05"),
+         votes_share = as.double(votes_share))
 
+ge_13 <- ge_13_raw %>%
+  pivot_longer(cols = c(6:28), names_to = "name", values_to = "votes_share") %>%
+  clean_names() %>%
+  filter(map_level %in% c("Country", "District")) %>%
+  select(map_level, country_name, name, votes_share, votes_total = total_voter_turnout_number) %>%
+  mutate(year = 2013,
+         elex_date = as.Date("2013-10-27"))
+
+ge_pres <- bind_rows(ge_08, ge_13) %>%
+  transmute(elex_date,
+            country = "Georgia",
+            region_2 = case_when(map_level == "Country" ~ "National",
+                                 map_level == "District" ~ country_name),
+            name,
+            votes_share = votes_share/100,
+            votes_total)
+
+### Combine different countries' elections ----
 # Bind countries
 elex_combined <- bind_rows(afg_pres, nga_pres) %>%
+  bind_rows(., ge_pres) %>%
   left_join(., name_lookup, by = c("name" = "from")) %>%
   mutate(name = if_else(is.na(common), name, common)) %>%
   select(-common)
@@ -277,11 +304,11 @@ elex_master <- elex_combined %>%
   group_by(elex_date, country, region_1) %>%
   mutate(votes_total = sum(votes)) %>%
   ungroup() %>%
-  mutate(votes_share = votes/votes_total)
+  mutate(votes_share = if_else(is.na(votes_share), votes/votes_total, votes_share))
 
 # Subset two candidates per election with most votes for Tweet collection
 candidates <- elex_master %>%
-  filter(region_1 == "National") %>%
+  filter(region_1 == "National" | region_2 == "National") %>%
   filter(!name %in% c("Other", "other")) %>%
   group_by(elex_date, country, region_1) %>%
   #mutate(winner = if_else(votes_share = max(votes_share) == ))
