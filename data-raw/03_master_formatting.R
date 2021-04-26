@@ -29,7 +29,7 @@ source("data-raw/02_format_raw_data.R")
 
 # Create object with get frequency and names
 # People names must match between reign and people_to_get
-get_names <- create_get_freq(reign, candidates)
+get_names <- create_get_freq(reign, candidates, by_type = "days", by_n = 3)
 
 # Create smallest possible circles
 small_circs <- create_smallest_possible(boundaries_national)
@@ -49,10 +49,13 @@ get_data <- get_names %>%
 
 # Save get data as csv
 # Multiprocessing in Python cut time from 150 secs to 22 secs (14x as fast)
-get_data_csv <- get_data %>%
-  mutate(date = paste(date),
-         date_end = paste(date_end)) %>%
-  select(leader = name, date, date_end)
+(get_data_csv <- get_data %>%
+  transmute(leader = name,
+            date = paste(date),
+            date_end = paste(date_end),
+            row_no = paste0(row_number(), "/", n())
+            )
+)
 
 write_csv(get_data_csv, "py/get_data.csv")
 
