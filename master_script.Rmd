@@ -51,79 +51,154 @@ load("data/formatted_data.RData")
 
 ```
 
+# Number of tweets
+```{r number-of-tweets}
+# Number of tweets over time
+tweets_sf %>%
+  as.data.frame() %>%
+  group_by(week, has_point) %>%
+  summarise(n = n()) %>%
+  ungroup() %>%
+  ggplot(., aes(x = week, y = n, colour = has_point)) +
+  geom_line() +
+  facet_wrap(~has_point, scales = "free_y") +
+  labs(title = "Number of tweets per week with or without coordinates")
+
+# Number of total tweets with or without coordinates
+tweets_sf %>%
+  as.data.frame() %>%
+  group_by(leader_country, has_point) %>%
+  summarise(n = n()) %>%
+  ungroup() %>%
+  ggplot(., aes(x = has_point, y = n, fill = has_point)) +
+  geom_col() +
+  facet_wrap(~leader_country, scales = "free_y") +
+  labs(title = "Number of total tweets with or without coordinates")
+
+
+```
+
+
 # Sentiment analysis
 ```{r prepare-text}
 # Create tweets tokens
-tweets_tokens <- create_tweet_tokens(tweets_sf)
+tweets_tokens <- tweets_sf %>%
+  create_tweet_tokens()
 
 ```
 
 ```{r join-lexicon}
 # Join sentiment values by stem
-senti_tweets <- join_sentiment_by_stem(tweet_tokens, afinn_stem)
+senti_per_token <- join_sentiment_by_stem(tweet_tokens, afinn_stem)
 
 # Share of tweets with no lexicon match for any of their stemmed words
 (share_tweets_no_senti <- senti_tweets %>%
     group_by(id, username, language) %>%
     summarise(afinn_mean = mean(afinn_value, na.rm = TRUE)) %>%
-    group_by(is.na(afinn_mean), language == "en") %>%
+    mutate(has_afinn = !is.na(afinn_mean),
+           in_english = language == "en") %>%
+    group_by(has_afinn, in_english) %>%
     summarise(n = n())
 )
 
 ```
 
-# Raw estimates
-```{r tweets-per-weel}
+```{r tweets-per-week}
 # Summarise tweets per week
 tweets_n_per_week <- tweets_sf %>%
   as.data.frame() %>%
   select(-geometry) %>%
   group_by(country, leader, week = floor_date(date, "week")) %>%
-  summarise(n = n())
+  summarise(n = n()) %>%
+  ungroup()
 
 # Mean number of tweets per week
 tweets_n_per_week %>%
+  group_by(week) %>%
   summarise(mean = mean(n))
 
 # Plot
 ggplot(tweets_n_per_week, aes(x = week, y = n, col = leader)) +
   geom_line() +
   geom_hline(yintercept = 100) +
-  #facet_wrap(~ leader) +
+  facet_wrap(~ leader) +
   labs(title = "Tweets per week")
 
 ```
 
 
-```{r raw-estimates}
+```{r senti-per-tweet}
+# Calculate sentiment per tweet
 # Mean sentiment per tweet
-senti_mean <- create_mean_sentiment_per_tweet(senti_tweets)
+senti_per_tweet <- create_mean_sentiment_per_tweet(senti_per_token)
 
+```
+
+# Raw estimates
+```{r raw-estimates}
 # Find for-against based on mean sentiment
-senti_cut_offs <- create_cut_offs(senti_mean)
+senti_cut_offs <- create_cut_offs(senti_per_tweet)
 
 # Create an estimate per week per cut off
 raw_pro_shares <- find_pro_share(senti_cut_offs, n_roll = 5)
 
 # Plot pro-share by cut-offs
 raw_pro_shares %>%
-  filter(leader %in% c("Buhari", "Goodluck Jonathan")) %>%
+  filter(leader == "Ghani") %>%
   ggplot(., aes(x = date, y = pro_share, colour = leader)) +
   geom_point() +
-  geom_line(aes(y = pro_share_roll)) +
+  geom_line(aes(y = pro_share_roll), colour = "black") +
   facet_wrap(~ cut_off) +
   labs(title = "Raw favourability ratings at different cut-offs")
 
 
 ```
 
+# Train models
+```{r train-election}
+# Multilevel models trained on election results
 
-# Train model
-```{r train-model}
+# Sentiment per day
+(senti_per_day <- senti_per_tweet %>%
+   group_by(date, has_point, replies_count, retweets_count, likes_count,
+            leader, leader_country, country, region_1, region_2) %>%
+   summarise(afinn_mean = mean(afinn_mean, na.rm = TRUE),
+             n_tweets = n()) %>%
+   ungroup() %>%
+   arrange(date, country, region_1, region_2)
+)
 
+# Join sentiment with election results
+senti_per_day_elex <- join_election_to_tweets(senti_per_day, elex_master)
+
+# Select nearest election for each day
+senti_per_day_elex <- select_nearest_election(senti_per_day_elex)
+
+# Model 1
+model_1 <- lmer(votes_share ~ afinn_mean + n_tweets + (1|country),
+                data = senti_per_day_elex)
+
+summary(model_1)
+
+# Model 2
+model_2 <- lmer(votes_share ~ (1 + afinn_mean|country),
+                data = senti_per_tweet_elex)
+
+summary(model_2)
+
+# Model 2 with Beauchamp rolling technqiue
 
 
 ```
+
+```{r train-survey}
+
+```
+
+```{r train-alternative}
+
+```
+
 
 # Validation
 ```{r validate-raw}
@@ -148,13 +223,11 @@ cut_off_stats %>%
 
 
 
-# Plots
+# Various plots
 ```{r plot}
 # Simply GADM for plotting ease
 gadm_simp <- gadm %>%
   st_simplify(., dTolerance = 0.1)
-
-# Plots
 
 # English-speakers plot ------
 # Plot different data on English speakers
