@@ -17,12 +17,12 @@ remove_patterns_in_tweet <- function(tweet){
 }
 
 #' Create and clean tweets tokens
-#' @param tweets_formatted
+#' @param tweets_sf
 #' @return Tokens of tweets for sentiment analysis
-create_tweet_tokens <- function(tweets_formatted){
+create_tweet_tokens <- function(tweets_sf){
 
   # Clean from patterns and turn to lower-case
-  tweets_clean <- tweets_formatted %>%
+  tweets_clean <- tweets_sf %>%
     as.data.frame() %>%
     select(-c(geometry)) %>%
     tibble() %>%
@@ -37,14 +37,12 @@ create_tweet_tokens <- function(tweets_formatted){
     transmute(word, stem = SnowballC::wordStem(word))
 
   # Convert to tokens and stem
-  tweets_tokens <- tweets_clean %>%
+  tweets_clean %>%
     unnest_tokens(word, tweet) %>%
     mutate(stem = SnowballC::wordStem(word),
            stop_word = if_else(word %in% stop_words$word | word %in% stop_words$stem,
                                TRUE, FALSE)
     )
-
-  tweets_tokens
 
 }
 
@@ -72,27 +70,28 @@ join_sentiment_by_stem <- function(tweet_tokens, afinn_stem){
 
 #' Mean sentiment per tweet
 #' @param senti_tweets
-create_mean_sentiment_per_tweet <- function(senti_tweets){
+create_mean_sentiment_per_tweet <- function(senti_per_token){
 
-  senti_tweets %>%
-    group_by(id, username, date, country, region_1, leader) %>%
+  senti_per_token %>%
+    group_by(id, conversation_id, username, date, has_point,
+             replies_count, retweets_count, likes_count,
+             country, region_1, region_2, leader, leader_country) %>%
     summarise(afinn_mean = mean(afinn_value, na.rm = TRUE)) %>%
-    ungroup() %>%
-    filter(!is.na(afinn_mean)) # drop lexicon NAs
+    ungroup()
 
 }
 
 #' Create object with different cut-offs
 #' @param senti_mean
 #' @return senti_cut_offs
-create_cut_offs <- function(senti_mean){
+create_cut_offs <- function(senti_per_tweet){
 
   (cut_off_seq <- seq(-2, 2, length.out = 9) %>% round(., 2))
 
-  senti_mean_w_row_no <- senti_mean %>%
+  senti_per_tweet_w_row_no <- senti_per_tweet %>%
     mutate(row_number = row_number())
 
-  purrr::map_dfr(seq_len(9), function(x) senti_mean_w_row_no) %>%
+  purrr::map_dfr(seq_len(9), function(x) senti_per_tweet_w_row_no) %>%
     group_by(row_number) %>%
     mutate(cut_off = seq(-2, 2, length.out = 9))
 
@@ -107,7 +106,8 @@ find_pro_share <- function(senti_cut_offs, n_roll = 5){
   # Create binary stance against cut-off
   senti_cut_offs %>%
     mutate(stance = if_else(afinn_mean > cut_off, "pro", "con")) %>%
-    group_by(country, leader, region_1,
+    group_by(country, region_1, region_2,
+             leader, leader_country,
              date, #week = floor_date(date, "week"),
              cut_off, stance) %>%
     # number of pros and cons per day
