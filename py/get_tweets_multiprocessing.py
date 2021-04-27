@@ -17,8 +17,9 @@ def get_tweets(search, since, until, row_no):
     c.Since = since
     c.Until = until
     #c.User_full = True
-    c.Output = "data-raw/tweets/tweets_without.json"
-    c.Store_json = True
+    c.Store_csv = True
+    #c.Store_json = True
+    c.Output = "data-raw/tweets/tweets.csv"
     c.Hide_output = True
 
     twint.run.Search(c)
@@ -26,6 +27,7 @@ def get_tweets(search, since, until, row_no):
     print("row " + row_no)
 
     time.sleep(2)
+
 
 start = time.perf_counter()
 
