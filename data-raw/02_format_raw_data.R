@@ -144,7 +144,9 @@ boundaries_subnational <- gadm_sub_raw %>%
   clean_names() %>%
   transmute(country = as.character(name_0),
             region_1 = as.character(name_1),
-            type_1 = type_1,
+            engtype_1,
+            region_2 = as.character(name_2),
+            engtype_2,
             geometry
   ) %>%
   # correct typos or adapt before joining with other objects, e.g. election data
@@ -297,11 +299,12 @@ elex_combined <- bind_rows(afg_pres, nga_pres) %>%
   bind_rows(., ge_pres) %>%
   left_join(., name_lookup, by = c("name" = "from")) %>%
   mutate(name = if_else(is.na(common), name, common)) %>%
-  select(-common)
+  select(-common) %>%
+  mutate(region_2 = if_else(is.na(region_2), region_1, region_2))
 
 # Format master election object
 elex_master <- elex_combined %>%
-  group_by(elex_date, country, region_1) %>%
+  group_by(elex_date, country, region_1, region_2) %>%
   mutate(votes_total = sum(votes)) %>%
   ungroup() %>%
   mutate(votes_share = if_else(is.na(votes_share), votes/votes_total, votes_share))
