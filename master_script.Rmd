@@ -80,12 +80,6 @@ tweets_sf %>%
 
 
 # Sentiment analysis
-```{r prepare-text}
-# Create tweets tokens
-tweets_tokens <- tweets_sf %>%
-  create_tweet_tokens()
-
-```
 
 ```{r join-lexicon}
 # Join sentiment values by stem
@@ -121,8 +115,8 @@ tweets_n_per_week %>%
 ggplot(tweets_n_per_week, aes(x = week, y = n, col = leader)) +
   geom_line() +
   geom_hline(yintercept = 100) +
-  facet_wrap(~ leader) +
-  labs(title = "Tweets per week")
+  facet_wrap(~ leader, scales = "free_x") +
+  labs(title = "Tweets per week per leader")
 
 ```
 
@@ -175,14 +169,20 @@ senti_per_day_elex <- join_election_to_tweets(senti_per_day, elex_master)
 senti_per_day_elex <- select_nearest_election(senti_per_day_elex)
 
 # Model 1
-model_1 <- lmer(votes_share ~ afinn_mean + n_tweets + (1|country),
-                data = senti_per_day_elex)
+train_data_1 <- senti_per_day_elex %>%
+  filter(year(date) %in% c(2014, 2015)) %>%
+  filter(days_diff_abs < 10)
+
+train_data_1$elex_date %>% unique # elections of training data
+
+model_1 <- lmer(votes_share ~ afinn_mean*n_tweets + (1|country),
+                data = train_data_1)
 
 summary(model_1)
 
 # Model 2
-model_2 <- lmer(votes_share ~ (1 + afinn_mean|country),
-                data = senti_per_tweet_elex)
+model_2 <- lmer(votes_share ~ n_tweets + (1 + afinn_mean|country),
+                data = train_data_1)
 
 summary(model_2)
 
@@ -198,7 +198,6 @@ summary(model_2)
 ```{r train-alternative}
 
 ```
-
 
 # Validation
 ```{r validate-raw}
@@ -220,6 +219,48 @@ cut_off_stats %>%
 
 
 ```
+
+```{r create-predictions-data}
+# Create dataset of predictions
+predictions <- senti_per_day_elex
+
+```
+
+
+# Average error
+```{r ae-elections}
+# AE, average error
+
+# Model 1 ----
+# Predict
+test_data_1 <- senti_per_day_elex %>%
+  filter(year(date) %in% c(2019)) %>%
+  filter(days_diff_abs < 10)
+
+predictions <- predictions %>%
+  mutate(prediction_1 = predict(model_1, .))
+
+# Calculate average error
+predictions %>%
+  filter(year(date) %in% c(2019)) %>%
+  filter(days_diff_abs < 10) %>%
+  mutate(prediction_1_diff = prediction_1-votes_share) %>%
+  summarise(mean = mean(prediction_1_diff, na.rm = TRUE))
+  
+
+
+```
+
+
+# ROC curve
+```{r roc-curve}
+# ROC curve
+
+# For example, if difference is less than two percent
+# Use existing literature
+
+```
+
 
 
 
