@@ -75,14 +75,18 @@ mex_18_raw <- read_csv("data-raw/election/Mexico/presidencia_2018.csv", skip = 5
 mex_18_candidates_raw <- read_csv("data-raw/election/Mexico/presidencia_candidaturas_2018.csv")
 mex_12_raw <- read_csv("data-raw/election/Mexico/consulta2012.csv")
 
-# Zimbabwe presidential ----
-zwe_13_raw <- read_csv("data-raw/election/Zimbabwe/2013_national_presidential_results.csv")
+## Zimbabwe presidential ----
+zwe_13_raw <- read_csv("data-raw/election/Zimbabwe/2013/2013_national_presidential_results.csv")
+zwe_18_raw <- read_csv("data-raw/election/Zimbabwe/2018/zimbabwe_18_wiki.csv")
 
 # Polling data ----
-# Ad hoc Wikipedia
-polling_adhoc_raw <- read_csv("data-raw/polling/polling_adhoc.csv")
+## Ad hoc from various sources -----
+polling_adhoc_raw <- read_excel("data-raw/polling/polling_manual.xls", sheet = "adhoc")
 
-# Afrobarometer data
+## Country sheets -----
+polling_mex_raw <- read_excel("data-raw/polling/polling_manual.xls", sheet = "mexico")
+
+## Afrobarometer surveys -----
 # https://afrobarometer.org/data/merged-data
 afro_r7_raw <- haven::read_sav("data-raw/polling/r7_merged_data_34ctry.release.sav")
 afro_r6_raw <- haven::read_sav("data-raw/polling/merged_r6_data_2016_36countries2.sav")
