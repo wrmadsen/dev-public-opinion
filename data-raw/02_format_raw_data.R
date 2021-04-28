@@ -187,7 +187,7 @@ reign <- reign_raw %>%
   # drop NA names, i.e. countries or leaders not included in look-up
   filter(!is.na(name))
 
-# Format election data -------
+# Format election results -------
 
 ## Nigeria presidential election ----
 # from inspecting Stears website
@@ -365,7 +365,7 @@ mex_pres <- mex_pres %>%
   ungroup() %>%
   bind_rows(mex_pres)
 
-## Zimbabwe presidential ---
+## Zimbabwe presidential ----
 zwe_13 <- zwe_13_raw %>%
   pivot_longer(2:ncol(.), names_to = "name", values_to = "votes") %>%
   rename(region_1 = Province) %>%
@@ -373,17 +373,26 @@ zwe_13 <- zwe_13_raw %>%
   filter(!name %in% c("Votes Rejected",
                       "Total Votes Cast"))
 
-zwe_13$name %>% unique
+zwe_18 <- zwe_18_raw %>%
+  pivot_longer(2:8, names_to = "name", values_to = "votes") %>%
+  rename(region_1 = Province) %>%
+  select(-`Valid votes`) %>%
+  mutate(elex_date = as.Date("2018-07-3"))
 
 # Bind Zimbabwe
-zwe_pres <- zwe_13 %>%
+zwe_pres <- bind_rows(zwe_13, zwe_18) %>%
   mutate(country = "Zimbabwe",
          name = case_when(name == "Mugabe Robert Gabriel (ZANU PF)" ~ "Mugabe",
                           name == "Tsvangirai Morgan (MDC-T)" ~ "Tsvangirai",
+                          name == "Dabengwa Dumiso (ZAPU)" ~ "Dabengwa",
+                          name == "Ncube Welshman (MDC)" ~ "Ncube",
+                          name == "Mukwazhe Munodei Kisinoti (ZDP)" ~ "Mukwazhe",
                           TRUE ~ name
          )
 
   )
+
+zwe_pres$name %>% unique
 
 # Add national level
 zwe_pres <- zwe_pres %>%
@@ -427,17 +436,139 @@ candidates <- elex_master %>%
   arrange(country, elex_date)
 
 ## Unique candidates
-candidates$name %>% unique()
+candidates %>% distinct(country, elex_date, name) #%>% filter(country == "Georgia")
 
 # Format polling data -----
-polling_adhoc <- polling_adhoc_raw %>%
-  mutate(date = as.Date(date, "%d/%m/%Y"))
 
-afro_r7 <- afro_r7_raw %>%
-  mutate(across(where(is.labelled),
-                ~as_factor(., levels = "labels", ordered = TRUE) %>% trimws #%>% str_squish %>% tolower
-  )
-  )
+## Ad hoc polling ----
+polling_adhoc <- polling_adhoc_raw %>%
+  mutate(date = as.Date(date)) %>%
+  select(-source)
+
+## Country sheets ----
+polling_mex <- polling_mex_raw %>%
+  mutate(date = as.Date(date, "%d-%m-%y")) %>%
+  select(-company, -remarks) %>%
+  pivot_longer(cols = 2:6, names_to = "leader", values_to = "votes_share") %>%
+  mutate(country = "Mexico",
+         region_1 = "National",
+         region_2 = "National",
+         # old to new leader names
+         leader = recode(leader,
+                         "obrador" = "Obrador",
+                         "anaya" = "Anaya",
+                         "nieto" = "Pena Nieto",
+                         "quadri" = "Quadri",
+                         "vazquez" = "Vázquez Mota")
+         ) %>%
+  filter(!is.na(votes_share))
+
+## Combine country sheets and ad hoc ----
+polling_master <- bind_rows(polling_adhoc, polling_mex)
+
+polling_master %>% distinct(leader)
+
+# ## Afrobarometer rounds ----
+# # q99 Vote for which party in r7
+# # q40 is  How much fear political intimidation or violence
+# afro_r7 <- afro_r7_raw %>%
+#   mutate(across(where(is.labelled),
+#                 ~as_factor(., levels = "labels", ordered = TRUE) %>% trimws #%>% str_squish %>% tolower
+#   )
+#   )
+#
+# afro_r7 <- afro_r7 %>%
+#   clean_names() %>%
+#   select(country, region, q99, intimidation = q40, dateintr, withinwt)
+#
+# # q99 is Vote for which party in r6
+# # q49 is How much fear political intimidation or violence
+# afro_r6 <- afro_r6_raw %>%
+#   mutate(across(where(is.labelled),
+#                 ~as_factor(., levels = "labels", ordered = TRUE) %>% trimws #%>% str_squish %>% tolower
+#   )
+#   )
+#
+# afro_r6 <- afro_r6 %>%
+#   clean_names() %>%
+#   select(country, region, q99, intimidation = q49, dateintr, withinwt)
+#
+#
+# # q54 is How much fear political intimidation or violence
+# # q99 is Vote for which party in round 5
+# afro_r5 <- afro_r5_raw %>%
+#   mutate(across(where(is.labelled),
+#                 ~as_factor(., levels = "labels", ordered = TRUE) %>% trimws #%>% str_squish %>% tolower
+#   )
+#   )
+#
+# afro_r5 <- afro_r5 %>%
+#   clean_names() %>%
+#   select(country, region, q99, intimidation = q54, dateintr, withinwt)
+#
+# # Bind Afrobaro rounds
+# afro_all <- bind_rows(afro_r7, afro_r6) %>%
+#   bind_rows(afro_r5) %>%
+#   filter(country %in% elex_master$country) %>%
+#   rename(date = dateintr,
+#          vote = q99,
+#          weight = withinwt) %>%
+#   # pivot longer
+#   pivot_longer(cols = c(vote, intimidation)) %>%
+#   mutate(value = str_remove_all(value, "'|’")) %>%
+#   # old to new, party to leader
+#   mutate(value = case_when(
+#     # Goodluck Jonathan
+#     value %in% c("Peoples Democratic Party (PDP)"
+#     ) & year(date) < 2016 ~ "Goodluck Jonathan",
+#     # Atiku
+#     value %in% c("Peoples Democratic Party (PDP)"
+#     ) & year(date) > 2015 ~ "Atiku",
+#     # Buhari
+#     # Parties that were merged into APC as well
+#     value %in% c("All Progressive Congress (APC)",
+#                  "All Progressive Congres (APC)",
+#                  "Action Congress of Nigeria (ACN)",
+#                  "All Nigeria Peoples Party (ANPP)",
+#                  "Conscience Peoples Congress (CPC)",
+#                  "All Peoples Party (APP)",
+#                  "Advanced Congress of Democrats (ACD)",
+#                  "Alliance for Democracy (AD)"
+#     )  ~ "Buhari",
+#     TRUE ~ value)
+#   )
+#
+# afro_all %>% distinct(country, year(date))
+#
+# afro_share <- afro_all %>%
+#   mutate(month = floor_date(date, "month")) %>%
+#   # calculate number of respondents
+#   group_by(country, region, month, name, value, weight) %>%
+#   summarise(n = n()) %>%
+#   # find share
+#   group_by(country, region, month, name, weight) %>%
+#   mutate(share = n/sum(n)) %>%
+#   ungroup()
+#
+# afro_share %>% distinct(country, month)
+#
+# # Find weighted mean
+# afro_weighted <- afro_share %>%
+#   group_by(country, region, month, name, value) %>%
+#   summarise(share = weighted.mean(share, weight = weight),
+#             n = n()) %>%
+#   ungroup() %>%
+#   arrange(country, region, month)
+#
+# afro_weighted %>%
+#   filter(name == "vote") %>%
+#   group_by(country, value) %>%
+#   summarise(n = sum(n)) %>%
+#   arrange(-n) %>% view
+#   slice_max(share, n = 3) %>%
+#   ungroup() %>%
+#   distinct(country, value)
+
 
 # Combine sentiment lexicons ----
 ## Prepare afinn by stemming and finding mean value of words with same stem
@@ -538,7 +669,15 @@ gdl_interpo <- gdl_w_gadm %>%
   mutate(across(c(eye, popshare, cellphone), ~zoo::na.approx(., na.rm = FALSE, rule = 2))) %>%
   ungroup()
 
-# Join GDL and election master -----
+
+# Create covariates master -----
+
+## Bind polling and election results -----
+polling_master
+
+elex_master
+
+## Add GDL statistics -----
 covariates <- elex_master %>%
   mutate(id = row_number(),
          year = year(elex_date)) %>%
