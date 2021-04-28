@@ -1,8 +1,8 @@
-###### Format data
+# Format data
 
 # This will serve to decide and describe the countries in focus
 
-## Clean supplementary -----
+# Clean supplementary -----
 # UN language population
 ## Appears to only show population by primary language
 ## May use rural, urban distinctions for weighting
@@ -153,7 +153,12 @@ boundaries_subnational <- gadm_sub_raw %>%
   mutate(region_1 = case_when(region_1 == "Nassarawa" ~ "Nasarawa",
                               TRUE ~ region_1))
 
-## Format reign ----
+# Vector of subnational boundary names
+subnational_names <- boundaries_subnational %>%
+  as.data.frame() %>%
+  select(-geometry)
+
+# Format REIGN ----
 ## Leadership and term variables
 reign <- reign_raw %>%
   clean_names() %>%
@@ -182,9 +187,9 @@ reign <- reign_raw %>%
   # drop NA names, i.e. countries or leaders not included in look-up
   filter(!is.na(name))
 
-## Format election data -------
+# Format election data -------
 
-### Nigeria presidential election ----
+## Nigeria presidential election ----
 # from inspecting Stears website
 ## Initial formatting
 nga_p_19 <- stears_19_raw %>%
@@ -226,7 +231,7 @@ nga_pres <- nga_pres %>%
   ungroup() %>%
   bind_rows(nga_pres)
 
-### Afghanistan president data ----
+## Afghanistan president data ----
 afg_19 <- afg_19_raw %>%
   rename(province = name,
          total = votes
@@ -266,25 +271,23 @@ afg_pres <- bind_rows(afg_09, afg_14) %>%
   summarise(votes = sum(votes)) %>%
   ungroup()
 
-### Georgia presidential elections ----
-ge_08 <- ge_08_raw %>%
+## Georgia presidential elections ----
+geo_08 <- geo_08_raw %>%
   pivot_longer(cols = c(6:12), names_to = "name", values_to = "votes_share") %>%
   clean_names() %>%
   filter(map_level %in% c("Country", "District")) %>%
   select(map_level, country_name, name, votes_share, votes_total = total_voter_turnout_number) %>%
-  mutate(year = 2008,
-         elex_date = as.Date("2008-01-05"),
+  mutate(elex_date = as.Date("2008-01-05"),
          votes_share = as.double(votes_share))
 
-ge_13 <- ge_13_raw %>%
+geo_13 <- geo_13_raw %>%
   pivot_longer(cols = c(6:28), names_to = "name", values_to = "votes_share") %>%
   clean_names() %>%
   filter(map_level %in% c("Country", "District")) %>%
   select(map_level, country_name, name, votes_share, votes_total = total_voter_turnout_number) %>%
-  mutate(year = 2013,
-         elex_date = as.Date("2013-10-27"))
+  mutate(elex_date = as.Date("2013-10-27"))
 
-ge_pres <- bind_rows(ge_08, ge_13) %>%
+geo_pres <- bind_rows(geo_08, geo_13) %>%
   transmute(elex_date,
             country = "Georgia",
             region_2 = case_when(map_level == "Country" ~ "National",
@@ -293,10 +296,109 @@ ge_pres <- bind_rows(ge_08, ge_13) %>%
             votes_share = votes_share/100,
             votes_total)
 
-### Combine different countries' elections ----
+## Mexico presidential ----
+# 2012
+mex_12 <- mex_12_raw %>%
+  pivot_longer(cols = 5:10, names_to = "movement", values_to = "votes") %>%
+  clean_names() %>%
+  mutate(region_1 = name_state %>% str_to_title,
+         name = case_when(
+           # Peña Nieto
+           movement == "COMMITMENT TO MEXICO" ~ "Pena Nieto",
+           # Obrador
+           movement == "PROGRESSIVE MOVEMENT" ~ "Obrador",
+           # Quadria
+           movement == "NEW ALLIANCE" ~ "Quadri",
+           # Vazquez mota
+           movement == "BREAD" ~ "Vázquez Mota",
+           TRUE ~ movement)
+  ) %>%
+  select(region_1, name, votes, total_votes)
+
+mex_12 <- mex_12 %>%
+  group_by(region_1, name) %>%
+  summarise(votes = sum(votes, na.rm = TRUE)) %>%
+  mutate(elex_date = as.Date("2012-07-01"))
+
+# 2018
+mex_18 <- mex_18_raw %>%
+  clean_names() %>%
+  pivot_longer(cols = 13:35, names_to = "party", values_to = "votes") %>%
+  transmute(region_1 = str_to_title(nombre_estado),
+            party, votes,
+            total_votes = total_votos_calculados) %>%
+  mutate(name = case_when(
+    # Anaya cortes
+    party %in% c("pan", "prd", "mc",
+                 "pan_prd_mc", "pan_prd",
+                 "pan_mc",
+                 "prd_mc",
+                 "movimiento_ciudadano") ~ "Anaya",
+    # Lopez obrador
+    party %in% c("pt", "morena", "pes",
+                 "pt_morena_pes", "pt_morena",
+                 "pt_pes", "encuentro_social",
+                 "morena_pes") ~ "Obrador",
+    # Meade kuribre
+    party %in% c("pri", "pvem", "nueva_alianza",
+                 "pri_pvem_na", "pri_pvem",
+                 "pri_na",
+                 "pvem_na") ~ "Meade",
+    TRUE ~ "Other")
+  )
+
+mex_18 <- mex_18 %>%
+  group_by(region_1, name) %>%
+  summarise(votes = sum(votes, na.rm = TRUE)) %>%
+  mutate(elex_date = as.Date("2018-07-01"))
+
+# Bind Mexican years
+mex_pres <- bind_rows(mex_12, mex_18) %>%
+  mutate(country = "Mexico") %>%
+  ungroup()
+
+# Add national level
+mex_pres <- mex_pres %>%
+  mutate(region_1 = "National") %>%
+  group_by(elex_date, country, region_1, name) %>%
+  summarise(votes = sum(votes, na.rm = TRUE)) %>%
+  ungroup() %>%
+  bind_rows(mex_pres)
+
+## Zimbabwe presidential ---
+zwe_13 <- zwe_13_raw %>%
+  pivot_longer(2:ncol(.), names_to = "name", values_to = "votes") %>%
+  rename(region_1 = Province) %>%
+  mutate(elex_date = as.Date("2013-07-31")) %>%
+  filter(!name %in% c("Votes Rejected",
+                      "Total Votes Cast"))
+
+zwe_13$name %>% unique
+
+# Bind Zimbabwe
+zwe_pres <- zwe_13 %>%
+  mutate(country = "Zimbabwe",
+         name = case_when(name == "Mugabe Robert Gabriel (ZANU PF)" ~ "Mugabe",
+                          name == "Tsvangirai Morgan (MDC-T)" ~ "Tsvangirai",
+                          TRUE ~ name
+         )
+
+  )
+
+# Add national level
+zwe_pres <- zwe_pres %>%
+  mutate(region_1 = "National") %>%
+  group_by(elex_date, country, region_1, name) %>%
+  summarise(votes = sum(votes, na.rm = TRUE)) %>%
+  ungroup() %>%
+  bind_rows(zwe_pres)
+
+## Combine different countries' elections ----
 # Bind countries
 elex_combined <- bind_rows(afg_pres, nga_pres) %>%
-  bind_rows(., ge_pres) %>%
+  bind_rows(., geo_pres) %>% # Georgia
+  bind_rows(mex_pres) %>% # Mexico
+  bind_rows(zwe_pres) %>% # Zimbabwe
   left_join(., name_lookup, by = c("name" = "from")) %>%
   mutate(name = if_else(is.na(common), name, common)) %>%
   select(-common) %>%
@@ -307,7 +409,12 @@ elex_master <- elex_combined %>%
   group_by(elex_date, country, region_1, region_2) %>%
   mutate(votes_total = sum(votes)) %>%
   ungroup() %>%
-  mutate(votes_share = if_else(is.na(votes_share), votes/votes_total, votes_share))
+  # add votes share if not already there
+  # votes shares before for Georgia
+  mutate(votes_share = if_else(is.na(votes_share), votes/votes_total, votes_share)) %>%
+  mutate(region_1 = if_else(is.na(region_1), region_2, region_1),
+         region_2 = if_else(is.na(region_2), region_1, region_2)
+  )
 
 # Subset two candidates per election with most votes for Tweet collection
 candidates <- elex_master %>%
@@ -322,6 +429,16 @@ candidates <- elex_master %>%
 ## Unique candidates
 candidates$name %>% unique()
 
+# Format polling data -----
+polling_adhoc <- polling_adhoc_raw %>%
+  mutate(date = as.Date(date, "%d/%m/%Y"))
+
+afro_r7 <- afro_r7_raw %>%
+  mutate(across(where(is.labelled),
+                ~as_factor(., levels = "labels", ordered = TRUE) %>% trimws #%>% str_squish %>% tolower
+  )
+  )
+
 # Combine sentiment lexicons ----
 ## Prepare afinn by stemming and finding mean value of words with same stem
 afinn_stem <- afinn %>%
@@ -333,39 +450,103 @@ senti_lexicons <- afinn %>%
   full_join(bing %>% rename(bing_sentiment = sentiment)) %>%
   full_join(nrc %>% rename(nrc_sentiment = sentiment))
 
-# Not currently used ----
-# ###### GDL region shapefiles
-# # GDL data
-# gdl <- gdl_raw %>%
-#   clean_names()
-# # Convert sp into sf dataframe
-# gdl_sf <- st_as_sf(gdl_shp_raw)
-#
-# # Get centroids
-# gdl_centroids <- st_centroid(gdl_sf$geometry) %>%
-#   st_coordinates %>%
-#   as_tibble() %>%
-#   rename_with(~paste0("centroigdl_shp_rawd_", tolower(.)))
-#
-# # Simplify and add centroids
-# gdl_simp <- gdl_sf %>%
-#   mutate(geometry = st_simplify(geometry, dTolerance = 0.05)) %>%
-#   bind_cols(gdl_centroids)
-#
-# ## Format city data -------
-# # Africapolis
-# afri_polis <- afri_polis_raw %>%
-#   clean_names()
+# Format GDL ----
+names(gdl_raw)
 
-# Cities, ArcGIS, long and lat
-# cities <- cities_raw %>%
-#   st_as_sf() %>%
-#   st_transform(., 4326) %>%
-#   clean_names() %>%
-#   arrange(cntry_name)
-#
-# cities %>%
-#   st_cast("POINT") %>%
-#   st_distance(st_centroid(cities))
-#
-# st_sf(cities$geometry)
+gdl <- gdl_raw %>%
+  filter(level %in% c("Subnat", "National")) %>%
+  mutate(region = if_else(region == "Total", "National", region)) %>%
+  # subset countries included in election dataset
+  filter(country %in% unique(elex_master$country)) %>%
+  select(country, region, year,
+         eye, popshare,
+         internet, cellphone) %>%
+  arrange(country, region, year)
+
+## Create GDL to GADM region look-up ------
+# Below we test ad hoc which are missing - I then update recode() function
+gdl_to_gadm_regions <- gdl %>%
+  distinct(country, region) %>%
+  mutate(gdl_region = region) %>%
+  mutate(new = str_replace_all(gdl_region, "\\(|\\)", "")) %>%
+  separate(new, into = letters[seq(1, 10)], sep = "([, ? ])") %>%
+  pivot_longer(cols = c(region, letters[seq(1, 10)]), values_to = "gadm_region") %>%
+  select(-name) %>%
+  filter(!is.na(gadm_region)) %>%
+  # gdl (old) to gadm (new) with recode
+  mutate(gadm_region = recode(gadm_region,
+                              "Abuja FCT" = "Federal Capital Territory",
+                              "Helmand" = "Hilmand",
+                              "Daikundi" = "Daykundi",
+                              "Herat" = "Hirat",
+                              "Nooristan" = "Nuristan",
+                              "Panjsher" = "Panjshir",
+                              "Sar-e-Pul" = "Sari Pul",
+                              "Nassarawa" = "Nasarawa",
+                              "Zamfora" = "Zamfara",
+                              "Mexico" = "México",
+                              "Michoacan" = "Michoacán",
+                              "Nuevo Leon" = "Nuevo León",
+                              "Queretaro" = "Querétaro",
+                              "Potosi" = "San Luis Potosí", # was split up by separate()
+                              "Yucatan" = "Yucatán",
+                              "Matebeleland North" = "Matabeleland North",
+                              "Matebeleland South" = "Matabeleland South",
+                              "Racha-Lochkhumi" = "Racha-Lechkhumi-Kvemo Svaneti", # split up because of space
+                              "Samegrelo-Zemo Svateni" = "Samegrelo-Zemo Svaneti"
+  )) %>%
+  distinct(gdl_region, gadm_region) %>%
+  # remove gadm_names with parantheses
+  filter(!str_detect(gadm_region, "\\(|\\)")) %>%
+  # remove if name doesn't exist in GADM
+  filter(gadm_region %in% subnational_names$region_1 | gadm_region %in% subnational_names$region_2)
+
+# Check if the look-up misses any GADM names
+subnational_names %>%
+  pivot_longer(cols = c(region_1, region_2)) %>%
+  filter(!is.na(value)) %>%
+  #filter(!country == "Georgia" & !name == "region_2") %>%
+  filter(name == "region_1") %>%
+  filter(!value %in% gdl_to_gadm_regions$gadm_region)
+
+## Add GADM names to GDL----
+gdl_w_gadm <- gdl %>%
+  left_join(.,
+            gdl_to_gadm_regions,
+            by = c("region" = "gdl_region")) %>%
+  # Fix that GDL national observations weren't matched
+  mutate(gadm_region = if_else(region == "National", "National", gadm_region)) %>%
+  select(-region) %>%
+  select(country, gadm_region, year, everything()) %>%
+  arrange(country, gadm_region, year) %>%
+  distinct()
+
+# Choose one observation when a region appears more than once in a year
+# Choose that which is smallest/lowest pop share, implying more precise data
+gdl_w_gadm <- gdl_w_gadm %>%
+  group_by(country, gadm_region, year) %>%
+  slice_min(popshare, n = 1) %>%
+  ungroup()
+
+## Fill missing years with linear interpolation -----
+gdl_interpo <- gdl_w_gadm %>%
+  group_by(country, gadm_region) %>%
+  complete(year = 2006:2021) %>% # Twitter founded in 2006
+  arrange(country, gadm_region, year) %>%
+  # linear interpolation for missing years
+  # extrapolate with rule = 2: the value at the closest data extreme is used
+  mutate(across(c(eye, popshare, cellphone), ~zoo::na.approx(., na.rm = FALSE, rule = 2))) %>%
+  ungroup()
+
+# Join GDL and election master -----
+covariates <- elex_master %>%
+  mutate(id = row_number(),
+         year = year(elex_date)) %>%
+  # Join by region_2 because it is equal to region_1
+  # if the country did not have that level to begin with
+  left_join(gdl_interpo,
+            by = c("country", "region_2" = "gadm_region", "year"))
+
+# Check if any regions appear twice in same year
+covariates %>% group_by(id) %>% filter(n() > 1) %>% distinct(region_1)
+

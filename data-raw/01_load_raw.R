@@ -1,42 +1,42 @@
 ###### Load data
 
-# English speakers ----
+# Covariates ----
+
+## English speakers ----
 # English speakers data from the UN
-un_lang_raw <- read_csv("data-raw/other/UNdata_Export_20210203_194758725.csv")
+un_lang_raw <- read_csv("data-raw/covariates/UNdata_Export_20210203_194758725.csv")
 
 # English speakers data pasted from Ethnologue
-ethno_raw <- read_excel("data-raw/other/ethnologue_english.xlsx")
+ethno_raw <- read_excel("data-raw/covariates/ethnologue_english.xlsx")
 
 # English speakers data from Wikipedia
-wiki_raw <- read_excel("data-raw/other/english_wiki.xlsx", skip = 1)
-
-# Indices ----
+wiki_raw <- read_excel("data-raw/covariates/english_wiki.xlsx", skip = 1)
 
 # Corruption perception index
-cpi_raw <- read_excel("data-raw/other/CPI2020_GlobalTablesTS_210125.xlsx",
+cpi_raw <- read_excel("data-raw/covariates/CPI2020_GlobalTablesTS_210125.xlsx",
                       sheet = "CPI Timeseries 2012 - 2020",
                       skip = 2)
 
 # WGI data, voice and accountability index
-wgi_raw <- read_excel("data-raw/other/wgidataset.xlsx", sheet = "VoiceandAccountability", skip = 12)
+wgi_raw <- read_excel("data-raw/covariates/wgidataset.xlsx", sheet = "VoiceandAccountability", skip = 12)
 
-# UN and World Bank ----
-
+## Population ----
 # UN population estimates
 ## https://population.un.org/wpp/Download/Standard/CSV/
-pop_raw <- read_csv("data-raw/other/WPP2019_TotalPopulationBySex.csv")
+pop_raw <- read_csv("data-raw/covariates/WPP2019_TotalPopulationBySex.csv")
 
-# GDP PPP from World Bank
+## GDP PPP----
+## from World Bank
 ## https://data.worldbank.org/indicator/NY.GDP.MKTP.PP.KD
-gdp_ppp_raw <- read_csv("data-raw/other/API_NY.GDP.MKTP.PP.KD_DS2_en_csv_v2_1928416.csv", skip = 3)
+gdp_ppp_raw <- read_csv("data-raw/covariates/API_NY.GDP.MKTP.PP.KD_DS2_en_csv_v2_1928416.csv", skip = 3)
 
-# Twitters users -----
+# GDL, sub-national stats
+gdl_raw <- read_csv("data-raw/covariates/GDL-AreaData400 (1).csv")
+
+## Twitters users -----
 
 # Twitter users by country, Hootsuite, January 2020
-hootsuite_raw <- read_excel("data-raw/other/twitter_hootsuite.xlsx", skip = 1)
-
-# Load leader data from REIGN
-reign_raw <- read_csv("data-raw/other/REIGN_2021_2.csv")
+hootsuite_raw <- read_excel("data-raw/covariates/twitter_hootsuite.xlsx", skip = 1)
 
 # GADM boundaries -----
 ## National
@@ -45,7 +45,10 @@ gadm_nat_raw <- list.files(pattern = "0_sf\\.rds", recursive = TRUE) %>%
 
 gadm_sub_raw <- c("data-raw/shapefiles/gadm36_AFG_1_sf.rds",
                   "data-raw/shapefiles/gadm36_NGA_1_sf.rds",
-                  "data-raw/shapefiles/gadm36_GEO_2_sf.rds") %>%
+                  "data-raw/shapefiles/gadm36_GEO_2_sf.rds",
+                  "data-raw/shapefiles/gadm36_MEX_1_sf.rds",
+                  "data-raw/shapefiles/gadm36_ZWE_1_sf.rds"
+                  ) %>%
   map_df(~readRDS(.))
 
 # Election data ------
@@ -64,8 +67,26 @@ afg_14_raw <- read_csv("data-raw/election/Afghanistan/2014-Presidential-national
 afg_09_raw <- read_csv("data-raw/election/Afghanistan/2009-Presidential-national-presidential.csv")
 
 ## Georgia presidential ----
-ge_08_raw <- read_csv("data-raw/election/Georgia/Georgia_Election_Data_2008_Presidential_EN_CSV.csv")
-ge_13_raw <- read_csv("data-raw/election/Georgia/Georgia_Election_Data_2013_Presidential_EN_CSV.csv")
+geo_08_raw <- read_csv("data-raw/election/Georgia/Georgia_Election_Data_2008_Presidential_EN_CSV.csv")
+geo_13_raw <- read_csv("data-raw/election/Georgia/Georgia_Election_Data_2013_Presidential_EN_CSV.csv")
+
+## Mexico presidential ----
+mex_18_raw <- read_csv("data-raw/election/Mexico/presidencia_2018.csv", skip = 5)
+mex_18_candidates_raw <- read_csv("data-raw/election/Mexico/presidencia_candidaturas_2018.csv")
+mex_12_raw <- read_csv("data-raw/election/Mexico/consulta2012.csv")
+
+# Zimbabwe presidential ----
+zwe_13_raw <- read_csv("data-raw/election/Zimbabwe/2013_national_presidential_results.csv")
+
+# Polling data ----
+# Ad hoc Wikipedia
+polling_adhoc_raw <- read_csv("data-raw/polling/polling_adhoc.csv")
+
+# Afrobarometer data
+# https://afrobarometer.org/data/merged-data
+afro_r7_raw <- haven::read_sav("data-raw/polling/r7_merged_data_34ctry.release.sav")
+afro_r6_raw <- haven::read_sav("data-raw/polling/merged_r6_data_2016_36countries2.sav")
+afro_r5_raw <- haven::read_sav("data-raw/polling/merged-round-5-data-34-countries-2011-2013-last-update-july-2015.sav")
 
 # Sentiment lexicons ----
 ## from textdata package
@@ -73,26 +94,11 @@ afinn <- get_sentiments("afinn")
 bing <- get_sentiments("bing")
 nrc <- get_sentiments("nrc")
 
-# Common name look-up -----
+# Other ----
+## REIGN leader data ----
+reign_raw <- read_csv("data-raw/other/REIGN_2021_2.csv")
+
+## Leader name look-up -----
 ## Used to match names between REIGN and candidates objects
 name_lookup <- read_csv("data-raw/other/name_lookup.csv")
 
-# Not currently used -----
-
-# # Load Global Data Lab data
-# ## https://globaldatalab.org/areadata-raw/download_files/
-# gdl_raw <- read_csv("data-raw/other/GDL-AreaData390 (1).csv")
-#
-# # Load cities data
-# # Africapolis
-# ## https://africapolis.org/data
-# afri_polis_raw <- read_excel("data-raw/other/Africapolis_agglomeration_2015.xlsx", skip = 15)
-#
-# # World Cities shapefiles from ArcGIS, long and lat
-# cities_raw <- st_read("data-raw/other/World_Cities-shp/World_Cities.shp")
-#
-# # GPW data
-# # Load GPW4 Admin Unit data
-# ## https://sedac.ciesin.columbia.edu/data-raw/set/gpw-v4-admin-unit-center-points-population-estimates-rev11
-# gpw_raw <- list.files(pattern = "gpw_v4_admin_unit.+\\.shp", recursive = TRUE) %>%
-#   map_df(~st_read(.))
