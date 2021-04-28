@@ -51,75 +51,12 @@ load("data/formatted_data.RData")
 
 ```
 
-# Number of tweets
-```{r number-of-tweets}
-# Number of tweets over time
-tweets_sf %>%
-  as.data.frame() %>%
-  group_by(week, has_point) %>%
-  summarise(n = n()) %>%
-  ungroup() %>%
-  ggplot(., aes(x = week, y = n, colour = has_point)) +
-  geom_line() +
-  facet_wrap(~has_point, scales = "free_y") +
-  labs(title = "Number of tweets per week with or without coordinates")
-
-# Number of total tweets with or without coordinates
-tweets_sf %>%
-  as.data.frame() %>%
-  group_by(leader_country, has_point) %>%
-  summarise(n = n()) %>%
-  ungroup() %>%
-  ggplot(., aes(x = has_point, y = n, fill = has_point)) +
-  geom_col() +
-  facet_wrap(~leader_country, scales = "free_y") +
-  labs(title = "Number of total tweets with or without coordinates")
-
-
-```
-
-
 # Sentiment analysis
-
-```{r join-lexicon}
+```{r join-senti-to-tokens}
 # Join sentiment values by stem
 senti_per_token <- join_sentiment_by_stem(tweet_tokens, afinn_stem)
 
-# Share of tweets with no lexicon match for any of their stemmed words
-(share_tweets_no_senti <- senti_tweets %>%
-    group_by(id, username, language) %>%
-    summarise(afinn_mean = mean(afinn_value, na.rm = TRUE)) %>%
-    mutate(has_afinn = !is.na(afinn_mean),
-           in_english = language == "en") %>%
-    group_by(has_afinn, in_english) %>%
-    summarise(n = n())
-)
-
 ```
-
-```{r tweets-per-week}
-# Summarise tweets per week
-tweets_n_per_week <- tweets_sf %>%
-  as.data.frame() %>%
-  select(-geometry) %>%
-  group_by(country, leader, week = floor_date(date, "week")) %>%
-  summarise(n = n()) %>%
-  ungroup()
-
-# Mean number of tweets per week
-tweets_n_per_week %>%
-  group_by(week) %>%
-  summarise(mean = mean(n))
-
-# Plot
-ggplot(tweets_n_per_week, aes(x = week, y = n, col = leader)) +
-  geom_line() +
-  geom_hline(yintercept = 100) +
-  facet_wrap(~ leader, scales = "free_x") +
-  labs(title = "Tweets per week per leader")
-
-```
-
 
 ```{r senti-per-tweet}
 # Calculate sentiment per tweet
@@ -127,6 +64,50 @@ ggplot(tweets_n_per_week, aes(x = week, y = n, col = leader)) +
 senti_per_tweet <- create_mean_sentiment_per_tweet(senti_per_token)
 
 ```
+
+
+```{r senti-per-day}
+# Sentiment per day
+senti_per_day <- senti_per_tweet %>%
+   group_by(date, has_point, replies_count, retweets_count, likes_count,
+            leader, leader_country, country, region_1, region_2) %>%
+   summarise(afinn_mean_day = mean(afinn_mean, na.rm = TRUE),
+             n_tweets = n()) %>%
+   ungroup() %>%
+   arrange(date, country, region_1, region_2)
+
+senti_per_day
+
+```
+
+
+# Sentiment per region adjusted over time
+```{r senti-per-region}
+# Sentiment per region adjusted over time
+# average sentiment per region
+# using non-point tweets to show trend over time
+
+# Number of tweets with or without point
+senti_per_tweet$has_point %>% table #%>% prop.table
+
+# Calculate average sentiment per region
+senti_per_region <- senti_per_tweet %>%
+  filter(has_point) %>%
+  filter(!is.na(country)) %>% # remove tweets outside of country
+  group_by(leader, country, region_1, region_2) %>%
+  summarise(afinn_mean_region = mean(afinn_mean, na.rm = TRUE),
+            #n_tweets = n()
+            ) %>%
+  ungroup()
+
+# Join average sentiment per day for trend over time
+senti_per_region <- senti_per_day %>%
+  left_join(senti_per_region,
+            by = c("leader", "country", "region_1", "region_2"))
+
+
+```
+
 
 # Raw estimates
 ```{r raw-estimates}
@@ -152,18 +133,8 @@ raw_pro_shares %>%
 ```{r train-election}
 # Multilevel models trained on election results
 
-# Sentiment per day
-(senti_per_day <- senti_per_tweet %>%
-   group_by(date, has_point, replies_count, retweets_count, likes_count,
-            leader, leader_country, country, region_1, region_2) %>%
-   summarise(afinn_mean = mean(afinn_mean, na.rm = TRUE),
-             n_tweets = n()) %>%
-   ungroup() %>%
-   arrange(date, country, region_1, region_2)
-)
-
 # Join sentiment with election results
-senti_per_day_elex <- join_election_to_tweets(senti_per_day, elex_master)
+senti_per_day_elex <- join_election_to_tweets(senti_per_day, covariates)
 
 # Select nearest election for each day
 senti_per_day_elex <- select_nearest_election(senti_per_day_elex)
@@ -261,6 +232,65 @@ predictions %>%
 
 ```
 
+
+# Descriptive plots
+```{r senti-join-stats}
+# Share of tweets with no lexicon match for any of their stemmed words
+(share_tweets_no_senti <- senti_tweets %>%
+    group_by(id, username, language) %>%
+    summarise(afinn_mean = mean(afinn_value, na.rm = TRUE)) %>%
+    mutate(has_afinn = !is.na(afinn_mean),
+           in_english = language == "en") %>%
+    group_by(has_afinn, in_english) %>%
+    summarise(n = n())
+)
+
+```
+
+```{r tweets-per-week}
+# Summarise tweets per week
+tweets_n_per_week <- tweets_sf %>%
+  as.data.frame() %>%
+  select(-geometry) %>%
+  group_by(country, leader, week = floor_date(date, "week")) %>%
+  summarise(n = n()) %>%
+  ungroup()
+
+# Mean number of tweets per week
+tweets_n_per_week %>%
+  group_by(week) %>%
+  summarise(mean = mean(n))
+
+# Plot
+ggplot(tweets_n_per_week, aes(x = week, y = n, col = leader)) +
+  geom_line() +
+  geom_hline(yintercept = 100) +
+  facet_wrap(~ leader, scales = "free_x") +
+  labs(title = "Tweets per week per leader")
+
+# Number of tweets over time
+tweets_sf %>%
+  as.data.frame() %>%
+  group_by(week, has_point) %>%
+  summarise(n = n()) %>%
+  ungroup() %>%
+  ggplot(., aes(x = week, y = n, colour = has_point)) +
+  geom_line() +
+  facet_wrap(~has_point, scales = "free_y") +
+  labs(title = "Number of tweets per week with or without coordinates")
+
+# Number of total tweets with or without coordinates
+tweets_sf %>%
+  as.data.frame() %>%
+  group_by(leader_country, has_point) %>%
+  summarise(n = n()) %>%
+  ungroup() %>%
+  ggplot(., aes(x = has_point, y = n, fill = has_point)) +
+  geom_col() +
+  facet_wrap(~leader_country, scales = "free_y") +
+  labs(title = "Number of total tweets with or without coordinates")
+
+```
 
 
 
