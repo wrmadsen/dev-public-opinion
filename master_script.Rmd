@@ -43,10 +43,8 @@ devtools::load_all()
 
 # Load prepared data
 ```{r load-data}
-# Format data
-#source("data-raw/03_master_formatting.R")
-
 # Load formatted data
+# Formatted with R scripts in data-raw
 load("data/formatted_data.RData")
 
 ```
@@ -69,12 +67,12 @@ senti_per_tweet <- create_mean_sentiment_per_tweet(senti_per_token)
 ```{r senti-per-day}
 # Sentiment per day
 senti_per_day <- senti_per_tweet %>%
-   group_by(date, has_point, replies_count, retweets_count, likes_count,
-            leader, leader_country, country, region_1, region_2) %>%
-   summarise(afinn_mean_day = mean(afinn_mean, na.rm = TRUE),
-             n_tweets = n()) %>%
-   ungroup() %>%
-   arrange(date, country, region_1, region_2)
+  group_by(date, has_point, replies_count, retweets_count, likes_count,
+           leader, leader_country, country, region_1, region_2) %>%
+  summarise(afinn_mean_day = mean(afinn_mean, na.rm = TRUE),
+            n_tweets = n()) %>%
+  ungroup() %>%
+  arrange(date, country, region_1, region_2)
 
 senti_per_day
 
@@ -97,7 +95,7 @@ senti_per_region <- senti_per_tweet %>%
   group_by(leader, country, region_1, region_2) %>%
   summarise(afinn_mean_region = mean(afinn_mean, na.rm = TRUE),
             #n_tweets = n()
-            ) %>%
+  ) %>%
   ungroup()
 
 # Join average sentiment per day for trend over time
@@ -198,9 +196,9 @@ predictions <- senti_per_day_elex
 ```
 
 
-# Average error
-```{r ae-elections}
-# AE, average error
+# MAE
+```{r mae-elections}
+# Mean absolute error (MAE)
 
 # Model 1 ----
 # Predict
@@ -211,13 +209,15 @@ test_data_1 <- senti_per_day_elex %>%
 predictions <- predictions %>%
   mutate(prediction_1 = predict(model_1, .))
 
-# Calculate average error
+# Calculate MAE
 predictions %>%
   filter(year(date) %in% c(2019)) %>%
   filter(days_diff_abs < 10) %>%
-  mutate(prediction_1_diff = prediction_1-votes_share) %>%
-  summarise(mean = mean(prediction_1_diff, na.rm = TRUE))
-  
+  mutate(prediction_1_diff = prediction_1-votes_share,
+         prediction_1_diff_abs = abs(prediction_1_diff)
+  ) %>%
+  summarise(mae = mean(prediction_1_diff_abs, na.rm = TRUE))
+
 
 
 ```
@@ -233,16 +233,111 @@ predictions %>%
 ```
 
 
+# Tables
+```{r table-country-stats}
+# Table of country statistics
+tweets_df <- tweets_sf %>%
+  as.data.frame() %>%
+  select(-geometry) %>%
+  as_tibble()
+
+(n_tweets_per_country <- tweets_df %>%
+    group_by(leader_country) %>%
+    summarise(n = n()) %>%
+    mutate(variable = "Total tweets per country") %>%
+    pivot_wider(names_from = leader_country, values_from = n)
+)
+
+(n_weekly_tweets_per_country <- tweets_df %>%
+    group_by(leader_country, week) %>%
+    summarise(n = n()) %>%
+    group_by(leader_country) %>%
+    summarise(n = mean(n)) %>%
+    mutate(variable = "Average number of tweets per country") %>%
+    pivot_wider(names_from = leader_country, values_from = n)
+)
+
+(n_weeks_per_country <- tweets_df %>%
+    group_by(leader_country, week) %>%
+    summarise(n = n()) %>%
+    group_by(leader_country) %>%
+    summarise(n = n()) %>%
+    mutate(variable = "Number of weeks per country") %>%
+    pivot_wider(names_from = leader_country, values_from = n)
+)
+
+(n_years_per_country <- tweets_df %>%
+    group_by(leader_country, year(date)) %>%
+    summarise(n = n()) %>%
+    group_by(leader_country) %>%
+    summarise(n = n()) %>%
+    mutate(variable = "Number of years per country") %>%
+    pivot_wider(names_from = leader_country, values_from = n)
+)
+
+(n_elections_per_country <- tweets_df %>%
+    group_by(leader_country, year(date)) %>%
+    summarise(n = n()) %>%
+    group_by(leader_country) %>%
+    summarise(n = n()) %>%
+    mutate(variable = "Number of years per country") %>%
+    pivot_wider(names_from = leader_country, values_from = n)
+)
+
+(n_regions_1_per_country <- tweets_df %>%
+    group_by(leader_country, region_1) %>%
+    summarise(n = n()) %>%
+    group_by(leader_country) %>%
+    summarise(n = n()) %>%
+    mutate(variable = "Number of regions_1 per country") %>%
+    pivot_wider(names_from = leader_country, values_from = n)
+)
+
+# (n_regions_2_per_country <- tweets_df %>%
+#     group_by(leader_country, region_2) %>%
+#     summarise(n = n()) %>%
+#     group_by(leader_country) %>%
+#     summarise(n = n()) %>%
+#     mutate(variable = "Number of regions_2 per country") %>%
+#     # if n = 1, that means a country doesn't have any region_2
+#     mutate(n = if_else(n == 1, as.integer(0), n)) %>%
+#     pivot_wider(names_from = leader_country, values_from = n)
+# )
+
+(n_elections_per_country <- elex_master %>%
+  group_by(country, elex_date) %>%
+  summarise(n = n()) %>%
+  group_by(country) %>%
+  summarise(n = n()) %>%
+  mutate(variable = "Number of elections per country") %>%
+  pivot_wider(names_from = country, values_from = n)
+)
+
+# Combine into table
+bind_rows(n_tweets_per_country,
+          n_weekly_tweets_per_country,
+          n_weeks_per_country,
+          n_years_per_country,
+          n_regions_1_per_country,
+          #n_regions_2_per_country,
+          n_elections_per_country) %>%
+  rename(Name = variable)
+
+
+```
+
+
 # Descriptive plots
+
 ```{r senti-join-stats}
 # Share of tweets with no lexicon match for any of their stemmed words
 (share_tweets_no_senti <- senti_tweets %>%
-    group_by(id, username, language) %>%
-    summarise(afinn_mean = mean(afinn_value, na.rm = TRUE)) %>%
-    mutate(has_afinn = !is.na(afinn_mean),
-           in_english = language == "en") %>%
-    group_by(has_afinn, in_english) %>%
-    summarise(n = n())
+   group_by(id, username, language) %>%
+   summarise(afinn_mean = mean(afinn_value, na.rm = TRUE)) %>%
+   mutate(has_afinn = !is.na(afinn_mean),
+          in_english = language == "en") %>%
+   group_by(has_afinn, in_english) %>%
+   summarise(n = n())
 )
 
 ```
@@ -295,12 +390,36 @@ tweets_sf %>%
 
 
 # Various plots
-```{r plot}
+```{r plot-maps}
 # Simply GADM for plotting ease
 gadm_simp <- gadm %>%
   st_simplify(., dTolerance = 0.1)
 
-# English-speakers plot ------
+# Map tweets as points
+world1 <- map("world", plot = FALSE, fill = TRUE) %>% sf::st_as_sf()
+sf::st_as_sf(map("africa", plot = FALSE, fill = TRUE))
+
+# Nigeria NE
+nigeria_sf <- world1 %>% filter(ID == "Nigeria")
+
+tweets_n <- nrow(tweets)
+tweets_n_w_points <- nrow(tweets[!is.na(tweets$place_coordinates_0),])
+
+ggplot() +
+  geom_sf(data = nigeria_sf) +
+  coord_sf(xlim = c(8.5, 9.5), ylim = c(7, 7.7), expand = FALSE) +
+  geom_point(data = tweets, aes(x = place_coordinates_0, y = place_coordinates_1),
+             size = 0.7) +
+  labs(title = "Lagos in Nigeria: Tweets which included point spatial data",
+       subtitle = paste0(tweets_n_w_points, " of ", tweets_n, " tweets include spatial data")
+  ) +
+  theme_bw()
+
+```
+
+
+```{r plot-eng-speakers}
+# English-speakers plot
 # Plot different data on English speakers
 supp %>%
   ggplot(.,
@@ -321,8 +440,11 @@ supp %>%
   geom_point() +
   geom_label_repel(aes(label = paste0(country, " ", year))) +
   labs(title = "English-speaking share by voice and accountability index")
+```
 
-# Raw tweets plots -----
+
+```{r plot-raw-tweets}
+# Raw tweets plots
 # Plot number of tweets every week
 tweets %>%
   filter(country == "Nigeria") %>%
@@ -339,29 +461,11 @@ tweets %>%
        subtitle = paste0(nrow(tweets), " tweets from Lagos")
   ) 
 
-
-# Map Tweets as points
-world1 <- map("world", plot = FALSE, fill = TRUE) %>% sf::st_as_sf()
-sf::st_as_sf(map("africa", plot = FALSE, fill = TRUE))
-
-# Nigeria NE
-nigeria_sf <- world1 %>% filter(ID == "Nigeria")
-
-tweets_n <- nrow(tweets)
-tweets_n_w_points <- nrow(tweets[!is.na(tweets$place_coordinates_0),])
-
-ggplot() +
-  geom_sf(data = nigeria_sf) +
-  coord_sf(xlim = c(8.5, 9.5), ylim = c(7, 7.7), expand = FALSE) +
-  geom_point(data = tweets, aes(x = place_coordinates_0, y = place_coordinates_1),
-             size = 0.7) +
-  labs(title = "Lagos in Nigeria: Tweets which included point spatial data",
-       subtitle = paste0(tweets_n_w_points, " of ", tweets_n, " tweets include spatial data")
-  ) +
-  theme_bw()
+```
 
 
-# Methodology plots -----
+```{r plot-methodology}
+# Methodology plots
 # Plot get circles
 ggplot() +
   geom_sf(data = gadm_simp) +
