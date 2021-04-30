@@ -87,7 +87,7 @@ get_data_geo <- get_names_geo %>%
     )
 )
 
-get_data_geo_csv$leader %>% unique
+get_data_geo %>% distinct(country, name) %>% arrange(country)
 
 write_csv(get_data_geo_csv, "py/get_data_geo.csv")
 
@@ -100,7 +100,6 @@ write_csv(get_data_geo_csv, "py/get_data_geo.csv")
 #source_python("py/get_tweets_multi.py", convert = FALSE)
 
 #py_run_file("py/get_tweets_multi.py")
-
 
 ## Read tweets ----
 tweets_raw <- read_csv("data-raw/tweets/tweets.csv")
@@ -115,7 +114,7 @@ tweets_raw <- read_csv("data-raw/tweets/tweets.csv")
 tweets_raw_small <- tweets_raw[1:300000,]
 
 # Format and add variables
-tweets_formatted <- format_tweets(tweets_raw_small, candidates)
+tweets_formatted <- format_tweets(tweets_raw, candidates)
 
 # Filter out NA leaders and duplicates
 tweets_sub <- filter_tweets(tweets_formatted)
@@ -129,7 +128,7 @@ tweets_tokens <- tweets_sf %>%
 
 # Save formatted data ----
 save(supp, reign, candidates,
-     elex_master, polling,
+     elex_master, polling_master,
      boundaries_national, boundaries_subnational,
      tweets_sf,
      senti_lexicons, afinn, afinn_stem,
