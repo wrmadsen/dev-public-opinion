@@ -35,6 +35,8 @@ library(quanteda)
 library(textdata)
 library(tidytext)
 library(SnowballC)
+library(furrr)
+library(data.table)
 
 # Load package functions
 #devtools::load_all()
@@ -53,10 +55,14 @@ load("data/formatted_supplementary.RData")
 
 load("data/tweets_sf.RData")
 
-load("data/tweets_tokens.RData")
+tweets_sub <- read_csv("data/tweets_sub.csv") 
 
-#future_map()
+senti_tokens <- read_csv("data/senti_tokens.csv")
 
+```
+
+
+```{r source-scripts}
 # Source R scripts
 list.files("R", full.names = TRUE) %>%
   purrr::map(source)
@@ -65,32 +71,29 @@ list.files("R", full.names = TRUE) %>%
 
 
 # Sentiment analysis
-```{r join-senti-to-tokens}
-# Join sentiment values by stem
-senti_per_token <- join_sentiment_by_stem(tweet_tokens, afinn_stem)
-
-```
-
 
 ```{r senti-per-tweet}
 # Calculate sentiment per tweet
 # Mean sentiment per tweet
-senti_per_tweet <- create_mean_sentiment_per_tweet(senti_per_token)
+senti_tweet <- calculate_sentiment_per_tweet(senti_tokens)
+
+```
+
+```{r add-regions}
+# Add regions to sentiment
+senti_tweet_sf <- add_regions(senti_tweet, boundaries_subnational)
 
 ```
 
 
 ```{r senti-per-day}
 # Sentiment per day
-senti_per_day <- senti_per_tweet %>%
-  group_by(date, has_point, replies_count, retweets_count, likes_count,
-           leader, leader_country, country, region_1, region_2) %>%
-  summarise(afinn_mean_day = mean(afinn_mean, na.rm = TRUE),
-            n_tweets = n()) %>%
-  ungroup() %>%
-  arrange(date, country, region_1, region_2)
+senti_day <- calculate_sentiment_per_day(senti_tweet_sf)
 
-senti_per_day
+senti_day
+
+# Regions included in data
+senti_day$region_1 %>% unique %>% paste(., collapse = ", ")
 
 ```
 
@@ -99,24 +102,7 @@ senti_per_day
 # Based on regions
 # average sentiment per region
 # using non-point tweets to show trend over time
-
-# Number of tweets with or without point
-senti_per_tweet$has_point %>% table #%>% prop.table
-
-# Calculate average sentiment per region
-senti_per_region <- senti_per_tweet %>%
-  filter(has_point) %>%
-  filter(!is.na(country)) %>% # remove tweets outside of country
-  group_by(leader, country, region_1, region_2) %>%
-  summarise(afinn_mean_region = mean(afinn_mean, na.rm = TRUE),
-            #n_tweets = n()
-  ) %>%
-  ungroup()
-
-# Join average sentiment per day for trend over time
-senti_per_region <- senti_per_day %>%
-  left_join(senti_per_region,
-            by = c("leader", "country", "region_1", "region_2"))
+senti_day_region_adj <- create_region_adjusted_sentiment(senti_day)
 
 
 ```
@@ -125,19 +111,21 @@ senti_per_region <- senti_per_day %>%
 # Raw estimates
 ```{r raw-estimates}
 # Find for-against based on mean sentiment
-senti_cut_offs <- create_cut_offs(senti_per_tweet)
+senti_cut_offs <- create_cut_offs(senti_tweet_sf)
+
+#senti_cut_offs <- senti_cut_offs[1:10000,]
 
 # Create an estimate per week per cut off
-raw_pro_shares <- find_pro_share(senti_cut_offs, n_roll = 5)
+raw_estimates <- calculate_raw_estimates(senti_cut_offs, n_roll = 5)
 
 # Plot pro-share by cut-offs
-raw_pro_shares %>%
+raw_estimates %>%
   filter(leader == "Ghani") %>%
   ggplot(., aes(x = date, y = pro_share, colour = leader)) +
   geom_point() +
   geom_line(aes(y = pro_share_roll), colour = "black") +
   facet_wrap(~ cut_off) +
-  labs(title = "Raw favourability ratings at different cut-offs")
+  labs(title = "Raw estimates based on sentiment at different cut-offs")
 
 
 ```
@@ -145,7 +133,7 @@ raw_pro_shares %>%
 
 ```{r validate-raw}
 # Join raw estimates to election results
-raw_pro_shares_targets <- join_targets_to_senti(raw_pro_shares, elex_master)
+raw_estimates_targets <- join_targets(raw_estimates, elex_master)
 
 # Summary statistics of each cut-off
 cut_off_stats <- summarise_cut_off_validation(raw_pro_shares_targets)
@@ -402,7 +390,7 @@ bind_rows(n_tweets_per_country,
 ```
 
 
-# Descriptive plots
+# Plots
 
 ```{r senti-join-stats}
 # Share of tweets with no lexicon match for any of their stemmed words
@@ -417,7 +405,7 @@ bind_rows(n_tweets_per_country,
 
 ```
 
-```{r tweets-per-week}
+```{r plot-tweets-per-week}
 # Summarise tweets per week
 tweets_n_per_week <- tweets_sf %>%
   as.data.frame() %>%
@@ -464,7 +452,6 @@ tweets_sf %>%
 
 
 
-# Various plots
 ```{r plot-maps}
 # Simply GADM for plotting ease
 gadm_simp <- gadm %>%
@@ -515,37 +502,6 @@ supp %>%
   geom_point() +
   geom_label_repel(aes(label = paste0(country, " ", year))) +
   labs(title = "English-speaking share by voice and accountability index")
-```
-
-
-```{r plot-raw-tweets}
-# Raw tweets plots
-# Plot number of tweets every week
-tweets %>%
-  filter(country == "Nigeria") %>%
-  mutate(week = floor_date(date, unit = "week"),
-         month = floor_date(date, unit = "month")
-  ) %>%
-  group_by(month, country, leader) %>%
-  summarise(n = n()) %>%
-  ggplot(.,
-         aes(x = month,
-             y = n)) +
-  geom_col() +
-  labs(title = "Number of Tweets mentioning Buhari in Lagos, Nigeria",
-       subtitle = paste0(nrow(tweets), " tweets from Lagos")
-  ) 
-
-```
-
-
-```{r plot-methodology}
-# Methodology plots
-# Plot get circles
-ggplot() +
-  geom_sf(data = gadm_simp) +
-  geom_sf(data = gadm_circ, fill = NA)
-
 
 ```
 
