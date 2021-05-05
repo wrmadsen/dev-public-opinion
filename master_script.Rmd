@@ -37,6 +37,8 @@ library(tidytext)
 library(SnowballC)
 library(furrr)
 library(data.table)
+require(scales)
+library(patchwork)
 
 # Load package functions
 #devtools::load_all()
@@ -284,31 +286,27 @@ predictions_2 %>%
 # Tables
 ```{r table-country-stats}
 # Table of country statistics
-tweets_df <- tweets_sf %>%
-  as.data.frame() %>%
-  select(-geometry) %>%
-  as_tibble()
 
 # Tweet count per country
-(n_tweets_per_country <- tweets_df %>%
-    group_by(leader_country) %>%
-    summarise(n = n()) %>%
-    mutate(variable = "Total tweets per country") %>%
-    pivot_wider(names_from = leader_country, values_from = n)
+(n_tweets_per_country <- tweets_sub %>%
+   group_by(leader_country) %>%
+   summarise(n = n()) %>%
+   mutate(variable = "Total tweets per country") %>%
+   pivot_wider(names_from = leader_country, values_from = n)
 )
 
 # Average number of tweets per country
-(n_weekly_tweets_per_country <- tweets_df %>%
+(n_weekly_tweets_per_country <- tweets_sub %>%
     group_by(leader_country, week) %>%
     summarise(n = n()) %>%
     group_by(leader_country) %>%
-    summarise(n = mean(n)) %>%
-    mutate(variable = "Average number of tweets per country") %>%
+    summarise(n = mean(n) %>% round(2)) %>%
+    mutate(variable = "Average weekly number of tweets per country") %>%
     pivot_wider(names_from = leader_country, values_from = n)
 )
 
 # Number of unique weeks per country
-(n_weeks_per_country <- tweets_df %>%
+(n_weeks_per_country <- tweets_sub %>%
     group_by(leader_country, week) %>%
     summarise(n = n()) %>%
     group_by(leader_country) %>%
@@ -318,7 +316,7 @@ tweets_df <- tweets_sf %>%
 )
 
 # Years per country
-(n_years_per_country <- tweets_df %>%
+(n_years_per_country <- tweets_sub %>%
     group_by(leader_country, year(date)) %>%
     summarise(n = n()) %>%
     group_by(leader_country) %>%
@@ -327,13 +325,15 @@ tweets_df <- tweets_sf %>%
     pivot_wider(names_from = leader_country, values_from = n)
 )
 
-# Subnational regions per country
-(n_regions_1_per_country <- tweets_df %>%
+# Subnational regions per country in data
+(n_regions_1_per_country <- tweets_sf %>%
+    as.data.frame() %>%
+    select(-geometry) %>%
     group_by(leader_country, region_1) %>%
     summarise(n = n()) %>%
     group_by(leader_country) %>%
     summarise(n = n()) %>%
-    mutate(variable = "Number of regions_1 per country") %>%
+    mutate(variable = "Number of regions per country") %>%
     pivot_wider(names_from = leader_country, values_from = n)
 )
 
@@ -376,21 +376,79 @@ n_candidates_per_country %>%
 )
 
 # Combine into table
-bind_rows(n_tweets_per_country,
-          n_weekly_tweets_per_country,
-          n_weeks_per_country,
-          n_years_per_country,
-          n_regions_1_per_country,
-          #n_regions_2_per_country,
-          n_elections_per_country,
-          n_polls_per_country) %>%
-  rename(Name = variable)
+(by_country_table <- bind_rows(n_tweets_per_country,
+                               n_weekly_tweets_per_country,
+                               n_weeks_per_country,
+                               n_years_per_country,
+                               n_regions_1_per_country,
+                               #n_regions_2_per_country,
+                               n_elections_per_country,
+                               n_polls_per_country) %>%
+    rename(Name = variable)
+)
+
+# Save as csv
+write_csv(by_country_table, file = "output/tables/per_country.csv")
 
 
 ```
 
 
 # Plots
+
+
+```{r plot-weekly-tweet-frequency}
+# Summarise tweets per week
+tweets_n_per_week <- tweets_sub %>%
+  group_by(leader_country, leader, week = floor_date(date, "week")) %>%
+  summarise(n = n()) %>%
+  ungroup()
+
+# Mean number of tweets per week
+tweets_n_per_week %>%
+  group_by(week) %>%
+  summarise(mean = mean(n))
+
+# Plot
+ggplot(tweets_n_per_week, aes(x = week, y = n)) +
+  geom_col(colour = blue_colour) +
+  facet_wrap(~ leader_country,
+             scales = "free_y",
+             labeller = label_wrap_gen(width = 20),
+             #space = "free"
+  ) +
+  labs(title = "Weekly number of Tweets per country",
+       subtitle = "Number of Tweets per week by country of the leader mentioned in the Tweet") +
+  theme_devpublicopinion +
+  ggsave("output/figures/tweets_n_per_week.png")
+
+
+```
+
+
+```{r plot-tweets-by-having-points}
+# Number of tweets over time
+tweets_sf %>%
+  as.data.frame() %>%
+  group_by(has_point, year = year(date)) %>%
+  summarise(n = n()) %>%
+  ungroup() %>%
+  mutate(has_point = case_when(has_point ~ "Geotagged",
+                               !has_point ~ "Non-geotagged")) %>%
+  ggplot(., aes(x = year, y = n)) +
+  geom_col(aes(fill = has_point), show.legend = FALSE) +
+  facet_wrap(~has_point, scales = "free_y"
+  ) +
+  scale_y_continuous(labels = comma) +
+  labs(title = "Number of tweets with or without coordinates",
+       subtitle = "Number of Tweets per year that were geotagged or not by the Twitter users"
+  ) +
+  theme_devpublicopinion +
+  ggsave("output/figures/number_of_tweets_has_point.png")
+
+
+```
+
 
 ```{r senti-join-stats}
 # Share of tweets with no lexicon match for any of their stemmed words
@@ -405,79 +463,48 @@ bind_rows(n_tweets_per_country,
 
 ```
 
-```{r plot-tweets-per-week}
-# Summarise tweets per week
-tweets_n_per_week <- tweets_sf %>%
-  as.data.frame() %>%
-  select(-geometry) %>%
-  group_by(country, leader, week = floor_date(date, "week")) %>%
-  summarise(n = n()) %>%
-  ungroup()
-
-# Mean number of tweets per week
-tweets_n_per_week %>%
-  group_by(week) %>%
-  summarise(mean = mean(n))
-
-# Plot
-ggplot(tweets_n_per_week, aes(x = week, y = n, col = leader)) +
-  geom_line() +
-  geom_hline(yintercept = 100) +
-  facet_wrap(~ leader, scales = "free_x") +
-  labs(title = "Tweets per week per leader")
-
-# Number of tweets over time
-tweets_sf %>%
-  as.data.frame() %>%
-  group_by(week, has_point) %>%
-  summarise(n = n()) %>%
-  ungroup() %>%
-  ggplot(., aes(x = week, y = n, colour = has_point)) +
-  geom_line() +
-  facet_wrap(~has_point, scales = "free_y") +
-  labs(title = "Number of tweets per week with or without coordinates")
-
-# Number of total tweets with or without coordinates
-tweets_sf %>%
-  as.data.frame() %>%
-  group_by(leader_country, has_point) %>%
-  summarise(n = n()) %>%
-  ungroup() %>%
-  ggplot(., aes(x = has_point, y = n, fill = has_point)) +
-  geom_col() +
-  facet_wrap(~leader_country, scales = "free_y") +
-  labs(title = "Number of total tweets with or without coordinates")
-
-```
-
 
 
 ```{r plot-maps}
 # Simply GADM for plotting ease
-gadm_simp <- gadm %>%
-  st_simplify(., dTolerance = 0.1)
+boundaries_subnational_simp <- boundaries_subnational %>%
+  st_simplify(., dTolerance = 0.05)
 
-# Map tweets as points
-world1 <- map("world", plot = FALSE, fill = TRUE) %>% sf::st_as_sf()
-sf::st_as_sf(map("africa", plot = FALSE, fill = TRUE))
+# Plot geotagged Tweets on map
+tweets_geotagged <- tweets_sf %>%
+  filter(has_point)
 
-# Nigeria NE
-nigeria_sf <- world1 %>% filter(ID == "Nigeria")
+plot_tweets_in_country <- function(plot_country = "Afghanistan"){
+  
+  ggplot() +
+    geom_sf(data = boundaries_subnational_simp %>% filter(country == plot_country),
+            fill = NA) +
+    geom_sf(data = tweets_geotagged %>% filter(country == plot_country),
+            size = 3, shape = 21, fill = blue_colour) +
+    labs(title = paste0(plot_country)) +
+    theme_devpublicopinion +
+    theme(panel.grid.major = element_blank())
+          
+}
 
-tweets_n <- nrow(tweets)
-tweets_n_w_points <- nrow(tweets[!is.na(tweets$place_coordinates_0),])
+# Plot and combine maps by country with patchwork
+(map_afg <- plot_tweets_in_country("Afghanistan"))
+map_zwe <- plot_tweets_in_country("Zimbabwe")
+map_geo <- plot_tweets_in_country("Georgia")
+map_mex <- plot_tweets_in_country("Mexico")
+map_nga <- plot_tweets_in_country("Nigeria")
 
-ggplot() +
-  geom_sf(data = nigeria_sf) +
-  coord_sf(xlim = c(8.5, 9.5), ylim = c(7, 7.7), expand = FALSE) +
-  geom_point(data = tweets, aes(x = place_coordinates_0, y = place_coordinates_1),
-             size = 0.7) +
-  labs(title = "Lagos in Nigeria: Tweets which included point spatial data",
-       subtitle = paste0(tweets_n_w_points, " of ", tweets_n, " tweets include spatial data")
+
+(map_afg | map_mex | map_zwe)/(map_geo | map_nga) +
+  plot_annotation(title = "Geotagged Tweets by country and subnational regions",
+                  subtitle = "The spatial location of geotagged Tweets that mentions a country leader or election candidate",
+                  theme = theme_devpublicopinion
   ) +
-  theme_bw()
+  ggsave("output/figures/maps.png")
+
 
 ```
+
 
 
 ```{r plot-eng-speakers}
@@ -504,4 +531,5 @@ supp %>%
   labs(title = "English-speaking share by voice and accountability index")
 
 ```
+
 
