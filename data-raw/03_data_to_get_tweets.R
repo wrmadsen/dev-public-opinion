@@ -1,6 +1,4 @@
-# 03 Get tweets
-
-# Helper data for getting tweets -----
+# 03 Prepare data to collect Tweets
 
 ## All ----
 # Create object with get frequency and names
@@ -65,7 +63,8 @@ get_data_geo %>% distinct(country, name) %>% arrange(country)
 
 write_csv(get_data_geo_csv, "py/get_data_geo.csv")
 
-# Get tweets ----
+# Not used
+# Get tweets
 # This stage takes place in Python, outside of R, for now
 # Try to source py script with reticulate in the future to keep pipeline in R
 #use_python("/usr/local/bin/python3", required = TRUE)
