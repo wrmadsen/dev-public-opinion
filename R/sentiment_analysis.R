@@ -3,7 +3,7 @@
 #' @return tweet without certain patterns
 remove_patterns_in_tweet <- function(tweet){
 
-  # Single characters
+  # Special characters
   single_characters <- paste("@", "#", "\\.", "\\,", ":", ";", '"', "\\!", "\\?", "-", "・", sep = "|")
 
   # http, URLs
