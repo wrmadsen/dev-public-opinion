@@ -129,12 +129,22 @@ create_region_adjusted_sentiment <- function(senti_day){
     filter(!is.na(region_1)) %>%
     group_by(leader, leader_country, country, region_1, region_2) %>%
     summarise(afinn_mean_region = mean(afinn_mean, na.rm = TRUE),
-              n_tweets_region = n()
-              ) %>%
+              n_tweets_region = sum(n_tweets)
+    ) %>%
     ungroup()
 
-  # Add mean sentiment per region to each day
-  left_join(senti_day, mean_senti_per_region,
-            by = c("leader", "leader_country", "country", "region_1", "region_2"))
+  # Daily average across regions and non-points
+  mean_senti_per_day <- senti_day %>%
+    group_by(date, leader, leader_country) %>%
+    summarise(afinn_mean_daily = mean(afinn_mean, na.rm = TRUE),
+              n_tweets_daily = sum(n_tweets)
+    ) %>%
+    ungroup()
+
+  # Add daily mean to each region
+  senti_day_region_adj <- left_join(mean_senti_per_region, mean_senti_per_day,
+                                    by = c("leader", "leader_country"))
+
+  senti_day_region_adj
 
 }
