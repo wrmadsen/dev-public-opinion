@@ -16,6 +16,8 @@ library(future)
 library(furrr)
 library(textdata)
 library(haven)
+library(data.table)
+library(quanteda)
 
 # Source R functions
 list.files("R", full.names = TRUE) %>% purrr::map(source)
@@ -26,32 +28,33 @@ source("data-raw/01_load_raw.R")
 # Format raw data -----
 source("data-raw/02_format_raw_data.R")
 
-# Get tweets
+# Get tweets ----
 #source("data-raw/03_get_tweets.R")
 
-## Read tweets ----
+# Read tweets ----
 tweets_raw <- read_csv("data-raw/tweets/tweets.csv")
 
-# Save as single object
-#save(tweets_raw, file = "data/tweets_raw.RData")
+# Format tweets ----
 
-## Format tweets ----
-# Load raw tweets
-#load("data/tweets_raw.RData")
-
-#tweets_raw_small <- tweets_raw[1:300000,]
+# Subset
+tweets_raw_small <- tweets_raw[1:200000,]
 
 # Format and add variables
-tweets_formatted <- format_tweets(tweets_raw, candidates)
+tweets_formatted <- format_tweets(tweets_raw_small, candidates)
 
-# Filter out NA leaders and duplicates
+# Filter out duplicates and Tweets that don't mention a leader
 tweets_sub <- filter_tweets(tweets_formatted)
 
 # Add GADM regions
 tweets_sf <- add_regions(tweets_sub, boundaries_subnational)
 
 # Create tweets tokens
-tweets_tokens <- create_tweet_tokens(tweets_sf)
+tokens_master <- create_tweets_tokens(tweets_sub)
+
+# Join sentiment values by stem
+senti_tokens <- add_sentiment_to_tokens(tokens_master, afinn_stem)
+
+senti_tokens %>% filter(!is.na(afinn_value)) %>% slice(1:100)
 
 # Save formatted data ----
 # save(supp, reign, candidates,
@@ -64,8 +67,12 @@ tweets_tokens <- create_tweet_tokens(tweets_sf)
 save(tweets_sf,
      file = "data/tweets_sf.RData")
 
-save(tweets_tokens,
-     file = "data/tweets_tokens.RData")
+# save(tweets_tokens,
+#      file = "data/tweets_tokens.RData")
+#write_csv(tweets_tokens,
+#          file = "data/tweets_tokens.csv")
+
+fwrite(tweets_tokens, file = "data/tweets_tokens.csv")
 
 save(supp, reign, candidates,
      elex_master, polling_master,
