@@ -132,7 +132,7 @@ supp <- cpi %>%
 
 # Format GADM boundary data ------
 
-## National boundaries 0 ----
+## National boundaries ----
 boundaries_national <- gadm_nat_raw %>%
   clean_names() %>%
   transmute(country = as.character(name_0),
@@ -354,6 +354,11 @@ mex_18 <- mex_18 %>%
 
 # Bind Mexican years
 mex_pres <- bind_rows(mex_12, mex_18) %>%
+  # fix region names to match GDL, old to new with recode()
+  mutate(region_1 = recode(region_1,
+                           "Nuevo Le”N" = "Nuevo León",
+                           "San Luis Potosi" = "San Luis Potosí",
+                           "San Luis Potosõ" = "San Luis Potosí")) %>%
   mutate(country = "Mexico") %>%
   ungroup()
 
@@ -381,6 +386,7 @@ zwe_18 <- zwe_18_raw %>%
 
 # Bind Zimbabwe
 zwe_pres <- bind_rows(zwe_13, zwe_18) %>%
+  filter(!region_1 %in% c("Total", "Percent")) %>%
   mutate(country = "Zimbabwe",
          name = case_when(name == "Mugabe Robert Gabriel (ZANU PF)" ~ "Mugabe",
                           name == "Tsvangirai Morgan (MDC-T)" ~ "Tsvangirai",
@@ -460,7 +466,7 @@ polling_mex <- polling_mex_raw %>%
                          "nieto" = "Pena Nieto",
                          "quadri" = "Quadri",
                          "vazquez" = "Vázquez Mota")
-         ) %>%
+  ) %>%
   filter(!is.na(votes_share))
 
 ## Combine country sheets and ad hoc ----
@@ -569,18 +575,6 @@ polling_master %>% distinct(leader)
 #   ungroup() %>%
 #   distinct(country, value)
 
-
-# Combine sentiment lexicons ----
-## Prepare afinn by stemming and finding mean value of words with same stem
-afinn_stem <- afinn %>%
-  mutate(stem = SnowballC::wordStem(word)) %>%
-  group_by(stem) %>%
-  summarise(afinn_value = max(value))
-
-senti_lexicons <- afinn %>%
-  full_join(bing %>% rename(bing_sentiment = sentiment)) %>%
-  full_join(nrc %>% rename(nrc_sentiment = sentiment))
-
 # Format GDL ----
 names(gdl_raw)
 
@@ -590,8 +584,7 @@ gdl <- gdl_raw %>%
   # subset countries included in election dataset
   filter(country %in% unique(elex_master$country)) %>%
   select(country, region, year,
-         eye, popshare,
-         internet, cellphone) %>%
+         eye, popshare, phone, cellphone) %>%
   arrange(country, region, year)
 
 ## Create GDL to GADM region look-up ------
@@ -666,26 +659,57 @@ gdl_interpo <- gdl_w_gadm %>%
   arrange(country, gadm_region, year) %>%
   # linear interpolation for missing years
   # extrapolate with rule = 2: the value at the closest data extreme is used
-  mutate(across(c(eye, popshare, cellphone), ~zoo::na.approx(., na.rm = FALSE, rule = 2))) %>%
+  mutate(across(c(eye, popshare, cellphone, phone), ~zoo::na.approx(., na.rm = FALSE, rule = 2))) %>%
   ungroup()
 
 
 # Create covariates master -----
 
 ## Bind polling and election results -----
-polling_master
 
-elex_master
+# Check that polling names all match a leader name in election data
+unique(polling_master$leader) %in% unique(elex_master$name)
+
+targets_master <- bind_rows(polling_master %>%
+                                   rename(name = leader) %>%
+                                   mutate(type = "poll"),
+                                 elex_master %>%
+                                   rename(date = elex_date) %>%
+                                   mutate(type = "election")
+                                   ) %>%
+  rename(date_target = date) %>%
+  arrange(date_target) %>%
+  select(-c(votes, votes_total))
+
 
 ## Add GDL statistics -----
-covariates <- elex_master %>%
-  mutate(id = row_number(),
-         year = year(elex_date)) %>%
-  # Join by region_2 because it is equal to region_1
-  # if the country did not have that level to begin with
-  left_join(gdl_interpo,
-            by = c("country", "region_2" = "gadm_region", "year"))
+# covariates <- polling_elex_master %>%
+#   mutate(id = row_number(),
+#          year = year(date)) %>%
+#   # Join by region_2 because it is equal to region_1
+#   # if the country did not have that level to begin with
+#   left_join(gdl_interpo,
+#             by = c("year", "country", "region_2" = "gadm_region"))
+#
+# # Check if any regions appear twice in same year
+# covariates %>% group_by(id) %>% filter(n() > 1) %>% distinct(region_1)
+#
+# # Check regions in the rows that don't match with GDL
+# covariates %>% filter(is.na(popshare) & is.na(phone)) %>% distinct(country, region_1)
+#
+# anti_join(polling_elex_master %>% mutate(year = year(date)),
+#           gdl_interpo,
+#           by = c("year", "country", "region_2" = "gadm_region")) %>%
+#   distinct(country, region_1) %>% view()
 
-# Check if any regions appear twice in same year
-covariates %>% group_by(id) %>% filter(n() > 1) %>% distinct(region_1)
+# Combine sentiment lexicons ----
+## Prepare afinn by stemming and finding mean value of words with same stem
+afinn_stem <- afinn %>%
+  mutate(stem = SnowballC::wordStem(word)) %>%
+  group_by(stem) %>%
+  summarise(afinn_value = max(value))
+
+senti_lexicons <- afinn %>%
+  full_join(bing %>% rename(bing_sentiment = sentiment)) %>%
+  full_join(nrc %>% rename(nrc_sentiment = sentiment))
 
