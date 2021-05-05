@@ -189,7 +189,7 @@ reign <- reign_raw %>%
 
 # Format election results -------
 
-## Nigeria presidential election ----
+## NGA Nigeria presidential election ----
 # from inspecting Stears website
 ## Initial formatting
 nga_p_19 <- stears_19_raw %>%
@@ -231,7 +231,7 @@ nga_pres <- nga_pres %>%
   ungroup() %>%
   bind_rows(nga_pres)
 
-## Afghanistan president data ----
+## AFG Afghanistan president data ----
 afg_19 <- afg_19_raw %>%
   rename(province = name,
          total = votes
@@ -271,7 +271,7 @@ afg_pres <- bind_rows(afg_09, afg_14) %>%
   summarise(votes = sum(votes)) %>%
   ungroup()
 
-## Georgia presidential elections ----
+## GEO Georgia presidential elections ----
 geo_08 <- geo_08_raw %>%
   pivot_longer(cols = c(6:12), names_to = "name", values_to = "votes_share") %>%
   clean_names() %>%
@@ -296,7 +296,7 @@ geo_pres <- bind_rows(geo_08, geo_13) %>%
             votes_share = votes_share/100,
             votes_total)
 
-## Mexico presidential ----
+## MEX Mexico presidential ----
 # 2012
 mex_12 <- mex_12_raw %>%
   pivot_longer(cols = 5:10, names_to = "movement", values_to = "votes") %>%
@@ -370,7 +370,7 @@ mex_pres <- mex_pres %>%
   ungroup() %>%
   bind_rows(mex_pres)
 
-## Zimbabwe presidential ----
+## ZWE Zimbabwe presidential ----
 zwe_13 <- zwe_13_raw %>%
   pivot_longer(2:ncol(.), names_to = "name", values_to = "votes") %>%
   rename(region_1 = Province) %>%
