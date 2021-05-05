@@ -7,7 +7,7 @@ The final product will be an R package to promote open-source, scalable research
 
 ### To-do:
 * Train data
-* Events data to explain or validate changes in public opinion (qualitative/visual validation), use Wikipedia, eg https://en.wikipedia.org/wiki/2019_in_Nigeria
+* Events data to explain or validate changes in public opinion (qualitative/visual validation), e.g. Wikipedia (https://en.wikipedia.org/wiki/2019_in_Nigeria)
 * Any traditional polling available? (A consideration when adding new countries)
 * Add other countries, including developed countries for comparison
 * Translate non-English tweets? (Lucas et al 2015; de Vries, Schoonevelde and Schumacher 2018)
@@ -119,6 +119,8 @@ Compare with electoral complaints on province-level.
 * Check Wikipedia election pages
 * https://libguides.princeton.edu/politics/opinion/international
 * Georgia: https://www.ndi.org/publications/results-june-2017-public-opinion-polls-georgia
+* Mexico: https://www.ine.mx/memoria-historica-la-regulacion-encuestas-electorales-sondeos-opinion-mexico/
+* Zimbabwe: https://ewn.co.za/2018/07/20/survey-mnangagwa-and-chamisa-neck-and-neck-in-zim-presidential-race; http://www.zesn.org.zw/wp-content/uploads/2018/08/ZESN%E2%80%99s-Presidential-Results-Projection-from-Sample-Based-Observation.pdf
 
 ### Election
 * CLEA: http://www.electiondataarchive.org/data-and-documentation.php
@@ -127,7 +129,9 @@ Compare with electoral complaints on province-level.
 * Pakistan, General Assembly: https://github.com/colincookman/pakistan_elections
 * Egypt: [Presidential 2018](https://pres2018.elections.eg/results-2018), [Presidential 2014](https://pres2014.elections.eg/presidential-elections-2014-results), [Presidential 2012](http://pres2012.elections.eg/round2-results)
 	* https://github.com/p-mohamed-elsawy/subdivisions-of-egypt/blob/master/data.json?
-* Georgia: https://github.com/ForSetGeorgia/Georgian-Election-Data
+* Georgia: https://github.com/ForSetGeorgia/Georgian-Election-Data; https://data.electionsportal.ge/en/data_archives
+* Mexico: https://computos2018.ine.mx/#/presidencia/nacional/1/1/1/1; http://siceef.ine.mx/downloadDB.html#; https://github.com/emagar/elecRetrns/tree/master/data; http://siceef.ine.mx/atlas.html?p%C3%A1gina=1&perPage=1000#siceen
+* Zimbabwe: https://github.com/dwillis/zimbabwe-election-results; https://www.zec.org.zw/pages/2018_Presidential#; https://github.com/tichmangono/zimbabweelection2018_analysis; https://en.wikipedia.org/wiki/2018_Zimbabwean_general_election
 	
 NDI results: https://www.ndi.org/search?query=results
 
