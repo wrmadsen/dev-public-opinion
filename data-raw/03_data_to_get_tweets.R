@@ -3,18 +3,18 @@
 ## All ----
 # Create object with get frequency and names
 # People names must match between reign and people_to_get
-get_names_all <- create_get_freq(reign, candidates, by_type = "days", by_n = 5)
+get_names_all <- create_get_freq(reign, candidates, targets_master,
+                                 by_type = "days", by_n = 30)
 
 # Join data
-get_data_all <- get_names %>%
-  left_join(geocodes, by = "country") %>%
-  filter(!is.na(geocode)) %>%
+get_data_all <- get_names_all %>%
   arrange(name, desc(date)) # descending to get recent tweets first
+
+get_data_all %>% distinct(country, name)
 
 # Save get data as csv
 # Multiprocessing in Python cut time from 150 secs to 22 secs (14x as fast)
 (get_data_all_csv <- get_data_all %>%
-    filter(country %in% c("Georgia", "Zimbabwe", "Mexico")) %>%
     transmute(leader = name,
               date = paste(date),
               date_end = paste(date_end),
@@ -22,13 +22,12 @@ get_data_all <- get_names %>%
     )
 )
 
-get_data_all_csv$leader %>% unique
-
 write_csv(get_data_all_csv, "py/get_data_all.csv")
 
 ## With geocodes ----
 # Frequency for collecting tweets with geocodes can be larger to save time
-get_names_geo <- create_get_freq(reign, candidates, by_type = "days", by_n = 200)
+get_names_geo <- create_get_freq(reign, candidates, targets_master,
+                                 by_type = "days", by_n = 30)
 
 # Create smallest possible circles
 small_circs <- create_smallest_possible(boundaries_national)
