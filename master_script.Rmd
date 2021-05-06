@@ -39,6 +39,7 @@ library(furrr)
 library(data.table)
 require(scales)
 library(patchwork)
+library(GGally)
 
 # Load package functions
 #devtools::load_all()
@@ -291,8 +292,8 @@ senti_region_targets_covars %>%
 ```
 
 # Multilevel regression
-```{r mr-model-day}
-# Multilevel models based on sentiment day
+```{r mr-models}
+# Multilevel models
 
 # Training data
 # Sentiment day
@@ -306,6 +307,14 @@ train_data_elex_first_region <- create_training_data(senti_region_targets_covars
                                                      type = "elex", less_than_days_diff = 100)
 train_data_polls_region <- create_training_data(senti_region_targets_covars,
                                                 type = "polls", less_than_days_diff = 100)
+
+
+
+```
+
+
+```{r mr-models}
+# Multilevel models
 
 # Fit day models
 # Trained on election results
@@ -354,32 +363,30 @@ mr_region_polls_2 <- lmer(votes_share ~ afinn_mean_daily + (1 + afinn_mean_daily
 ```
 
 
-```{r validate-mr}
-# Validate MR models
-
+```{r predict-mr}
 # Predict model 1
-predictions_1 <- create_test_data() %>%
-  mutate(prediction_1_elex_1 = predict(model_1_elex_1, ., allow.new.levels = TRUE),
-         prediction_1_elex_2 = predict(model_1_elex_2, ., allow.new.levels = TRUE),
-         prediction_1_polls_1 = predict(model_1_polls_1, ., allow.new.levels = TRUE),
-         prediction_1_polls_2 = predict(model_1_polls_2, ., allow.new.levels = TRUE)
-         
-  )
+# predictions_1 <- create_test_data() %>%
+#   mutate(prediction_1_elex_1 = predict(model_1_elex_1, ., allow.new.levels = TRUE),
+#          prediction_1_elex_2 = predict(model_1_elex_2, ., allow.new.levels = TRUE),
+#          prediction_1_polls_1 = predict(model_1_polls_1, ., allow.new.levels = TRUE),
+#          prediction_1_polls_2 = predict(model_1_polls_2, ., allow.new.levels = TRUE)
+#          
+#   )
 
 
 # Find MR model estimates
 estimates_mr_day <- create_test_data(senti_day_targets_covars) %>%
-  mutate(prediction_day_elex_1 = predict(mr_day_elex_1, ., allow.new.levels = TRUE),
-         prediction_day_elex_2 = predict(mr_day_elex_2, ., allow.new.levels = TRUE),
-         prediction_day_polls_3 = predict(mr_day_elex_3, ., allow.new.levels = TRUE),
-         prediction_day_polls_4 = predict(mr_day_elex_4, ., allow.new.levels = TRUE)
+  mutate(prediction_mr_day_elex_1 = predict(mr_day_elex_1, ., allow.new.levels = TRUE),
+         prediction_mr_day_elex_2 = predict(mr_day_elex_2, ., allow.new.levels = TRUE),
+         prediction_mr_day_polls_3 = predict(mr_day_elex_3, ., allow.new.levels = TRUE),
+         prediction_mr_day_polls_4 = predict(mr_day_elex_4, ., allow.new.levels = TRUE)
   )
 
 estimates_mr_region <- create_test_data(senti_region_targets_covars) %>%
-  mutate(prediction_region_elex_1 = predict(mr_region_elex_1, ., allow.new.levels = TRUE),
-         prediction_region_elex_2 = predict(mr_region_elex_2, ., allow.new.levels = TRUE),
-         prediction_region_polls_3 = predict(mr_region_elex_3, ., allow.new.levels = TRUE),
-         prediction_region_polls_4 = predict(mr_region_elex_4, ., allow.new.levels = TRUE)
+  mutate(prediction_mr_region_elex_1 = predict(mr_region_elex_1, ., allow.new.levels = TRUE),
+         prediction_mr_region_elex_2 = predict(mr_region_elex_2, ., allow.new.levels = TRUE),
+         prediction_mr_region_polls_3 = predict(mr_region_elex_3, ., allow.new.levels = TRUE),
+         prediction_mr_region_polls_4 = predict(mr_region_elex_4, ., allow.new.levels = TRUE)
   )
 
 # Bind estimates
@@ -389,42 +396,92 @@ estimates_mr_master <- bind_rows(estimates_mr_day,
          days_diff_abs, days_diff,
          starts_with("prediction"), votes_share)
 
+```
+
+# MRP
+```{r mrp-models}
+# Multilevel regression with post-stratification
+
+# Use MR models
+
+# Post-stratification
+# Add post-stratified estimates with GDL's popshare variable
+estimates_mrp_master <- estimates_mr_master %>%
+  mutate(across(starts_with("prediction"), ~.*popshare, .names = "{.col}_post"))
+
+```
+
+# Estimates master
+```{r pivot-estimates-master}
 # Pivot estimates master
-estimates_mr_master <- estimates_mr_master %>%
+# Consists of MR, MRP, and raw estimates
+estimates_master <- estimates_mrp_master %>%
   pivot_longer(cols = c(starts_with("prediction")), values_to = "estimate", names_to = "model") %>%
   filter(!is.na(estimate)) %>%
   # Calculate error
   mutate(error = estimate - votes_share,
          error_abs = abs(error))
 
+# Unique models
+estimates_master$model %>% unique()
+
+
 ```
 
-```{r validate-mr-plots}
+
+# Validation
+```{r validate-mr-data}
 # Plots for validating MR estimates
 estimates_mr_master
 
 # Calculate MAE by model and country
-mae_mr_by_model <- estimates_mr_master %>%
+mae_mr_by_model_country <- estimates_mr_master %>%
   filter(days_diff_abs < 10) %>%
-  group_by(country, model) %>%
+  group_by(model, country) %>%
   summarise(mae = mean(error_abs, na.rm = TRUE),
             n_regions = n_distinct(region_1)) %>%
   ungroup()
 
 # Add country average and model average levels
-mae_mr_by_model <- bind_rows(mae_mr_by_model,
-                             mae_mr_by_model %>%
-                               mutate(country = "Country average") %>%
-                               group_by(country, model) %>%
-                               summarise(mae = mean(mae)),
-                             mae_mr_by_model %>%
-                               mutate(model = "Model average") %>%
-                               group_by(country, model) %>%
-                               summarise(mae = mean(mae))
+mae_mr_by_model_country <- bind_rows(mae_mr_by_model_country,
+                                     mae_mr_by_model_country %>%
+                                       mutate(country = "Country average") %>%
+                                       group_by(model, country) %>%
+                                       summarise(mae = mean(mae)),
+                                     mae_mr_by_model_country %>%
+                                       mutate(model = "Model average") %>%
+                                       group_by(model, country) %>%
+                                       summarise(mae = mean(mae))
 )
 
+# Calculate MAE by model and region
+mae_mr_by_model_region <- estimates_mr_master %>%
+  filter(days_diff_abs < 10) %>%
+  group_by(model, country, region_1, region_2) %>%
+  summarise(votes_share = mean(votes_share, na.rm = TRUE),
+            estimate = mean(estimate, na.rm = TRUE),
+            mae = mean(error_abs, na.rm = TRUE)
+  ) %>%
+  ungroup()
+
+# Add model average level
+(mae_mr_by_model_region <- bind_rows(mae_mr_by_model_region,
+                                     mae_mr_by_model_region %>%
+                                       mutate(model = "Model average") %>%
+                                       group_by(model, country, region_1, region_2) %>%
+                                       summarise(votes_share = mean(votes_share, na.rm = TRUE),
+                                                 estimate = mean(estimate, na.rm = TRUE),
+                                                 mae = mean(mae, na.rm = TRUE))
+) #%>% filter(model == "Model average")
+)
+
+
+```
+
+
+```{r validate-plots}
 # Plot MAE by model and region
-mae_mr_by_model %>%
+mae_mr_by_model_country %>%
   mutate(model = as.factor(model),
          country = reorder_within(country, mae, model)) %>%
   ggplot(aes(x = country, y = mae, fill = model)) +
@@ -432,11 +489,6 @@ mae_mr_by_model %>%
   facet_wrap(~model, scales = "free_y") +
   coord_flip() +
   scale_x_reordered()
-labs(y = "Number of babies per decade",
-     x = NULL,
-     title = "What were the most common baby names in each decade?",
-     subtitle = "Via US Social Security Administration")
-
 
 # Plot all predictions as points
 estimates_mr_master_sub <- estimates_mr_master %>%
@@ -447,48 +499,91 @@ ggplot(estimates_mr_master_sub,
            y = votes_share)) +
   geom_point(aes(colour = country),
              size = 3,
-             show.legend = FALSE) +
+             #show.legend = FALSE
+  ) +
   facet_wrap(~model) +
   geom_abline(intercept = 0, slope = 1) +
   scale_x_continuous(limits = c(0, 1)) +
+  scale_colour_discrete(name = "") +
   theme_devpublicopinion +
   labs(title = "Model estimates against actual vote shares",
-       subtitle = "Different model estimates (x-axis) against latest actual election vote shares (y-axis); diagonal line shows perfect predictions (error = 0)",
+       subtitle = "Different model estimates (x-axis) against latest actual election vote shares (y-axis); diagonal line shows perfect predictions (error equals 0)",
        x = "Estimate",
        y = "Votes share")
 
 
-```
-
-
-# MRP
-```{r mrp-models}
-# Multilevel regression with post-stratification
-model_2_1 <- lmer(votes_share ~ afinn_mean + (1|country_and_region_1),
-                  data = train_data_1)
-
-summary(model_2_1)
-
-# Predict on test data
-predictions_2 <- predictions %>%
-  filter(type == "election") %>%
-  filter(days_diff_abs < 10) %>%
-  filter(!(country == "Zimbabwe" & year(date) == 2013)) %>%
-  mutate(prediction_2_1 = predict(model_2_1, ., allow.new.levels = TRUE)
-  )
-
-# Post-stratify using GDL's population share
-predictions_2 <- predictions_2 %>%
-  transmute(prediction_2_1, popshare/100, prediction_2_1_weighted = prediction_2_1*popshare/100)
-
+# Plot average predictions by region as points
+ggplot(mae_mr_by_model_region,
+       aes(x = estimate,
+           y = votes_share)) +
+  geom_point(aes(colour = country),
+             size = 3,
+             #show.legend = FALSE
+  ) +
+  facet_wrap(~model) +
+  geom_abline(intercept = 0, slope = 1) +
+  scale_x_continuous(limits = c(0, 1)) +
+  scale_colour_discrete(name = "") +
+  theme_devpublicopinion +
+  labs(title = "Average model estimates against actual vote shares by region",
+       subtitle = "Different model estimates (x-axis) against latest actual election vote shares (y-axis), averaged by subnational region;\ndiagonal line shows perfect predictions (where error equals 0)",
+       x = "Estimate",
+       y = "Votes share") 
 
 
 ```
 
 
 
+```{r plot-estimates-correlation}
+# Correlation between estimates and features
+estimates_master_num <- estimates_master %>%
+  select(where(is.numeric))
 
-```{r validate-mrp}
+# Calculate correlation
+estimates_master_cor <- estimates_master_num %>%
+  cor()
+
+#cormat <- round(cor(mat), 2)
+
+estimates_master_cor <- estimates_master_cor %>%
+  as_data_frame() %>%
+  mutate(x = colnames(estimates_master_num)) %>%
+  pivot_longer(names_to = "y", values_to = "value", popshare:error_abs)
+
+estimates_master_cor %>%
+    arrange(x, y) %>%
+    ggplot(aes(x = x, y = y, fill = value)) + 
+    geom_tile() +
+    scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+     midpoint = 0, limit = c(-1,1), space = "Lab", 
+     name = "Pearson\nCorrelation") +
+    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
+    coord_fixed() +
+    labs(x = "feature", 
+         y = "feature",
+        title = "Correlation between features", 
+        caption = "Source: Pima Indians Diabetes Database")
+
+
+# Scatterplot matrix
+ggpairs(estimates_master, 
+        columns = c(eye, cellphone, phone),
+        alpha = 0.7) +
+    labs(x = "feature", 
+         y = "feature",
+        title = "Scatterplot matrix", 
+        caption = "Source: Pima Indians Diabetes Database")
+
+```
+
+
+
+
+# Estimates over time
+```{r estimates-over-time}
+# Use models to estimate votes share over time
+
 
 ```
 
@@ -780,6 +875,19 @@ map_nga <- plot_tweets_in_country("Nigeria")
   ) +
   ggsave("output/figures/maps.png")
 
+
+```
+
+```{r plot-gdl-stats}
+# Plot GDL indicators by country
+gdl_interpo %>%
+  #pivot_longer(cols = c(eye, popshare, phone, cellphone)) %>%
+  #filter(gadm_region == "National") %>%
+  ggplot(.,
+         aes(x = phone,
+             fill = country)) +
+  geom_boxplot() +
+  facet_wrap(~year)
 
 ```
 
