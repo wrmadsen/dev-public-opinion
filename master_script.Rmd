@@ -75,8 +75,8 @@ list.files("R", full.names = TRUE) %>%
 # Sentiment analysis
 
 ```{r senti-per-tweet}
-# Calculate sentiment per tweet
-# Mean sentiment per tweet
+# Calculate sentiment per Tweet
+# Mean sentiment per Tweet
 senti_tweet <- calculate_sentiment_per_tweet(senti_tokens)
 
 ```
@@ -88,7 +88,8 @@ senti_tweet_sf <- add_regions(senti_tweet, boundaries_subnational)
 ```
 
 
-```{r senti-per-day}
+# Sentiment per day
+```{r senti-day}
 # Sentiment per day
 senti_day <- calculate_sentiment_per_day(senti_tweet_sf)
 
@@ -99,13 +100,19 @@ senti_day$region_1 %>% unique %>% paste(., collapse = ", ")
 
 ```
 
-```{r senti-based-on-region}
+
+# Sentiment per region over time
+```{r senti-region}
 # Sentiment per region adjusted over time
 # Based on regions
 # average sentiment per region
 # using non-point tweets to show trend over time
 senti_day_region_adj <- create_region_adjusted_sentiment(senti_day)
 
+senti_day_region_adj %>% arrange(region_1) %>% distinct(region_1) %>% paste
+
+# Linear interpolation to make up for missing days
+#interpolate_missing_days()
 
 ```
 
@@ -153,77 +160,122 @@ cut_off_stats %>%
 
 ```
 
-# Add targets for modelling
-```{r add-targets-for-models}
-# Add targets (election results and polls) to fit models
-
+# Add targets and covariates
+```{r add-to-senti-day}
+# Add targets (election results and polls)
 # Join sentiment with target vector, election and polling results
 senti_day <- senti_day %>%
   mutate(target_id = row_number())
 
-senti_targets_all <- join_targets(senti_day, targets_master)
+senti_day <- add_national_level(senti_day)
 
-# Select nearest targets (election or poll) for each day
-senti_targets <- select_nearest_target(senti_targets_all)
+nrow(senti_day)
 
-senti_targets <- senti_targets %>%
+senti_day_targets_all <- join_targets(senti_day, targets_master)
+
+# Check which senti regions are not in targets object
+senti_day %>% filter(!region_1 %in% targets_master$region_1) %>% distinct(country, region_1)
+
+# Select nearest target (election or poll) for each day
+senti_day_targets <- select_nearest_target(senti_day_targets_all)
+
+nrow(senti_day_targets) # number of rows after finding nearest target 
+
+senti_day_targets <- senti_day_targets %>%
   # create variable with country and region_1
   mutate(year = year(date),
          country_and_region_1 = paste0(country, "_", region_1))
 
-```
-
-```{r add-gdl-covariates}
 # Add GDL covariates
-senti_targets_covars <- add_gdl_covariates(senti_targets, gdl_interpo)
+senti_day_targets_covars <- add_gdl_covariates(senti_day_targets, gdl_interpo)
 
-# Check which regions are missing
-senti_targets_all$region_1 %>% unique
-senti_targets$region_1 %>% unique
+# Check if regions are missing GDL statistics
+senti_day_targets_covars %>% filter(is.na(popshare)) %>% distinct(region_1)
 
 
 ```
 
 
-```{r create-predictions-object}
-# Create dataset for predictions
-predictions <- senti_targets_covars
+```{r add-to-senti-region}
+# Add targets (election results and polls)
+
+
 
 ```
 
 
-# Poll-based model
-```{r poll-model-1}
+# Model 1 MR
+```{r model-1-mr}
 # Multilevel models trained on polls
 
-# Model 1
-# Multilevel regression
-train_data_1 <- senti_targets_covars %>%
+# Training data
+# Election results
+# Elections for each country
+senti_targets_covars %>%
+  filter(type == "election") %>%
+  distinct(country, date_target) %>%
+  arrange(country)
+
+train_data_elex <- senti_targets_covars %>%
   # create id to later subset test data
   mutate(id = row_number()) %>%
+  filter(type == "election") %>%
+  # remove Zimbabwe's 2013 election
+  filter(!(country == "Zimbabwe" & year(date) == 2013)) %>%
+  arrange(country, region_1, region_2, date_target)
+
+# All elections but the last per country
+(train_data_elex_first <- train_data_elex %>%
+    group_by(country) %>%
+    filter(date_target != max(date_target)) %>%
+    ungroup()
+)
+
+# Elections to train models on
+train_data_elex_first %>%
+  #filter(leader_country == "Georgia") %>%
+  distinct(leader_country, date_target)
+
+# Last election for each country (to be tested on later)
+test_data_elex_last <- senti_targets_covars %>%
+  filter(type == "election") %>%
+  group_by(country) %>%
+  filter(date_target == max(date_target)) %>%
+  ungroup()
+
+test_data_elex_last %>%
+  distinct(country, date_target)
+
+# Polls before last election per country
+train_data_polls <- senti_targets_covars %>%
   filter(type == "poll") %>%
+  arrange(country, region_1, region_2, leader) %>%
+  mutate(target_before_last_elex = case_when(country == "Nigeria" & date_target < as.Date("2019-02-23") ~ TRUE,
+                                             country == "Zimbabwe" & date_target < as.Date("2018-07-03") ~ TRUE,
+                                             country == "Georgia" & date_target < as.Date("2013-10-27") ~ TRUE,
+                                             country == "Afghanistan" & date_target < as.Date("2019-09-28") ~ TRUE,
+                                             country == "Mexico" & date_target < as.Date("2018-07-01") ~ TRUE,
+                                             TRUE ~ FALSE)) %>%
+  # remove polls after last election
+  filter(target_before_last_elex) %>%
   filter(days_diff_abs < 40) %>%
   # remove Zimbabwe's 2013 election
   filter(!(country == "Zimbabwe" & year(date) == 2013))
 
-# N per country
-train_data_1 %>% group_by(country) %>% summarise(n = n())
+# Fit models
+# Trained on election results
+model_1_elex_1 <- lmer(votes_share ~ afinn_mean + (1 | country),
+                       data = train_data_elex_first)
 
-# No RE
-model_1_1 <- lmer(votes_share ~ afinn_mean + (1 | country_and_region_1),
-                  data = train_data_1)
+model_1_elex_2 <- lmer(votes_share ~ afinn_mean + (1 + afinn_mean | country),
+                       data = train_data_elex_first)
 
-# No RE, sentiment and structure
-model_1_2 <- lmer(votes_share ~ afinn_mean + days_diff_abs + (1 | country_and_region_1),
-                  data = train_data_1)
+# Trained on polls
+model_1_polls_1 <- lmer(votes_share ~ afinn_mean + (1 | country),
+                        data = train_data_polls)
 
-# RE of sentiment
-model_1_3 <- lmer(votes_share ~ afinn_mean + (1 + afinn_mean | country_and_region_1),
-                  data = train_data_1)
-
-# RE, structure and days difference
-model_1_4 <- lmer(votes_share ~ afinn_mean + n_likes_mean + days_diff_abs + (1 + afinn_mean | country_and_region_1),
-                  data = train_data_1)
+model_1_polls_2 <- lmer(votes_share ~ afinn_mean + (1 + afinn_mean | country),
+                        data = train_data_polls)
 
 
 ```
@@ -233,37 +285,26 @@ model_1_4 <- lmer(votes_share ~ afinn_mean + n_likes_mean + days_diff_abs + (1 +
 # Validate poll-based models
 
 # Predict model 1
-predictions_1 <- predictions %>%
-  mutate(prediction_1_1 = predict(model_1_1, ., allow.new.levels = TRUE),
-         prediction_1_2 = predict(model_1_2, ., allow.new.levels = TRUE),
-         prediction_1_3 = predict(model_1_3, ., allow.new.levels = TRUE),
-         prediction_1_4 = predict(model_1_4, ., allow.new.levels = TRUE)
+predictions_1 <- test_data_elex_last %>%
+  mutate(prediction_1_elex_1 = predict(model_1_elex_1, ., allow.new.levels = TRUE),
+         prediction_1_elex_2 = predict(model_1_elex_2, ., allow.new.levels = TRUE),
+         prediction_1_polls_1 = predict(model_1_polls_1, ., allow.new.levels = TRUE),
+         prediction_1_polls_2 = predict(model_1_polls_2, ., allow.new.levels = TRUE)
          
   )
 
 # Calculate MAE on validation data
-mae_by_election <- predictions_1 %>%
-  # remove rows already used for test data - not actually needed if we also use type == "election"
-  mutate(id = row_number()) %>%
-  filter(!id %in% train_data_1$id) %>%
-  filter(type == "election") %>%
-  filter(days_diff_abs < 10) %>%
-  #filter(!(country == "Zimbabwe" & year(date) == 2013)) %>%
-  mutate(prediction_1_1_diff = abs(prediction_1_1 - votes_share),
-         prediction_1_2_diff = abs(prediction_1_2 - votes_share),
-         prediction_1_3_diff = abs(prediction_1_3 - votes_share),
-         prediction_1_4_diff = abs(prediction_1_3 - votes_share),
+(mae_1 <- predictions_1 %>%
+  #filter(days_diff_abs < 40) %>%
+  mutate(diff_1_elex_1 = abs(prediction_1_elex_1 - votes_share),
+         diff_1_elex_2 = abs(prediction_1_elex_2 - votes_share),
+         diff_1_polls_1 = abs(prediction_1_polls_1 - votes_share),
+         diff_1_polls_2 = abs(prediction_1_polls_2 - votes_share),
   ) %>%
   group_by(country, date_target) %>%
-  summarise(mae_1_1 = mean(prediction_1_1_diff, na.rm = TRUE),
-            mae_1_2 = mean(prediction_1_2_diff, na.rm = TRUE),
-            mae_1_3 = mean(prediction_1_3_diff, na.rm = TRUE),
-            mae_1_4 = mean(prediction_1_4_diff, na.rm = TRUE)
-  ) %>%
+  summarise(across(starts_with("diff"), ~mean(., na.rm = TRUE))) %>%
   ungroup()
-
-mae_by_election
-
+)
 
 
 ```
@@ -288,13 +329,6 @@ predictions_2 <- predictions %>%
 predictions_2 <- predictions_2 %>%
   transmute(prediction_2_1, popshare/100, prediction_2_1_weighted = prediction_2_1*popshare/100)
 
-
-
-```
-
-
-```{r elex-model-3}
-# Fit model 3 based on election results
 
 
 ```
@@ -545,6 +579,7 @@ map_nga <- plot_tweets_in_country("Nigeria")
 
 
 ```
+
 
 
 ```{r plot-point-mae-by-election}
