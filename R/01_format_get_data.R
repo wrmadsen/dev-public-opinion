@@ -5,46 +5,46 @@
 #' @return get frequency dataset, where each row gives a string (a leader) and period to be used to get Tweets with twint.
 create_get_freq <- function(reign, candidates, targets_master, by_type = "days", by_n = 12){
 
-  # Find time period to collect Tweets for candidates
-  # Find first and last target in time for candidates
+  # Find first and last target date candidates with elections and polls
   candidates_first_and_last <- targets_master %>%
+    # only select top 2 candidates per election or poll
     filter(name %in% candidates$name) %>%
-    group_by(country, name)
+    select(country, name, date = date_target)
 
-  candidates_to_collect <- bind_rows(candidates_first_and_last %>%
-                                       slice_min(date_target, n = 1, with_ties = FALSE) %>%
-                                       mutate(type = "start"),
-                                     candidates_first_and_last %>%
-                                       slice_max(date_target, n = 1, with_ties = FALSE) %>%
-                                       mutate(type = "end")
-  ) %>%
+  # Find term information for leaders
+  # This supplements the above
+  reign_first_and_last <- reign %>%
+    pivot_longer(cols = c(start, end), names_to = "type", values_to = "date") %>%
+    select(country, name, date)
+
+  # Create master first and last object
+  # Combine REIGN and candidates
+  # Find earliest and last date
+  first_and_last_master <- bind_rows(candidates_first_and_last,
+                                     reign_first_and_last) %>%
+    arrange(country, name, date) %>%
+    group_by(country, name) %>%
+    slice(1, n())
+
+  # Pivot to start and end columns
+  first_and_last_master <- first_and_last_master %>%
+    mutate(type = if_else(row_number() == 1, "start", "end"),
+           date = if_else(type == "start",
+                          floor_date(date, "month") - months(3),
+                          floor_date(date, "month") + months(3)),
+           date = as.Date(date)
+    ) %>%
     ungroup() %>%
-    arrange(name) %>%
-    select(date_target, name, country, type) %>%
-    # pivot to create start and end columns
-    pivot_wider(names_from = type, values_from = date_target) %>%
-    # add or substract months to collect before and after
-    mutate(start = floor_date(start) - months(3),
-           end = floor_date(end) + months(3),
-           across(c(start, end), as.Date)
-           )
-
-  candidates_to_collect <- candidates_to_collect %>%
-    filter(!name %in% reign$name)
+    pivot_wider(names_from = type, values_from = date)
 
   # Create frequency by days or hours
 
   # By hours
   if (by_type == "days"){
+
     # Get by days
-    reign %>%
-      # Add candidates (winners and losers) to collect tweets for before election
-      bind_rows(candidates_to_collect) %>%
-      arrange(country, end) %>%
+    first_and_last_master %>%
       rowwise() %>%
-      mutate(start = floor_date(start, "month"),
-             end = ceiling_date(end, "month")
-      ) %>%
       mutate(date = list(seq.Date(start,
                                   end,
                                   by = paste0(by_n, " days")))
@@ -67,10 +67,7 @@ create_get_freq <- function(reign, candidates, targets_master, by_type = "days",
   } else{
 
     # Collect by hours
-    reign %>%
-      # Add candidates (winners and losers) to collect tweets for before election
-      bind_rows(candidates_to_collect) %>%
-      arrange(country, end) %>%
+    first_and_last_master %>%
       rowwise() %>%
       mutate(start = floor_date(start, "month") %>% paste0(., "00:00:00") %>% as.POSIXct(., tz = "UTC"),
              end = ceiling_date(end, "month") %>% paste0(., "23:59:59") %>% as.POSIXct(., tz = "UTC")
