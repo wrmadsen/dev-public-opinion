@@ -111,7 +111,7 @@ Compare with electoral complaints on province-level.
 ### Twitter
 * Tweets from [Twitter's API](https://developer.twitter.com/en/docs)
 
-### Surveys
+### Polling
 * Europe Elects: https://europeelects.eu/data/
 * Asia Foundation, Afghanistan surveys: https://asiafoundation.org/where-we-work/afghanistan/survey/download-data-form/
 * Global Barometer Surveys, Waves 1-3: https://www.globalbarometer.net/survey_sc
@@ -121,6 +121,7 @@ Compare with electoral complaints on province-level.
 * Georgia: https://www.ndi.org/publications/results-june-2017-public-opinion-polls-georgia
 * Mexico: https://www.ine.mx/memoria-historica-la-regulacion-encuestas-electorales-sondeos-opinion-mexico/
 * Zimbabwe: https://ewn.co.za/2018/07/20/survey-mnangagwa-and-chamisa-neck-and-neck-in-zim-presidential-race; http://www.zesn.org.zw/wp-content/uploads/2018/08/ZESN%E2%80%99s-Presidential-Results-Projection-from-Sample-Based-Observation.pdf
+* United States (for comparison), The Economist: https://github.com/TheEconomist/us-potus-model; https://projects.fivethirtyeight.com/polls/; https://gist.github.com/elliottmorris/8775a074deffbfc5a9be098e754a5167
 
 ### Election
 * CLEA: http://www.electiondataarchive.org/data-and-documentation.php
