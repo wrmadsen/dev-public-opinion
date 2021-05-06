@@ -130,6 +130,17 @@ supp <- cpi %>%
   ) %>%
   filter(!is.na(eng_prop))
 
+# Format sentiment lexicons ----
+## Prepare afinn by stemming and finding mean value of words with same stem
+afinn_stem <- afinn %>%
+  mutate(stem = SnowballC::wordStem(word)) %>%
+  group_by(stem) %>%
+  summarise(afinn_value = max(value))
+
+senti_lexicons <- afinn %>%
+  full_join(bing %>% rename(bing_sentiment = sentiment)) %>%
+  full_join(nrc %>% rename(nrc_sentiment = sentiment))
+
 # Format GADM boundary data ------
 
 ## National boundaries ----
@@ -257,8 +268,7 @@ afg_09 <- afg_09_raw %>%
   clean_names() %>%
   mutate(year = 2009)
 
-# Afghanistan, summarise nationally to match with Tweets with no points
-# Seems that most if not all Afghan tweets don't carry any points data (a Twitter policy?)
+# Bind Afghanistani elections
 afg_pres <- bind_rows(afg_09, afg_14) %>%
   bind_rows(afg_19) %>%
   filter(!name %in% c("votes")) %>%
@@ -269,10 +279,15 @@ afg_pres <- bind_rows(afg_09, afg_14) %>%
   ),
   country = "Afghanistan"
   ) %>%
-  transmute(elex_date, country, region_1 = "National", name, votes) %>%
+  transmute(elex_date, country, region_1 = province, name, votes)
+
+# Add national level
+afg_pres <- afg_pres %>%
+  mutate(region_1 = "National") %>%
   group_by(elex_date, country, region_1, name) %>%
-  summarise(votes = sum(votes)) %>%
-  ungroup()
+  summarise(votes = sum(votes, na.rm = TRUE)) %>%
+  ungroup() %>%
+  bind_rows(afg_pres)
 
 ## GEO Georgia presidential elections ----
 geo_08 <- geo_08_raw %>%
@@ -361,7 +376,8 @@ mex_pres <- bind_rows(mex_12, mex_18) %>%
   mutate(region_1 = recode(region_1,
                            "Nuevo Le”N" = "Nuevo León",
                            "San Luis Potosi" = "San Luis Potosí",
-                           "San Luis Potosõ" = "San Luis Potosí")) %>%
+                           "San Luis Potosõ" = "San Luis Potosí",
+                           "Federal District" = "Distrito Federal")) %>%
   mutate(country = "Mexico") %>%
   ungroup()
 
@@ -662,13 +678,14 @@ gdl_interpo <- gdl_w_gadm %>%
   arrange(country, gadm_region, year) %>%
   # linear interpolation for missing years
   # extrapolate with rule = 2: the value at the closest data extreme is used
-  mutate(across(c(eye, popshare, cellphone, phone), ~zoo::na.approx(., na.rm = FALSE, rule = 2))) %>%
+  mutate(across(c(eye, popshare, cellphone, phone), ~zoo::na.approx(., na.rm = FALSE, rule = 2)),
+         across(c(eye, popshare, cellphone, phone), ~./100),
+         popshare = if_else(popshare == 1, as.double(NA_integer_), popshare) # if national, popshare is NA
+                ) %>%
   ungroup()
 
 
-# Create covariates master -----
-
-## Bind polling and election results -----
+# Create targets master -----
 
 # Check that polling names all match a leader name in election data
 unique(polling_master$leader) %in% unique(elex_master$name)
@@ -704,15 +721,4 @@ targets_master <- bind_rows(polling_master %>%
 #           gdl_interpo,
 #           by = c("year", "country", "region_2" = "gadm_region")) %>%
 #   distinct(country, region_1) %>% view()
-
-# Combine sentiment lexicons ----
-## Prepare afinn by stemming and finding mean value of words with same stem
-afinn_stem <- afinn %>%
-  mutate(stem = SnowballC::wordStem(word)) %>%
-  group_by(stem) %>%
-  summarise(afinn_value = max(value))
-
-senti_lexicons <- afinn %>%
-  full_join(bing %>% rename(bing_sentiment = sentiment)) %>%
-  full_join(nrc %>% rename(nrc_sentiment = sentiment))
 
