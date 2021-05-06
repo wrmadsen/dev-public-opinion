@@ -120,6 +120,20 @@ calculate_sentiment_per_day <- function(senti_tweet){
 
 }
 
+# Linear interpolation of sentiment per day
+interpolate_missing_days <- function(senti_day){
+
+  senti_day %>%
+    group_by(senti_day, gadm_region) %>%
+    complete(year = 2006:2021) %>% # Twitter founded in 2006
+    arrange(country, gadm_region, year) %>%
+    # linear interpolation for missing years
+    # extrapolate with rule = 2: the value at the closest data extreme is used
+    mutate(across(c(eye, popshare, cellphone, phone), ~zoo::na.approx(., na.rm = FALSE, rule = 2))) %>%
+    ungroup()
+
+}
+
 #' Create region-adjusted sentiment per day
 #' @param senti_day
 create_region_adjusted_sentiment <- function(senti_day){
@@ -137,6 +151,8 @@ create_region_adjusted_sentiment <- function(senti_day){
   mean_senti_per_day <- senti_day %>%
     group_by(date, leader, leader_country) %>%
     summarise(afinn_mean_daily = mean(afinn_mean, na.rm = TRUE),
+              n_retweets_mean = mean(n_retweets_mean, na.rm = TRUE),
+              n_likes_mean = mean(n_likes_mean, na.rm = TRUE),
               n_tweets_daily = sum(n_tweets)
     ) %>%
     ungroup()
@@ -148,5 +164,6 @@ create_region_adjusted_sentiment <- function(senti_day){
   senti_day_region_adj
 
 }
+
 
 
