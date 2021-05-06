@@ -116,7 +116,7 @@ senti_region <- create_region_adjusted_sentiment(senti_day)
 senti_region %>% arrange(region_1) %>% distinct(region_1) %>% paste
 
 # Linear interpolation to make up for missing days
-#interpolate_missing_days()
+# interpolate_missing_days()
 
 ```
 
@@ -551,36 +551,47 @@ add_total <- function(x) { mutate(x, Total = Afghanistan + Georgia + Mexico + Ni
 
 ```{r plot-polls-and-elex}
 # Plot traditional polling and election results
+
+# Subset database to include national level rows, only polls
 poll_plot_data <- targets_master %>%
   filter(name %in% candidates$name) %>%
   filter(region_1 == "National") %>%
   filter(type == "poll") %>%
   mutate(votes_share = votes_share*100)
 
+# Add US polls for comparison
+poll_plot_data <- bind_rows(poll_plot_data,
+                            polling_us %>%
+                              mutate(votes_share = votes_share*100) %>%
+                              filter(year(date_target) > 2006))
+
+# Plot
 ggplot(poll_plot_data,
        aes(x = date_target,
            y = votes_share)) +
-  geom_point(aes(colour = name), show.legend = FALSE) +
+  geom_point(aes(colour = name), show.legend = FALSE,
+             size = 3, shape = 20) +
   geom_label_repel(data = poll_plot_data %>% group_by(name) %>% slice_sample(n = 1),
+                   min.segment.length = 0.5,
+                   size = 5,
                    aes(x = date_target, y = votes_share, label = name)) +
   facet_wrap(~country# , scales = "free"
   ) +
   theme_devpublicopinion +
-  labs(title = "Polling for each country",
-       subtitle = "% vote share, point for each traditional polling collected by country; polls included in this figure are indicative, not exhaustive",
+  labs(title = "Polling for developing countries is sparce over time",
+       subtitle = "% vote share, point for each traditional polling collected by country; numbers of polls included in this figure are not exhaustive",
        x = NULL,
        y = "%, vote share")
 
 
 ```
 
-```{r plot-estimates-vs-polls-and-elex}
+```{r plot-model-estimates-vs-polls-and-elex}
 # Plot model estimates versus polling and election results
 
 
 
 ```
-
 
 
 ```{r plot-weekly-tweet-frequency}
