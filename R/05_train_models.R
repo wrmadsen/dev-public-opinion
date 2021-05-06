@@ -1,19 +1,26 @@
 # Train models
 
-#' Join targets vector to sentiment estimates
-#' @param raw_pro_shares
+#' Add national level before joining
+#' @df data with missing region_1 or region_2 levels
+add_national_level <- function(df){
+
+  df %>%
+    mutate(country = if_else(is.na(country), leader_country, country),
+           region_1 = if_else(is.na(region_1), "National", region_1),
+           region_2 = if_else(is.na(region_2), region_1, region_2)
+    )
+
+}
+
+#' Join targets (election and polls) to data
+#' @param df
 #' @param targets_master
 join_targets <- function(df, targets_master){
 
   # Join election results to pro shares
-  df %>%
-    mutate(region_1 = if_else(is.na(region_1), "National", region_1),
-           region_2 = if_else(is.na(region_2), region_1, region_2),
-           country = if_else(is.na(country), leader_country, country)
-           ) %>%
-    left_join(.,
-              targets_master,
-              by = c("leader" = "name", "leader_country" = "country", "region_1", "region_2"))
+  left_join(df,
+            targets_master,
+            by = c("leader" = "name", "country", "region_1", "region_2"))
 
 }
 
@@ -47,26 +54,52 @@ add_gdl_covariates <- function(senti_targets, gdl_interpo){
 
 }
 
-#' Summarise cut-off validation statistics
-#' @param validate_elex_raw
-#' @return summary statistics by cut-off values to evaluate their differences and merits
-summarise_cut_off_validation <- function(df){
+#' Create training data
+create_training_data <- function(senti_targets_covars, type = "elex"){
 
-  # Calculate mean, sd and summary of difference between raw estimates and cut-off
-  # For period col
-  df %>%
-    mutate(pro_share_diff = pro_share - votes_share,
-           pro_share_roll_diff = pro_share_roll - votes_share) %>%
-    # choose which window of days to election to analyse summary for
-    #filter(days_diff_abs < 100) %>%
-    group_by(elex_date, days_diff, cut_off) %>%
-    summarise(mean = mean(pro_share_diff, na.rm = TRUE),
-              min = min(pro_share_diff, na.rm = TRUE),
-              max = max(pro_share_diff, na.rm = TRUE),
-              sd = sd(pro_share_diff, na.rm = TRUE),
-              total_tweets = sum(total)
-    ) %>%
-    ungroup() %>%
-    arrange(days_diff)
+  # Elections training data
+
+  if (type == "elex"){
+
+    # Subset election rows
+    train_data_elex <- senti_targets_covars %>%
+      # create id to later subset test data
+      mutate(id = row_number()) %>%
+      filter(type == "election") %>%
+      # remove Zimbabwe's 2013 election
+      filter(!(country == "Zimbabwe" & year(date) == 2013)) %>%
+      arrange(country, region_1, region_2, date_target)
+
+    # All elections but the last per country
+    (train_data_elex_first <- train_data_elex %>%
+        group_by(country) %>%
+        filter(date_target != max(date_target)) %>%
+        ungroup()
+    )
+
+  } else if(type == "polls"){
+
+    # Polls trainings data
+    # Subset polls rows
+    # Polls before last election per country
+    train_data_polls <- senti_targets_covars %>%
+      filter(type == "poll") %>%
+      arrange(country, region_1, region_2, leader) %>%
+      mutate(target_before_last_elex = case_when(country == "Nigeria" & date_target < as.Date("2019-02-23") ~ TRUE,
+                                                 country == "Zimbabwe" & date_target < as.Date("2018-07-03") ~ TRUE,
+                                                 country == "Georgia" & date_target < as.Date("2013-10-27") ~ TRUE,
+                                                 country == "Afghanistan" & date_target < as.Date("2019-09-28") ~ TRUE,
+                                                 country == "Mexico" & date_target < as.Date("2018-07-01") ~ TRUE,
+                                                 TRUE ~ FALSE)) %>%
+      # remove polls after last election
+      filter(target_before_last_elex) %>%
+      filter(days_diff_abs < 40) %>%
+      # remove Zimbabwe's 2013 election
+      filter(!(country == "Zimbabwe" & year(date) == 2013))
+
+    train_data_polls
+
+  }
 
 }
+
