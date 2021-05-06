@@ -204,7 +204,7 @@ raw_mae %>%
        subtitle = "Mean absolute error (MAE) of election estimates based on 'raw' AFINN sentiment, percentage points",
        x = "Cut off values",
        y = "MAE"
-       ) +
+  ) +
   theme_devpublicopinion
 
 
@@ -537,7 +537,50 @@ add_total <- function(x) { mutate(x, Total = Afghanistan + Georgia + Mexico + Ni
 ```
 
 
+
+```{r model-tabel}
+# Table to compare models
+
+
+#tidy()
+
+```
+
+
 # Plots
+
+```{r plot-polls-and-elex}
+# Plot traditional polling and election results
+poll_plot_data <- targets_master %>%
+  filter(name %in% candidates$name) %>%
+  filter(region_1 == "National") %>%
+  filter(type == "poll") %>%
+  mutate(votes_share = votes_share*100)
+
+ggplot(poll_plot_data,
+       aes(x = date_target,
+           y = votes_share)) +
+  geom_point(aes(colour = name), show.legend = FALSE) +
+  geom_label_repel(data = poll_plot_data %>% group_by(name) %>% slice_sample(n = 1),
+                   aes(x = date_target, y = votes_share, label = name)) +
+  facet_wrap(~country# , scales = "free"
+  ) +
+  theme_devpublicopinion +
+  labs(title = "Polling for each country",
+       subtitle = "% vote share, point for each traditional polling collected by country; polls included in this figure are indicative, not exhaustive",
+       x = NULL,
+       y = "%, vote share")
+
+
+```
+
+```{r plot-estimates-vs-polls-and-elex}
+# Plot model estimates versus polling and election results
+
+
+
+```
+
 
 
 ```{r plot-weekly-tweet-frequency}
