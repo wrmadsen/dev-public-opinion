@@ -397,6 +397,12 @@ estimates_mr_master <- estimates_mr_master %>%
   mutate(error = estimate - votes_share,
          error_abs = abs(error))
 
+```
+
+```{r validate-mr-plots}
+# Plots for validating MR estimates
+estimates_mr_master
+
 # Calculate MAE by model and country
 mae_mr_by_model <- estimates_mr_master %>%
   filter(days_diff_abs < 10) %>%
@@ -405,29 +411,51 @@ mae_mr_by_model <- estimates_mr_master %>%
             n_regions = n_distinct(region_1)) %>%
   ungroup()
 
-
-```
-
-```{r validate-mr-plots}
-# Plots for validating MR estimates
-estimates_mr_master
+# Add country average and model average levels
+mae_mr_by_model <- bind_rows(mae_mr_by_model,
+                             mae_mr_by_model %>%
+                               mutate(country = "Country average") %>%
+                               group_by(country, model) %>%
+                               summarise(mae = mean(mae)),
+                             mae_mr_by_model %>%
+                               mutate(model = "Model average") %>%
+                               group_by(country, model) %>%
+                               summarise(mae = mean(mae))
+)
 
 # Plot MAE by model and region
 mae_mr_by_model %>%
-    mutate(model = as.factor(model),
-           country = reorder_within(country, mae, model)) %>%
-    ggplot(aes(country, y = mae, fill = model)) +
-    geom_col(show.legend = FALSE) +
-    facet_wrap(~model, scales = "free_y") +
-    coord_flip() +
-    scale_x_reordered()
+  mutate(model = as.factor(model),
+         country = reorder_within(country, mae, model)) %>%
+  ggplot(aes(x = country, y = mae, fill = model)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~model, scales = "free_y") +
+  coord_flip() +
+  scale_x_reordered()
+labs(y = "Number of babies per decade",
+     x = NULL,
+     title = "What were the most common baby names in each decade?",
+     subtitle = "Via US Social Security Administration")
 
 
-    scale_y_continuous(expand = c(0,0)) +
-    labs(y = "Number of babies per decade",
-         x = NULL,
-         title = "What were the most common baby names in each decade?",
-         subtitle = "Via US Social Security Administration")
+# Plot all predictions as points
+estimates_mr_master_sub <- estimates_mr_master %>%
+  filter(days_diff_abs < 15)
+
+ggplot(estimates_mr_master_sub,
+       aes(x = estimate,
+           y = votes_share)) +
+  geom_point(aes(colour = country),
+             size = 3,
+             show.legend = FALSE) +
+  facet_wrap(~model) +
+  geom_abline(intercept = 0, slope = 1) +
+  scale_x_continuous(limits = c(0, 1)) +
+  theme_devpublicopinion +
+  labs(title = "Model estimates against actual vote shares",
+       subtitle = "Different model estimates (x-axis) against latest actual election vote shares (y-axis); diagonal line shows perfect predictions (error = 0)",
+       x = "Estimate",
+       y = "Votes share")
 
 
 ```
