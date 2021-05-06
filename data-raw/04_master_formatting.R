@@ -18,6 +18,7 @@ library(textdata)
 library(haven)
 library(data.table)
 library(quanteda)
+library(re2)
 
 # Source R functions
 list.files("R", full.names = TRUE) %>% purrr::map(source)
@@ -28,60 +29,49 @@ source("data-raw/01_load_raw.R")
 # Format raw data -----
 source("data-raw/02_format_raw_data.R")
 
-# Get tweets ----
-#source("data-raw/03_get_tweets.R")
+# Update data to collect tweets ----
+#source("data-raw/03_data_to_get_tweets.R")
 
 # Read tweets ----
-tweets_raw <- read_csv("data-raw/tweets/tweets.csv")
+tweets_raw <- fread("data-raw/tweets/tweets.csv")
 
 # Format tweets ----
 
 # Subset
-tweets_raw_small <- tweets_raw[1:200000,]
+#tweets_raw <- tweets_raw[1:300000,]
 
-# Format and add variables
-tweets_formatted <- format_tweets(tweets_raw_small, candidates)
+# Add leaders' names
+tweets_cap <- add_leaders_to_tweets(tweets_raw, candidates)
 
 # Filter out duplicates and Tweets that don't mention a leader
-tweets_sub <- filter_tweets(tweets_formatted)
+tweets_sub <- filter_tweets(tweets_cap)
 
 # Add GADM regions
 tweets_sf <- add_regions(tweets_sub, boundaries_subnational)
 
 # Create tweets tokens
 tokens_master <- create_tweets_tokens(tweets_sub)
+#tokens_master <- fread("data/tokens_master.csv")
 
 # Join sentiment values by stem
 senti_tokens <- add_sentiment_to_tokens(tokens_master, afinn_stem)
 
-senti_tokens %>% filter(!is.na(afinn_value)) %>% slice(1:100)
-
 # Save formatted data ----
-# save(supp, reign, candidates,
-#      elex_master, polling_master,
-#      boundaries_national, boundaries_subnational,
-#      tweets_sf, tweets_tokens,
-#      senti_lexicons, afinn, afinn_stem,
-#      file = "data/formatted_data.RData")
 
-save(tweets_sf,
-     file = "data/tweets_sf.RData")
+save(tweets_sf, file = "data/tweets_sf.RData")
 
-# save(tweets_tokens,
-#      file = "data/tweets_tokens.RData")
-#write_csv(tweets_tokens,
-#          file = "data/tweets_tokens.csv")
+fwrite(tweets_sub, file = "data/tweets_sub.csv", nThread = 8)
 
-fwrite(tweets_tokens, file = "data/tweets_tokens.csv")
+#fwrite(tokens_master, file = "data/tokens_master.csv", nThread = 4)
+
+fwrite(senti_tokens, file = "data/senti_tokens.csv", nThread = 8)
 
 save(supp, reign, candidates,
      elex_master, polling_master,
-     polling_elex_master, gdl_interpo,
+     targets_master, gdl_interpo,
      file = "data/formatted_supplementary.RData")
 
 save(boundaries_national, boundaries_subnational,
      file = "data/formatted_gadm.RData")
 
-save(senti_lexicons, afinn, afinn_stem,
-     file = "data/formatted_dictionary.RData")
 

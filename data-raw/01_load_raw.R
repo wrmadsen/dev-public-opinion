@@ -23,7 +23,7 @@ wgi_raw <- read_excel("data-raw/covariates/wgidataset.xlsx", sheet = "VoiceandAc
 ## Population ----
 # UN population estimates
 ## https://population.un.org/wpp/Download/Standard/CSV/
-pop_raw <- read_csv("data-raw/covariates/WPP2019_TotalPopulationBySex.csv")
+pop_raw <- fread("data-raw/covariates/WPP2019_TotalPopulationBySex.csv")
 
 ## GDP PPP----
 ## from World Bank
@@ -31,7 +31,7 @@ pop_raw <- read_csv("data-raw/covariates/WPP2019_TotalPopulationBySex.csv")
 gdp_ppp_raw <- read_csv("data-raw/covariates/API_NY.GDP.MKTP.PP.KD_DS2_en_csv_v2_1928416.csv", skip = 3)
 
 # GDL, sub-national stats
-gdl_raw <- read_csv("data-raw/covariates/GDL-AreaData400 (1).csv")
+gdl_raw <- fread("data-raw/covariates/GDL-AreaData400 (1).csv")
 
 ## Twitters users -----
 
@@ -100,7 +100,7 @@ nrc <- get_sentiments("nrc")
 
 # Other ----
 ## REIGN leader data ----
-reign_raw <- read_csv("data-raw/other/REIGN_2021_2.csv")
+reign_raw <- fread("data-raw/other/REIGN_2021_2.csv")
 
 ## Leader name look-up -----
 ## Used to match names between REIGN and candidates objects

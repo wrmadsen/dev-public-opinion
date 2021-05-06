@@ -22,21 +22,23 @@ remove_patterns_in_tweet <- function(tweet){
 #' Create and clean tweets tokens
 #' @param tweets_sf
 #' @return Tokens of tweets for sentiment analysis
-create_tweets_tokens <- function(tweets){
+create_tweets_tokens <- function(tweets_sub){
 
   # Clean from patterns and turn to lower-case
-  tweets_dt <- as.data.table(tweets)
+  tweets_dt <- tweets_sub %>%
+    mutate(document = paste0("text", row_number())) %>%
+    as.data.table()
 
   # Create corpus
   tweets_corpus <- corpus(tweets_dt$tweet, docvars = tweets_dt)
 
   # Tokenise tweets
   # Remove various characters
-  tweets_tokens <- tokens(tweets_corpus,
-                          remove_punct = TRUE,
-                          remove_symbols = TRUE,
-                          remove_numbers = TRUE,
-                          remove_url = TRUE)
+  tweets_tokens <- quanteda::tokens(tweets_corpus,
+                                    remove_punct = TRUE,
+                                    remove_symbols = TRUE,
+                                    remove_numbers = TRUE,
+                                    remove_url = TRUE)
 
   # Stem
   tweets_tokens_stemmed <- tokens_wordstem(tweets_tokens)
@@ -54,13 +56,11 @@ create_tweets_tokens <- function(tweets){
     as.data.table()
 
   # Join docvars back by document number
-  tweets_dt <- tweets_dt %>%
-    mutate(document = paste0("text", row_number())) %>%
-    as.data.table()
-
   tokens_master <- merge(tweets_dt, tweets_tokens_dt,
                          all.x = TRUE, by = "document") %>%
     tibble()
+
+  Sys.sleep(1)
 
   # Return
   tokens_master
@@ -94,8 +94,6 @@ calculate_sentiment_per_tweet <- function(senti_tokens){
   # Find sentiment per tweet
   senti_tokens_dt <- as.data.table(senti_tokens)
 
-  names(senti_tokens_dt)
-
   senti_tokens_dt[, by = list(id, conversation_id, username, date,
                               replies_count, retweets_count, likes_count,
                               x, y, leader, leader_country),
@@ -112,9 +110,11 @@ calculate_sentiment_per_day <- function(senti_tweet){
   senti_tweet_dt <- as.data.table(senti_tweet)
 
   senti_tweet_dt[, by = list(date, has_point,
-                             replies_count, retweets_count, likes_count,
                              country, region_1, region_2, leader, leader_country),
                  .(afinn_mean = mean(afinn_mean, na.rm = TRUE),
+                   n_replies_mean = mean(replies_count, na.rm = TRUE),
+                   n_retweets_mean = mean(retweets_count, na.rm = TRUE),
+                   n_likes_mean = mean(likes_count, na.rm = TRUE),
                    n_tweets = .N)] %>%
     tibble()
 
@@ -148,3 +148,5 @@ create_region_adjusted_sentiment <- function(senti_day){
   senti_day_region_adj
 
 }
+
+

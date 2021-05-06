@@ -4,7 +4,7 @@
 #' @param tweets_raw raw tweets binded from JSONs.
 #' @param candidates which people to get and when.
 #' @return tweets with formatted coordinates, country, leader, and other variables.
-format_tweets <- function(tweets_raw, candidates){
+add_leaders_to_tweets <- function(tweets_raw, candidates){
 
   # Look-up to add leaders and countries
   candidates_lookup <- candidates %>%
@@ -13,28 +13,44 @@ format_tweets <- function(tweets_raw, candidates){
               name_lower = tolower(name),
               leader_country = country)
 
-  candidates_match <- paste(candidates_lookup$name_lower, collapse = "|")
+  # Leader names to match with content of Tweets
+  candidates_match <- paste(candidates_lookup$name_lower, collapse = "[^A-z]|[^A-z]")
+
+  candidates_match <- paste0("[^A-z]", candidates_match, "[^A-z]")
+
+  # Convert to data.table
+  tweets_raw_dt <- as.data.table(tweets_raw)
 
   # Get long and lat coordinates
-  tweets_coords <- tweets_raw %>%
-    mutate(x = str_match(place, "\\[(.*?),")[,2] %>% as.double(),
-           y = str_match(place, "\\d, (.*?)\\]")[,2] %>% as.double()
-    ) %>%
-    mutate(row_no = row_number())
+  tweets_raw_dt[, x := str_match(place, "\\[(.*?),")[,2] %>% as.double()]
+
+  tweets_raw_dt[, y := str_match(place, "\\d, (.*?)\\]")[,2] %>% as.double()]
+
+  tweets_raw_dt[, row_no := .I]
 
   # Find which leader(s) is/are mentioned in each tweet
   # Use data.table to speed up processing
-  tweets_coords_dt <- as.data.table(tweets_coords)
+  #tweets_raw_dt[, leader_mentions := str_extract_all(tolower(tweet), candidates_match)]
 
-  tweets_coords_dt[, leader_mentions := str_extract_all(tolower(tweet), candidates_match)]
+  # Tweets to lower case
+  tweets_raw_dt[, tweet_lower := tolower(tweet)]
+
+  # Extract names
+  tweets_raw_dt[, leader_mentions := re2_match_all(tweet_lower, pattern = candidates_match)]
 
   # Unnest each Tweet list of leader mentions
   # to determine whether more than a single leader is mentioned
-  tweets_unnested <- tweets_coords_dt[, .(leader_mentions = unlist(leader_mentions)),
-                                      by = setdiff(names(tweets_coords_dt), "leader_mentions")]
+  tweets_unnested <- tweets_raw_dt[, .(leader_mentions = unlist(leader_mentions)),
+                                   by = setdiff(names(tweets_raw_dt), "leader_mentions")]
+
+  # Remove non-letter characters
+  tweets_unnested[, leader_mentions := re2_replace_all(leader_mentions, "[^A-z\\s]", "")]
+
+  # Remove leading or trailing spaces
+  tweets_unnested[, leader_mentions := trimws(leader_mentions)]
 
   # Count number of unique leaders mentioned per Tweet
-  tweets_unnested[ , leader_count := length(unique(leader_mentions)), by = row_no]
+  tweets_unnested[, leader_count := length(unique(leader_mentions)), by = row_no]
 
   # Add leader name if single unique mention
   tweets_unnested[, leader_single := if_else(leader_count != 1, NA_character_, leader_mentions)]
@@ -44,18 +60,23 @@ format_tweets <- function(tweets_raw, candidates){
                       candidates_lookup %>% rename(leader = name),
                       all.x = TRUE, by.x = "leader_single", by.y = "name_lower")
 
-  # Clean and select variables
-  tweets_formatted <- tweets_cap %>%
-    mutate(date = as.Date(date),
-           week = floor_date(date, "week"),
-    ) %>%
-    select(id, conversation_id, username, name, date, week, leader_country, leader, leader_count, leader_mentions,
-           x, y, language, tweet, replies_count, retweets_count, likes_count) %>%
-    tibble()
+  Sys.sleep(3)
 
-  tweets_formatted
+  tweets_cap
 
 }
+
+
+# # Clean and select variables
+# tweets_formatted <- tweets_cap %>%
+#   mutate(date = as.Date(date),
+#          week = floor_date(date, "week"),
+#   ) %>%
+#   select(id, conversation_id, username, name, date, week, leader_country, leader, leader_count, leader_mentions,
+#          x, y, language, tweet, replies_count, retweets_count, likes_count) %>%
+#   tibble()
+#
+# tweets_formatted
 
 #' Filter tweets
 filter_tweets <- function(tweets_formatted){
@@ -133,6 +154,8 @@ add_regions <- function(tweets_sub, boundaries_subnational){
 
   # Check if any rows have been dropped
   stopifnot(nrow(tweets_sub_sf) == nrow(tweets_sub))
+
+  Sys.sleep(1)
 
   # Return
   tweets_sub_sf
