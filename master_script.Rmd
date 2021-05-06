@@ -57,9 +57,9 @@ load("data/formatted_supplementary.RData")
 
 load("data/tweets_sf.RData")
 
-tweets_sub <- read_csv("data/tweets_sub.csv") 
+tweets_sub <- fread("data/tweets_sub.csv") 
 
-senti_tokens <- read_csv("data/senti_tokens.csv")
+senti_tokens <- fread("data/senti_tokens.csv")
 
 ```
 
@@ -158,10 +158,10 @@ cut_off_stats %>%
 # Add targets (election results and polls) to fit models
 
 # Join sentiment with target vector, election and polling results
-senti_per_day <- senti_per_day %>%
+senti_day <- senti_day %>%
   mutate(target_id = row_number())
 
-senti_targets_all <- join_targets_to_senti(senti_per_day, targets_master)
+senti_targets_all <- join_targets(senti_day, targets_master)
 
 # Select nearest targets (election or poll) for each day
 senti_targets <- select_nearest_target(senti_targets_all)
@@ -175,10 +175,18 @@ senti_targets <- senti_targets %>%
 
 ```{r add-gdl-covariates}
 # Add GDL covariates
-senti_targets_covars <- left_join(senti_targets, gdl_interpo,
-                                  by = c("year", "country", "region_1" = "gadm_region"))
+senti_targets_covars <- add_gdl_covariates(senti_targets, gdl_interpo)
 
-# Create dataset of predictions
+# Check which regions are missing
+senti_targets_all$region_1 %>% unique
+senti_targets$region_1 %>% unique
+
+
+```
+
+
+```{r create-predictions-object}
+# Create dataset for predictions
 predictions <- senti_targets_covars
 
 ```
@@ -194,24 +202,32 @@ train_data_1 <- senti_targets_covars %>%
   # create id to later subset test data
   mutate(id = row_number()) %>%
   filter(type == "poll") %>%
-  filter(days_diff_abs < 10) %>%
+  filter(days_diff_abs < 40) %>%
   # remove Zimbabwe's 2013 election
   filter(!(country == "Zimbabwe" & year(date) == 2013))
 
-model_1_1 <- lmer(votes_share ~ afinn_mean_day + (1|country_and_region_1),
+# N per country
+train_data_1 %>% group_by(country) %>% summarise(n = n())
+
+# No RE
+model_1_1 <- lmer(votes_share ~ afinn_mean + (1 | country_and_region_1),
                   data = train_data_1)
 
-model_1_2 <- lmer(votes_share ~ afinn_mean_day + retweets_count + likes_count + (1|country_and_region_1),
+# No RE, sentiment and structure
+model_1_2 <- lmer(votes_share ~ afinn_mean + days_diff_abs + (1 | country_and_region_1),
                   data = train_data_1)
 
-model_1_3 <- lmer(votes_share ~ afinn_mean_day + days_diff_abs + retweets_count + likes_count + (1|country_and_region_1),
+# RE of sentiment
+model_1_3 <- lmer(votes_share ~ afinn_mean + (1 + afinn_mean | country_and_region_1),
                   data = train_data_1)
 
-model_1_4 <- lmer(votes_share ~ afinn_mean_day + days_diff_abs + phone + (1|country_and_region_1),
+# RE, structure and days difference
+model_1_4 <- lmer(votes_share ~ afinn_mean + n_likes_mean + days_diff_abs + (1 + afinn_mean | country_and_region_1),
                   data = train_data_1)
 
 
 ```
+
 
 ```{r validate-model-1}
 # Validate poll-based models
@@ -226,33 +242,36 @@ predictions_1 <- predictions %>%
   )
 
 # Calculate MAE on validation data
-predictions_1 %>%
+mae_by_election <- predictions_1 %>%
   # remove rows already used for test data - not actually needed if we also use type == "election"
   mutate(id = row_number()) %>%
   filter(!id %in% train_data_1$id) %>%
   filter(type == "election") %>%
   filter(days_diff_abs < 10) %>%
-  filter(!(country == "Zimbabwe" & year(date) == 2013)) %>%
+  #filter(!(country == "Zimbabwe" & year(date) == 2013)) %>%
   mutate(prediction_1_1_diff = abs(prediction_1_1 - votes_share),
          prediction_1_2_diff = abs(prediction_1_2 - votes_share),
          prediction_1_3_diff = abs(prediction_1_3 - votes_share),
          prediction_1_4_diff = abs(prediction_1_3 - votes_share),
   ) %>%
-  group_by(country) %>%
+  group_by(country, date_target) %>%
   summarise(mae_1_1 = mean(prediction_1_1_diff, na.rm = TRUE),
             mae_1_2 = mean(prediction_1_2_diff, na.rm = TRUE),
             mae_1_3 = mean(prediction_1_3_diff, na.rm = TRUE),
             mae_1_4 = mean(prediction_1_4_diff, na.rm = TRUE)
-  )
+  ) %>%
+  ungroup()
+
+mae_by_election
 
 
 
 ```
 
-```{r poll-model-2}
+```{r poll-model-2-mrp}
 # Model 2
 # Multilevel regression and post-stratification (MRP)
-model_2_1 <- lmer(votes_share ~ afinn_mean_day + (1|country_and_region_1),
+model_2_1 <- lmer(votes_share ~ afinn_mean + (1|country_and_region_1),
                   data = train_data_1)
 
 summary(model_2_1)
@@ -266,12 +285,20 @@ predictions_2 <- predictions %>%
   )
 
 # Post-stratify using GDL's population share
-predictions_2 %>%
+predictions_2 <- predictions_2 %>%
   transmute(prediction_2_1, popshare/100, prediction_2_1_weighted = prediction_2_1*popshare/100)
 
 
 
 ```
+
+
+```{r elex-model-3}
+# Fit model 3 based on election results
+
+
+```
+
 
 
 ```{r roc-curve}
@@ -286,43 +313,61 @@ predictions_2 %>%
 # Tables
 ```{r table-country-stats}
 # Table of country statistics
+tweets_stats_country <- tweets_sub %>%
+  transmute(leader_country,
+            week = floor_date(date, "week"),
+            year = year(date),
+            week_country = paste0(leader_country, week),
+            year_country = paste0(leader_country, year)
+  )
+
+add_total <- function(x) { mutate(x, Total = Afghanistan + Georgia + Mexico + Nigeria + Zimbabwe) }
+
+# tweets_total <- tweets_sub %>%
+#   mutate(leader_country = "Total")
+# 
+# tweets_stats_country <- rbind(tweets_stats_country, tweets_total)
 
 # Tweet count per country
-(n_tweets_per_country <- tweets_sub %>%
-   group_by(leader_country) %>%
-   summarise(n = n()) %>%
-   mutate(variable = "Total tweets per country") %>%
-   pivot_wider(names_from = leader_country, values_from = n)
+(n_tweets_per_country <- tweets_stats_country %>%
+    group_by(leader_country) %>%
+    summarise(n = n()) %>%
+    mutate(variable = "Total tweets") %>%
+    pivot_wider(names_from = leader_country, values_from = n) %>%
+    add_total()
 )
 
 # Average number of tweets per country
-(n_weekly_tweets_per_country <- tweets_sub %>%
-    group_by(leader_country, week) %>%
+(n_weekly_tweets_per_country <- rbind(tweets_stats_country,
+                                      tweets_stats_country %>% mutate(leader_country = "Total")) %>%
+    group_by(leader_country, week_country) %>%
     summarise(n = n()) %>%
     group_by(leader_country) %>%
     summarise(n = mean(n) %>% round(2)) %>%
-    mutate(variable = "Average weekly number of tweets per country") %>%
+    mutate(variable = "Average weekly number of tweets") %>%
     pivot_wider(names_from = leader_country, values_from = n)
 )
 
-# Number of unique weeks per country
-(n_weeks_per_country <- tweets_sub %>%
+# Number of unique weeks
+(n_weeks_per_country <- tweets_stats_country %>%
     group_by(leader_country, week) %>%
     summarise(n = n()) %>%
     group_by(leader_country) %>%
     summarise(n = n()) %>%
-    mutate(variable = "Number of weeks per country") %>%
-    pivot_wider(names_from = leader_country, values_from = n)
+    mutate(variable = "Number of weeks") %>%
+    pivot_wider(names_from = leader_country, values_from = n) %>%
+    add_total()
 )
 
 # Years per country
-(n_years_per_country <- tweets_sub %>%
-    group_by(leader_country, year(date)) %>%
+(n_years_per_country <- tweets_stats_country %>%
+    group_by(leader_country, year) %>%
     summarise(n = n()) %>%
     group_by(leader_country) %>%
     summarise(n = n()) %>%
-    mutate(variable = "Number of years per country") %>%
-    pivot_wider(names_from = leader_country, values_from = n)
+    mutate(variable = "Number of years") %>%
+    pivot_wider(names_from = leader_country, values_from = n) %>%
+    add_total()
 )
 
 # Subnational regions per country in data
@@ -333,13 +378,10 @@ predictions_2 %>%
     summarise(n = n()) %>%
     group_by(leader_country) %>%
     summarise(n = n()) %>%
-    mutate(variable = "Number of regions per country") %>%
-    pivot_wider(names_from = leader_country, values_from = n)
+    mutate(variable = "Number of subnational regions/levels") %>%
+    pivot_wider(names_from = leader_country, values_from = n) %>%
+    add_total()
 )
-
-n_regions_1_per_country %>%
-  pivot_longer(cols = 2:ncol(.)) %>%
-  summarise(sum = sum(value))
 
 # Number of elections per country
 (n_elections_per_country <- elex_master %>%
@@ -347,8 +389,9 @@ n_regions_1_per_country %>%
     summarise(n = n()) %>%
     group_by(country) %>%
     summarise(n = n()) %>%
-    mutate(variable = "Number of elections per country") %>%
-    pivot_wider(names_from = country, values_from = n)
+    mutate(variable = "Number of elections") %>%
+    pivot_wider(names_from = country, values_from = n) %>%
+    add_total()
 )
 
 # Number of unique candidacies and leaders
@@ -358,12 +401,9 @@ n_regions_1_per_country %>%
     group_by(country) %>%
     summarise(n = n()) %>%
     mutate(variable = "Number of elections per country") %>%
-    pivot_wider(names_from = country, values_from = n)
+    pivot_wider(names_from = country, values_from = n) %>%
+    add_total()
 )
-
-n_candidates_per_country %>%
-  pivot_longer(cols = 2:ncol(.)) %>%
-  summarise(sum = sum(value))
 
 # Number of polls per country
 (n_polls_per_country <- polling_master %>%
@@ -372,7 +412,8 @@ n_candidates_per_country %>%
     group_by(country) %>%
     summarise(n = n()) %>%
     mutate(variable = "Number of polls per country") %>%
-    pivot_wider(names_from = country, values_from = n)
+    pivot_wider(names_from = country, values_from = n) %>%
+    add_total()
 )
 
 # Combine into table
@@ -388,7 +429,7 @@ n_candidates_per_country %>%
 )
 
 # Save as csv
-write_csv(by_country_table, file = "output/tables/per_country.csv")
+#write_csv(by_country_table, file = "output/tables/per_country.csv")
 
 
 ```
@@ -484,7 +525,7 @@ plot_tweets_in_country <- function(plot_country = "Afghanistan"){
     labs(title = paste0(plot_country)) +
     theme_devpublicopinion +
     theme(panel.grid.major = element_blank())
-          
+  
 }
 
 # Plot and combine maps by country with patchwork
@@ -501,6 +542,14 @@ map_nga <- plot_tweets_in_country("Nigeria")
                   theme = theme_devpublicopinion
   ) +
   ggsave("output/figures/maps.png")
+
+
+```
+
+
+```{r plot-point-mae-by-election}
+# Point plot of MAE by elections
+# Highlight problematic/special elections (ZWE 2013)
 
 
 ```
