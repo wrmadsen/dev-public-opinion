@@ -211,7 +211,7 @@ raw_mae %>%
 ```
 
 
-# Add targets to sentiment
+# Add targets for models
 ```{r add-to-senti-day}
 # Add targets (election results and polls)
 # Join sentiment with target vector, election and polling results
@@ -219,8 +219,6 @@ senti_day <- senti_day %>%
   mutate(target_id = row_number())
 
 senti_day <- add_national_level(senti_day)
-
-nrow(senti_day)
 
 senti_day_targets_all <- join_targets(senti_day, targets_master)
 
@@ -230,7 +228,9 @@ senti_day %>% filter(!region_1 %in% targets_master$region_1) %>% distinct(countr
 # Select nearest target (election or poll) for each day
 senti_day_targets <- select_nearest_target(senti_day_targets_all)
 
-nrow(senti_day_targets) # number of rows after finding nearest target 
+# Compare rows
+nrow(senti_day)
+nrow(senti_day_targets)
 
 senti_day_targets <- senti_day_targets %>%
   # create variable with country and region_1
@@ -243,16 +243,19 @@ senti_day_targets_covars <- add_gdl_covariates(senti_day_targets, gdl_interpo)
 # Check if regions are missing GDL statistics
 senti_day_targets_covars %>% filter(is.na(popshare)) %>% distinct(region_1)
 
-
 ```
 
 
 ```{r add-to-senti-region}
-# Add targets (election results and polls)
+# Add row_number to join targets
 senti_region <- senti_region %>%
   mutate(target_id = row_number())
 
-senti_region_targets_all <- join_targets(senti_region, targets_master)
+# Fix missing national and region column
+senti_region <- add_national_level(senti_region)
+
+# Add targets (election results and polls)
+senti_region_targets_all <- join_targets(senti_region, targets_master, by_region = FALSE)
 
 # Check which senti regions are not in targets object
 senti_region %>% filter(!region_1 %in% targets_master$region_1) %>% distinct(country, region_1)
@@ -264,8 +267,8 @@ senti_region_targets <- select_nearest_target(senti_region_targets_all)
 nrow(senti_region)
 nrow(senti_region_targets)
 
+# Create variable with country and region_1
 senti_region_targets <- senti_region_targets %>%
-  # create variable with country and region_1
   mutate(year = year(date),
          country_and_region_1 = paste0(country, "_", region_1))
 
@@ -280,13 +283,12 @@ senti_region_targets_covars %>% filter(is.na(popshare)) %>% distinct(region_1)
 
 ```{r print-elex-per-country}
 # Elections for each country
-senti_targets_covars %>%
+senti_region_targets_covars %>%
   filter(type == "election") %>%
   distinct(country, date_target) %>%
   arrange(country)
 
 ```
-
 
 # Multilevel regression
 ```{r mr-model-day}
@@ -294,12 +296,18 @@ senti_targets_covars %>%
 
 # Training data
 # Sentiment day
-train_data_elex_first_day <- create_training_data(senti_day_targets_covars, type = "elex")
-train_data_polls_day <- create_training_data(senti_day_targets_covars, type = "polls")
+train_data_elex_first_day <- create_training_data(senti_day_targets_covars,
+                                                  type = "elex", less_than_days_diff = 100)
+train_data_polls_day <- create_training_data(senti_day_targets_covars,
+                                             type = "polls", less_than_days_diff = 100)
 
-# Sentiment 
+# Sentiment region
+train_data_elex_first_region <- create_training_data(senti_region_targets_covars,
+                                                     type = "elex", less_than_days_diff = 100)
+train_data_polls_region <- create_training_data(senti_region_targets_covars,
+                                                type = "polls", less_than_days_diff = 100)
 
-# Fit models
+# Fit day models
 # Trained on election results
 mr_day_elex_1 <- lmer(votes_share ~ afinn_mean + (1 | country),
                       data = train_data_elex_first_day)
@@ -310,7 +318,7 @@ mr_day_elex_2 <- lmer(votes_share ~ afinn_mean + (1 + afinn_mean | country),
 mr_day_elex_3 <- lmer(votes_share ~ afinn_mean + n_likes_mean + (1 + afinn_mean | country),
                       data = train_data_elex_first_day)
 
-mr_day_elex_4 <- lmer(votes_share ~ afinn_mean + days_diff_abs + (1 + afinn_mean | country),
+mr_day_elex_4 <- lmer(votes_share ~ afinn_mean + (1 + afinn_mean + days_diff_abs | country),
                       data = train_data_elex_first_day)
 
 # Trained on polls
@@ -321,42 +329,36 @@ mr_day_polls_2 <- lmer(votes_share ~ afinn_mean + (1 + afinn_mean | country),
                        data = train_data_polls_day)
 
 
-```
+# Fit region models
+# By election results
+mr_region_elex_1 <- lmer(votes_share ~ afinn_mean_daily + (1 | country),
+                         data = train_data_elex_first_region)
 
+mr_region_elex_2 <- lmer(votes_share ~ afinn_mean_daily + afinn_mean_region + (1 + afinn_mean_daily | country),
+                         data = train_data_elex_first_region)
 
-```{r mr-model-region}
-# Multilevel models based on sentiment region based
+mr_region_elex_3 <- lmer(votes_share ~ afinn_mean_daily + n_likes_mean + (1 + afinn_mean_daily | country),
+                         data = train_data_elex_first_region)
 
-# Training data
-# Sentiment day
-train_data_elex_first_region <- create_training_data(senti_region_targets_covars, type = "elex")
-train_data_polls_region <- create_training_data(senti_region_targets_covars, type = "polls")
-
-# Sentiment 
-
-# Fit models
-# Trained on election results
-mr_day_elex_1 <- lmer(votes_share ~ afinn_mean + (1 | country),
-                      data = train_data_elex_first)
-
-mr_day_elex_2 <- lmer(votes_share ~ afinn_mean + (1 + afinn_mean | country),
-                      data = train_data_elex_first)
+mr_region_elex_4 <- lmer(votes_share ~ afinn_mean_daily + days_diff_abs + (1 + afinn_mean_daily | country),
+                         data = train_data_elex_first_region)
 
 # Trained on polls
-mr_day_polls_1 <- lmer(votes_share ~ afinn_mean + (1 | country),
-                       data = train_data_polls)
+mr_region_polls_1 <- lmer(votes_share ~ afinn_mean_daily + (1 | country),
+                          data = train_data_polls_region)
 
-mr_day_polls_2 <- lmer(votes_share ~ afinn_mean + (1 + afinn_mean | country),
-                       data = train_data_polls)
+mr_region_polls_2 <- lmer(votes_share ~ afinn_mean_daily + (1 + afinn_mean_daily | country),
+                          data = train_data_polls_region)
 
 
 ```
 
+
 ```{r validate-mr}
-# Validate poll-based models
+# Validate MR models
 
 # Predict model 1
-predictions_1 <- test_data_elex_last %>%
+predictions_1 <- create_test_data() %>%
   mutate(prediction_1_elex_1 = predict(model_1_elex_1, ., allow.new.levels = TRUE),
          prediction_1_elex_2 = predict(model_1_elex_2, ., allow.new.levels = TRUE),
          prediction_1_polls_1 = predict(model_1_polls_1, ., allow.new.levels = TRUE),
@@ -364,18 +366,69 @@ predictions_1 <- test_data_elex_last %>%
          
   )
 
-# Calculate MAE on validation data
-(mae_1 <- predictions_1 %>%
-    #filter(days_diff_abs < 40) %>%
-    mutate(diff_1_elex_1 = abs(prediction_1_elex_1 - votes_share),
-           diff_1_elex_2 = abs(prediction_1_elex_2 - votes_share),
-           diff_1_polls_1 = abs(prediction_1_polls_1 - votes_share),
-           diff_1_polls_2 = abs(prediction_1_polls_2 - votes_share),
-    ) %>%
-    group_by(country, date_target) %>%
-    summarise(across(starts_with("diff"), ~mean(., na.rm = TRUE))) %>%
-    ungroup()
-)
+
+# Find MR model estimates
+estimates_mr_day <- create_test_data(senti_day_targets_covars) %>%
+  mutate(prediction_day_elex_1 = predict(mr_day_elex_1, ., allow.new.levels = TRUE),
+         prediction_day_elex_2 = predict(mr_day_elex_2, ., allow.new.levels = TRUE),
+         prediction_day_polls_3 = predict(mr_day_elex_3, ., allow.new.levels = TRUE),
+         prediction_day_polls_4 = predict(mr_day_elex_4, ., allow.new.levels = TRUE)
+  )
+
+estimates_mr_region <- create_test_data(senti_region_targets_covars) %>%
+  mutate(prediction_region_elex_1 = predict(mr_region_elex_1, ., allow.new.levels = TRUE),
+         prediction_region_elex_2 = predict(mr_region_elex_2, ., allow.new.levels = TRUE),
+         prediction_region_polls_3 = predict(mr_region_elex_3, ., allow.new.levels = TRUE),
+         prediction_region_polls_4 = predict(mr_region_elex_4, ., allow.new.levels = TRUE)
+  )
+
+# Bind estimates
+estimates_mr_master <- bind_rows(estimates_mr_day,
+                                 estimates_mr_region) %>%
+  select(date_target, country, region_1, region_2, leader, popshare, eye, phone, cellphone,
+         days_diff_abs, days_diff,
+         starts_with("prediction"), votes_share)
+
+# Pivot estimates master
+estimates_mr_master <- estimates_mr_master %>%
+  pivot_longer(cols = c(starts_with("prediction")), values_to = "estimate", names_to = "model") %>%
+  filter(!is.na(estimate)) %>%
+  # Calculate error
+  mutate(error = estimate - votes_share,
+         error_abs = abs(error))
+
+# Calculate MAE by model and country
+mae_mr_by_model <- estimates_mr_master %>%
+  filter(days_diff_abs < 10) %>%
+  group_by(country, model) %>%
+  summarise(mae = mean(error_abs, na.rm = TRUE),
+            n_regions = n_distinct(region_1)) %>%
+  ungroup()
+
+
+```
+
+```{r validate-mr-plots}
+# Plots for validating MR estimates
+estimates_mr_master
+
+# Plot MAE by model and region
+mae_mr_by_model %>%
+    mutate(model = as.factor(model),
+           country = reorder_within(country, mae, model)) %>%
+    ggplot(aes(country, y = mae, fill = model)) +
+    geom_col(show.legend = FALSE) +
+    facet_wrap(~model, scales = "free_y") +
+    coord_flip() +
+    scale_x_reordered()
+
+
+    scale_y_continuous(expand = c(0,0)) +
+    labs(y = "Number of babies per decade",
+         x = NULL,
+         title = "What were the most common baby names in each decade?",
+         subtitle = "Via US Social Security Administration")
+
 
 ```
 
