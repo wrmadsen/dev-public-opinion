@@ -488,6 +488,58 @@ polling_mex <- polling_mex_raw %>%
   ) %>%
   filter(!is.na(votes_share))
 
+# US,
+# Note this is approval rating
+polling_us_elliott <- polling_us_elliott_raw %>%
+  clean_names() %>%
+  transmute(country = "United States",
+            region_1 = "National",
+            region_2 = "National",
+            name = president,
+            date_target = as.Date(start_date, format = "%m/%d/%Y"),
+            votes_share = approving/100)
+
+polling_us_538 <- polling_us_538_raw %>%
+  clean_names() %>%
+  transmute(name = politician,
+            date_target = as.Date(start_date, format = "%m/%d/%y"),
+            votes_share = yes/100)
+
+polling_us_around_elex <- bind_rows(polling_us_2008_raw %>%
+            clean_names() %>%
+            transmute(date_target = as.Date(start_date, format = "%m/%d/%y"),
+                      obama,
+                      mccain),
+          polling_us_2012_raw %>%
+            clean_names() %>%
+            transmute(date_target = as.Date(start_date, format = "%m/%d/%y"),
+                      obama,
+                      romney),
+          polling_us_2016_raw %>%
+            clean_names() %>%
+            filter(population == "Likely Voters") %>%
+            transmute(date_target = as.Date(start_date, format = "%m/%d/%y"),
+                      trump,
+                      clinton)
+          ) %>%
+  pivot_longer(cols = c(obama, romney, mccain, trump, clinton), values_to = "votes_share", values_drop_na = TRUE) %>%
+  mutate(votes_share = votes_share/100)
+
+# Bind together
+polling_us <- bind_rows(polling_us_elliott, polling_us_538, polling_us_around_elex) %>%
+  mutate(country = "United States",
+         region_1 = "National",
+         region_2 = "National",
+         name = recode(name,
+                       "Bush 2" = "Bush Jr",
+                       "mccain" = "McCain",
+                       "obama" = "Obama",
+                       "clinton" = "Clinton",
+                       "trump" = "Trump",
+                       "Donald Trump" = "Trump",
+                       "romney" = "Romney")
+         )
+
 ## Combine country sheets and ad hoc ----
 polling_master <- bind_rows(polling_adhoc, polling_mex)
 
@@ -681,7 +733,7 @@ gdl_interpo <- gdl_w_gadm %>%
   mutate(across(c(eye, popshare, cellphone, phone), ~zoo::na.approx(., na.rm = FALSE, rule = 2)),
          across(c(eye, popshare, cellphone, phone), ~./100),
          popshare = if_else(popshare == 1, as.double(NA_integer_), popshare) # if national, popshare is NA
-                ) %>%
+  ) %>%
   ungroup()
 
 
@@ -691,12 +743,12 @@ gdl_interpo <- gdl_w_gadm %>%
 unique(polling_master$leader) %in% unique(elex_master$name)
 
 targets_master <- bind_rows(polling_master %>%
-                                   rename(name = leader) %>%
-                                   mutate(type = "poll"),
-                                 elex_master %>%
-                                   rename(date = elex_date) %>%
-                                   mutate(type = "election")
-                                   ) %>%
+                              rename(name = leader) %>%
+                              mutate(type = "poll"),
+                            elex_master %>%
+                              rename(date = elex_date) %>%
+                              mutate(type = "election")
+) %>%
   rename(date_target = date) %>%
   arrange(date_target) %>%
   select(-c(votes, votes_total))

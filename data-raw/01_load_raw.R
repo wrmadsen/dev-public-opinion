@@ -86,6 +86,13 @@ polling_adhoc_raw <- read_excel("data-raw/polling/polling_manual.xls", sheet = "
 ## Country sheets -----
 polling_mex_raw <- read_excel("data-raw/polling/polling_manual.xls", sheet = "mexico")
 
+## US polls from The Economist, Elliott Morris
+polling_us_elliott_raw <- read_csv("data-raw/polling/pres_approval_data_morris.csv")
+polling_us_538_raw <- read_csv("data-raw/polling/president_approval_polls_538.csv")
+polling_us_2008_raw <- read_csv("data-raw/polling/us_all_polls_2008.csv")
+polling_us_2012_raw <- read_csv("data-raw/polling/us_all_polls_2012.csv")
+polling_us_2016_raw <- read_csv("data-raw/polling/us_all_polls_economist.csv")
+
 ## Afrobarometer surveys -----
 # https://afrobarometer.org/data/merged-data
 afro_r7_raw <- haven::read_sav("data-raw/polling/r7_merged_data_34ctry.release.sav")

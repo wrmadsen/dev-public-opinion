@@ -68,6 +68,7 @@ fwrite(senti_tokens, file = "data/senti_tokens.csv", nThread = 8)
 
 save(supp, reign, candidates,
      elex_master, polling_master,
+     polling_us,
      targets_master, gdl_interpo,
      file = "data/formatted_supplementary.RData")
 
