@@ -3,21 +3,43 @@
 #' @param reign reign object with leaders' term length.
 #' @param candidates candidates of elections.
 #' @return get frequency dataset, where each row gives a string (a leader) and period to be used to get Tweets with twint.
-create_get_freq <- function(reign, candidates, by_type = "days", by_n = 12){
+create_get_freq <- function(reign, candidates, targets_master, by_type = "days", by_n = 12){
 
-  # Format candidates data
-  candidates_to_get <- candidates %>%
-    transmute(country,
-              name,
-              start = elex_date - months(4),
-              end = elex_date + months(1)
-    )
+  # Find time period to collect Tweets for candidates
+  # Find first and last target in time for candidates
+  candidates_first_and_last <- targets_master %>%
+    filter(name %in% candidates$name) %>%
+    group_by(country, name)
 
+  candidates_to_collect <- bind_rows(candidates_first_and_last %>%
+                                       slice_min(date_target, n = 1, with_ties = FALSE) %>%
+                                       mutate(type = "start"),
+                                     candidates_first_and_last %>%
+                                       slice_max(date_target, n = 1, with_ties = FALSE) %>%
+                                       mutate(type = "end")
+  ) %>%
+    ungroup() %>%
+    arrange(name) %>%
+    select(date_target, name, country, type) %>%
+    # pivot to create start and end columns
+    pivot_wider(names_from = type, values_from = date_target) %>%
+    # add or substract months to collect before and after
+    mutate(start = floor_date(start) - months(3),
+           end = floor_date(end) + months(3),
+           across(c(start, end), as.Date)
+           )
+
+  candidates_to_collect <- candidates_to_collect %>%
+    filter(!name %in% reign$name)
+
+  # Create frequency by days or hours
+
+  # By hours
   if (by_type == "days"){
     # Get by days
     reign %>%
       # Add candidates (winners and losers) to collect tweets for before election
-      bind_rows(candidates_to_get) %>%
+      bind_rows(candidates_to_collect) %>%
       arrange(country, end) %>%
       rowwise() %>%
       mutate(start = floor_date(start, "month"),
@@ -44,10 +66,10 @@ create_get_freq <- function(reign, candidates, by_type = "days", by_n = 12){
 
   } else{
 
-    # Get by hours
+    # Collect by hours
     reign %>%
       # Add candidates (winners and losers) to collect tweets for before election
-      bind_rows(candidates_to_get) %>%
+      bind_rows(candidates_to_collect) %>%
       arrange(country, end) %>%
       rowwise() %>%
       mutate(start = floor_date(start, "month") %>% paste0(., "00:00:00") %>% as.POSIXct(., tz = "UTC"),
@@ -78,14 +100,18 @@ create_get_freq <- function(reign, candidates, by_type = "days", by_n = 12){
 #' @return smallest possible circles.
 create_smallest_possible <- function(boundaries_national){
 
+  # Simplify
+  boundaries_national_simp <- boundaries_national %>%
+    st_simplify(., dTolerance = 0.001)
+
   # For loop to find circle for each country
   small_circs <- c()
 
-  for (i in 1:nrow(boundaries_national)){
+  for (i in 1:nrow(boundaries_national_simp)){
 
     # Create smallest-possible circle
     # need spatstat and maptools
-    small_circ <- boundaries_national[i,] %>%
+    small_circ <- boundaries_national_simp[i,] %>%
       sf::st_transform(3857) %>% # need planar projection
       sf::as_Spatial() %>%
       as.owin() %>% # convert to owin to use boundingcircle()
@@ -99,7 +125,7 @@ create_smallest_possible <- function(boundaries_national){
   }
 
   # Get country and id variables from GADM and add vector
-  boundaries_national %>%
+  boundaries_national_simp %>%
     as_tibble() %>%
     transmute(id = row_number(), country, geom = small_circs) %>%
     st_as_sf(crs = 3857) %>%
