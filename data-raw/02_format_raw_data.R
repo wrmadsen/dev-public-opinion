@@ -163,6 +163,8 @@ subnational_names <- boundaries_subnational %>%
 reign <- reign_raw %>%
   clean_names() %>%
   select(country, name = leader, year, month) %>%
+  # filter countries
+  filter(country %in% c("Nigeria", "Zimbabwe", "Georgia", "Mexico", "Afghanistan")) %>%
   # get start and end of term for each leader, need to use row_number to get last term of last country
   filter(lag(name) != name | lead(name) != name | row_number() == n()) %>%
   # note term number, several sequentially count as one
@@ -182,6 +184,7 @@ reign <- reign_raw %>%
   ) %>%
   # match between reign and candidates objects
   left_join(., name_lookup, by = c("name" = "from")) %>%
+  mutate(common = if_else(is.na(common), name, common)) %>%
   select(-name) %>%
   rename(start = term_start, end = term_end, name = common) %>%
   # drop NA names, i.e. countries or leaders not included in look-up
