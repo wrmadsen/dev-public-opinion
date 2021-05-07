@@ -15,8 +15,8 @@ blue_colour <- "#0000FF"
 # Theme
 theme_devpublicopinion <- theme(axis.text = element_text(size = unit(text_size, "mm"),
                                                          family = theme_font, colour = "black"),
-                                axis.title.x = element_text(size = unit(text_size, "mm"), family = theme_font),
-                                axis.title.y = element_blank(),
+                                axis.title = element_text(size = unit(text_size, "mm"), family = theme_font),
+                                #axis.title.y = element_blank(),
                                 axis.ticks = element_blank()) +
   theme(plot.title = element_text(size = unit(text_size*1.5, "mm"), family = theme_font),
         plot.subtitle = element_text(size = unit(text_size, "mm"), family = theme_font),
