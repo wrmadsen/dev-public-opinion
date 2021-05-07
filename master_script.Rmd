@@ -311,17 +311,23 @@ train_data_polls_region <- create_training_data(senti_region_targets_covars,
 
 ```{r linear-models}
 # Linear models
-fit_lm_1_for_country <- function(train_data){ lm(votes_share ~ afinn_mean, data = train_data) }
-fit_lm_2_for_country <- function(train_data){ lm(votes_share ~ n_likes_mean, data = train_data) }
-fit_lm_3_for_country <- function(train_data){ lm(votes_share ~ afinn_mean*n_likes_mean, data = train_data) }
+fit_lm_1_day <- function(train_data){ lm(votes_share ~ afinn_mean, data = train_data) }
+fit_lm_2_day <- function(train_data){ lm(votes_share ~ n_likes_mean, data = train_data) }
+fit_lm_3_day <- function(train_data){ lm(votes_share ~ afinn_mean*n_likes_mean, data = train_data) }
+
+fit_lm_1_region <- function(train_data){ lm(votes_share ~ afinn_mean_daily + afinn_mean_region, data = train_data) }
+fit_lm_2_region <- function(train_data){ lm(votes_share ~ n_likes_mean, data = train_data) }
+fit_lm_3_region <- function(train_data){ lm(votes_share ~  afinn_mean_daily*n_likes_mean + afinn_mean_region,
+                                            data = train_data) }
 
 # Fit models on elections
+# Day
 lm_d_e <- train_data_elex_first_day %>%
   group_by(country) %>% 
   nest() %>%
-  mutate(lm_1_d_e = purrr::map(data, ~fit_lm_1_for_country(.x)),
-         lm_2_d_e = purrr::map(data, ~fit_lm_2_for_country(.x)),
-         lm_3_d_e = purrr::map(data, ~fit_lm_3_for_country(.x))
+  mutate(lm_1_d_e = purrr::map(data, ~fit_lm_1_day(.x)),
+         lm_2_d_e = purrr::map(data, ~fit_lm_2_day(.x)),
+         lm_3_d_e = purrr::map(data, ~fit_lm_3_day(.x))
   ) %>%
   ungroup() %>%
   pivot_longer(cols = c(lm_1_d_e, lm_2_d_e, lm_3_d_e), names_to = "model_name", values_to = "model") %>%
@@ -330,13 +336,31 @@ lm_d_e <- train_data_elex_first_day %>%
 
 lm_d_e
 
+# Region
+lm_r_e <- train_data_elex_first_region %>%
+  group_by(country) %>% 
+  nest() %>%
+  mutate(lm_1_r_e = purrr::map(data, ~fit_lm_1_region(.x)),
+         lm_2_r_e = purrr::map(data, ~fit_lm_2_region(.x)),
+         lm_3_r_e = purrr::map(data, ~fit_lm_3_region(.x))
+  ) %>%
+  ungroup() %>%
+  pivot_longer(cols = c(lm_1_r_e, lm_2_r_e, lm_3_r_e), names_to = "model_name", values_to = "model") %>%
+  mutate(model_type = "region") %>%
+  rename(model_country = country)
+
+lm_r_e
+
+
+
 ```
 
 
 ```{r multi-models}
 # Multilevel models
 
-# Functions for multilevel regression
+# Functions for multilevel regression fitting
+# Day
 fit_mr_1_day <- function(train_data){ lmer(votes_share ~ afinn_mean + (1 | country), data = train_data) }
 
 fit_mr_2_day <- function(train_data){ lmer(votes_share ~ n_likes_mean + (1 | country), data = train_data) }
@@ -344,17 +368,29 @@ fit_mr_2_day <- function(train_data){ lmer(votes_share ~ n_likes_mean + (1 | cou
 fit_mr_3_day <- function(train_data){ lmer(votes_share ~ afinn_mean*n_likes_mean + (1 | country),
                                            data = train_data) }
 
+fit_mr_4_day <- function(train_data){ lmer(votes_share ~ afinn_mean*n_likes_mean + (1 + afinn_mean | country),
+                                           data = train_data) }
+
+
+# Region
 fit_mr_1_region <- function(train_data){
-  lmer(votes_share ~ afinn_mean_daily + afinn_mean_region + (1 | country), data = train_data)
+  lmer(votes_share ~ afinn_mean_daily + afinn_mean_region + phone + (1 | country), data = train_data)
 }
 
 fit_mr_2_region <- function(train_data){
-  lmer(votes_share ~ n_likes_mean + (1 | country), data = train_data)
+  lmer(votes_share ~ n_likes_mean + phone + (1 | country), data = train_data)
 }
 
 fit_mr_3_region <- function(train_data){
-  lmer(votes_share ~ afinn_mean_daily*n_likes_mean + afinn_mean_region + (1 | country), data = train_data)
+  lmer(votes_share ~ afinn_mean_daily + n_likes_mean + afinn_mean_region + phone + (1 | country), data = train_data)
 }
+
+fit_mr_4_region <- function(train_data){
+  lmer(votes_share ~ afinn_mean_daily + afinn_mean_region + phone + (1 + afinn_mean_daily | country), data = train_data)
+}
+
+# Check training data
+names(train_data_elex_first_day)
 
 # Fit multilevel models on elections
 # Day
@@ -362,20 +398,22 @@ mr_d_e <- train_data_elex_first_day %>%
   nest(data = everything()) %>%
   mutate(mr_1_d_e = purrr::map(data, ~fit_mr_1_day(.x)),
          mr_2_d_e = purrr::map(data, ~fit_mr_2_day(.x)),
-         mr_3_d_e = purrr::map(data, ~fit_mr_3_day(.x))
+         mr_3_d_e = purrr::map(data, ~fit_mr_3_day(.x)),
+         mr_4_d_e = purrr::map(data, ~fit_mr_4_day(.x))
   ) %>%
-  pivot_longer(cols = c(2:4), names_to = "model_name", values_to = "model") %>%
+  pivot_longer(cols = starts_with("mr"), names_to = "model_name", values_to = "model") %>%
   mutate(model_type = "day")
-
 
 # Region
 mr_r_e <- train_data_elex_first_region %>%
   nest(data = everything()) %>%
   mutate(mr_1_r_e = purrr::map(data, ~fit_mr_1_region(.x)),
          mr_2_r_e = purrr::map(data, ~fit_mr_2_region(.x)),
-         mr_3_r_e = purrr::map(data, ~fit_mr_3_region(.x))
+         mr_3_r_e = purrr::map(data, ~fit_mr_3_region(.x)),
+         mr_4_r_e = purrr::map(data, ~fit_mr_4_region(.x))
+         
   ) %>%
-  pivot_longer(cols = c(2:4), names_to = "model_name", values_to = "model") %>%
+  pivot_longer(cols = starts_with("mr"), names_to = "model_name", values_to = "model") %>%
   mutate(model_type = "region")
 
 
@@ -385,9 +423,11 @@ mr_d_p <- train_data_polls_day %>%
   nest(data = everything()) %>%
   mutate(mr_1_d_p = purrr::map(data, ~fit_mr_1_day(.x)),
          mr_2_d_p = purrr::map(data, ~fit_mr_2_day(.x)),
-         mr_3_d_p = purrr::map(data, ~fit_mr_3_day(.x))
+         mr_3_d_p = purrr::map(data, ~fit_mr_3_day(.x)),
+         mr_4_d_p = purrr::map(data, ~fit_mr_4_day(.x))
+         
   ) %>%
-  pivot_longer(cols = c(2:4), names_to = "model_name", values_to = "model") %>%
+  pivot_longer(cols = starts_with("mr"), names_to = "model_name", values_to = "model") %>%
   mutate(model_type = "day")
 
 
@@ -396,9 +436,11 @@ mr_r_p <- train_data_polls_region %>%
   nest(data = everything()) %>%
   mutate(mr_1_r_p = purrr::map(data, ~fit_mr_1_region(.x)),
          mr_2_r_p = purrr::map(data, ~fit_mr_2_region(.x)),
-         mr_3_r_p = purrr::map(data, ~fit_mr_3_region(.x))
+         mr_3_r_p = purrr::map(data, ~fit_mr_3_region(.x)),
+         mr_4_r_p = purrr::map(data, ~fit_mr_4_region(.x)),
+         
   ) %>%
-  pivot_longer(cols = c(2:4), names_to = "model_name", values_to = "model") %>%
+  pivot_longer(cols = starts_with("mr"), names_to = "model_name", values_to = "model") %>%
   mutate(model_type = "region")
 
 
@@ -406,12 +448,7 @@ mr_r_p <- train_data_polls_region %>%
 
 # All models
 ```{r bind-all-models}
-# Join countries to multilevel models
-# Required before joining all models to test data
-countries_to_join <- senti_day_targets_covars %>%
-  distinct(country) %>%
-  mutate(join_id = 1)
-
+# Bind MR models
 models_mr <- bind_rows(mr_d_e,
                        mr_d_p,
                        mr_r_e,
@@ -419,18 +456,13 @@ models_mr <- bind_rows(mr_d_e,
   select(-data) %>%
   mutate(join_id = 1)
 
-#models_mr <- left_join(countries_to_join, models_mr)
-
 # Bind all models together
 # Multilevel and linear
-models_master <- bind_rows(lm_d_e,
-                           models_mr) %>%
-  select(-data, -join_id) %>%
-  mutate(model_no = row_number())
-
-head(models_master)
+models_master <- bind_all_models(models_mr, lm_r_e, lm_d_e)
 
 models_master %>% filter(is.na(model_country))
+
+models_master %>% distinct(model_name_long)
 
 # Use tidy to get model statistics
 # broom and broom.mixed packages
@@ -438,15 +470,11 @@ models_stats <- models_master %>%
   mutate(model_tidy = purrr::map(model, broom.mixed::tidy)) %>%
   unnest(model_tidy)
 
-# Add names for models
-
 
 ```
 
 
-```{r model-predictions}
-# Predictions
-
+```{r create-test-data}
 # Create test data
 test_day <- create_test_data(senti_day_targets_covars, choose_type = "election") %>%
   mutate(test_type = "day")
@@ -457,47 +485,51 @@ test_region <- create_test_data(senti_region_targets_covars, choose_type = "elec
 test_master <- bind_rows(test_day,
                          test_region) %>%
   mutate(test_id = row_number())
-
-# Add models to test data
-#test_master_2 <- add_models_to_test_data(test_master,
-#                                         models_master)
+```
 
 
-# Get estimates for each test row by different models
-prediction_raw <- purrr::map(models_master$model, ~predict(.x, test_master, allow.new.levels = TRUE))
-
-# Pivot longer
-prediction <- prediction_raw %>%
-  bind_rows() %>%
-  mutate(model_no = row_number()) %>%
-  pivot_longer(cols = c(1:ncol(.)-1), names_to = "test_id", values_to = "prediction") %>%
-  mutate(test_id = as.integer(test_id)) %>%
-  left_join(.,
-            models_master %>% select(-model),
-            by = "model_no")
-
-# Add estimates to test data
-# Allows us to calculate difference between actual vote share and estimated share
-prediction_master <- left_join(test_master, prediction, by = "test_id")
-
-# Remove rows if test type is not model type (region or day) 
-# or if test country is not model country (except for multilevel models with no model country)
-prediction_master <- prediction_master %>%
-  filter(test_type == model_type) %>%
-  filter(is.na(model_country) | model_country == country)
-
+```{r make-predictions}
+# Add predictions for all models
+prediction_master <- add_all_model_predictions(models_master, test_master)
 
 ```
 
 
-```{r add-post}
+```{r find-post-predictions}
 # Add post-stratified estimates with GDL's popshare variable
 prediction_master <- prediction_master %>%
-  mutate(across(starts_with("prediction"), ~.*popshare, .names = "{.col}_post"))
+  mutate(prediction_post = prediction*popshare)
+
+# Summarise weighted prediction of each region by country
+predictions_post_national <- prediction_master %>%
+  filter(region_2 != "National") %>%
+  group_by(country, leader, model_name, model_name_long) %>%
+  summarise(prediction_post = weighted.mean(prediction, popshare, na.rm = TRUE),
+            n_tweets = sum(n_tweets, na.rm = TRUE)) %>%
+  arrange(country)
+
+# Find actual national vote shares
+actual_shares_national <- find_actual_vote_shares_national(prediction_master)
+
+# Join predictions and actual
+predictions_post_national <- left_join(actual_shares_national, predictions_post_national) %>%
+  mutate(error = prediction_post - votes_share,
+         error_abs = abs(error)
+         )
+
+predictions_post_national %>%
+  #filter(country != "Zimbabwe") %>%
+  group_by(model_name, model_name_long) %>%
+  summarise(mae = mean(error_abs),
+            n_tweets_mean = mean(n_tweets)) %>%
+  arrange(mae)
+
 
 
 ```
 
+
+# Validation
 
 ```{r calculate-mae}
 # Calculate error
@@ -505,21 +537,31 @@ prediction_master <- prediction_master %>%
   mutate(error = prediction - votes_share,
          error_abs = abs(error))
 
-# Find MAE
-prediction_master %>%
-  filter(days_diff_abs < 10) %>%
-  group_by(country, model_name) %>%
-  summarise(mae = mean(error_abs, na.rm = TRUE))
-
-
-# Unique models
-prediction_master$model %>% unique()
-
 
 ```
 
 
-# Validation
+```{r mae-by-model}
+# Find MAE by model, include NAs
+prediction_master %>%
+  filter(region_2 == "National") %>%
+  filter(days_diff_abs < 10) %>%
+  group_by(model_name, model_name_long) %>%
+  summarise(mae = mean(error_abs)) %>%
+  arrange(mae)
+
+# Exclude NAs
+prediction_master %>%
+  filter(region_2 == "National") %>%
+  filter(days_diff_abs < 10) %>%
+  group_by(model_name, model_name_long) %>%
+  summarise(mae = mean(error_abs, na.rm = TRUE)) %>%
+  arrange(mae)
+
+```
+
+
+
 ```{r validate-mr-data}
 # Plots for validating MR estimates
 prediction_master
@@ -556,12 +598,12 @@ mae_by_model_region <- prediction_master %>%
 
 # Add model average level
 (mae_by_model_region <- bind_rows(mae_by_model_region,
-                                     mae_by_model_region %>%
-                                       mutate(model_name = "Model average") %>%
-                                       group_by(model_name, country, region_1, region_2) %>%
-                                       summarise(votes_share = mean(votes_share, na.rm = TRUE),
-                                                 prediction = mean(prediction, na.rm = TRUE),
-                                                 mae = mean(mae, na.rm = TRUE))
+                                  mae_by_model_region %>%
+                                    mutate(model_name = "Model average") %>%
+                                    group_by(model_name, country, region_1, region_2) %>%
+                                    summarise(votes_share = mean(votes_share, na.rm = TRUE),
+                                              prediction = mean(prediction, na.rm = TRUE),
+                                              mae = mean(mae, na.rm = TRUE))
 ) #%>% filter(model == "Model average")
 )
 
