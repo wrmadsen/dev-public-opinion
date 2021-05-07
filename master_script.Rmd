@@ -154,7 +154,7 @@ raw_day %>%
 
 ```
 
-```{r add-targets-to-raw}
+```{r add-targets-and-gdl-to-raw}
 # Add targets (election results and polls)
 # Join sentiment with target vector, election and polling results
 raw_day <- raw_day %>%
@@ -212,7 +212,7 @@ raw_mae %>%
 ```
 
 
-# Add targets for models
+# Add targets and GDL for models
 ```{r add-to-senti-day}
 # Add targets (election results and polls)
 # Join sentiment with target vector, election and polling results
@@ -552,28 +552,28 @@ estimates_master_cor <- estimates_master_cor %>%
   pivot_longer(names_to = "y", values_to = "value", popshare:error_abs)
 
 estimates_master_cor %>%
-    arrange(x, y) %>%
-    ggplot(aes(x = x, y = y, fill = value)) + 
-    geom_tile() +
-    scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
-     midpoint = 0, limit = c(-1,1), space = "Lab", 
-     name = "Pearson\nCorrelation") +
-    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
-    coord_fixed() +
-    labs(x = "feature", 
-         y = "feature",
-        title = "Correlation between features", 
-        caption = "Source: Pima Indians Diabetes Database")
+  arrange(x, y) %>%
+  ggplot(aes(x = x, y = y, fill = value)) + 
+  geom_tile() +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+                       midpoint = 0, limit = c(-1,1), space = "Lab", 
+                       name = "Pearson\nCorrelation") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
+  coord_fixed() +
+  labs(x = "feature", 
+       y = "feature",
+       title = "Correlation between features", 
+       caption = "Source: Pima Indians Diabetes Database")
 
 
 # Scatterplot matrix
 ggpairs(estimates_master, 
         columns = c(eye, cellphone, phone),
         alpha = 0.7) +
-    labs(x = "feature", 
-         y = "feature",
-        title = "Scatterplot matrix", 
-        caption = "Source: Pima Indians Diabetes Database")
+  labs(x = "feature", 
+       y = "feature",
+       title = "Scatterplot matrix", 
+       caption = "Source: Pima Indians Diabetes Database")
 
 ```
 
@@ -892,13 +892,81 @@ gdl_interpo %>%
 ```
 
 
+```{r plot-geotagged-volume-by-popshare}
+# Plot geotagged share of Tweets by actual population
+tweets_sf_df <- tweets_sf %>%
+  as.data.frame() %>%
+  select(-geometry) %>%
+  mutate(year = year(date))
 
-```{r plot-point-mae-by-election}
-# Point plot of MAE by elections
-# Highlight problematic/special elections (ZWE 2013)
+# Fix national level
+tweets_sf_df <- add_national_level(tweets_sf_df)
+
+# Calculate geotagged Tweets frequency and share
+geotagged_volume <- tweets_sf_df %>%
+  group_by(year, country, region_1, region_2, has_point) %>%
+  summarise(tweets_region_2_n = n()) %>%
+  filter(has_point & region_1 != "National" | !has_point) %>% # remove points outside of country
+  filter(has_point) %>%
+  group_by(year, country) %>%
+  mutate(tweets_national_share = tweets_region_2_n/sum(tweets_region_2_n)) %>%
+  ungroup()
+
+# Add GDL statistics (targets)
+geotagged_volume <- add_gdl_covariates(geotagged_volume, gdl_interpo)
+
+geotagged_volume
+
+geotagged_volume %>%
+  group_by(year, country) %>%
+  summarise(popshare = sum(popshare, na.rm = TRUE)) %>%
+  arrange(-popshare)
+
+# Plot by country
+ggplot(geotagged_volume,
+       aes(x = tweets_national_share,
+           y = popshare)) +
+  geom_point(aes(colour = country), show.legend = FALSE) +
+  geom_label_repel(data = geotagged_volume %>%
+                     filter(tweets_national_share/popshare > 3) %>%
+                     group_by(country) %>%
+                     slice_sample(n = 1),
+                   aes(x = tweets_national_share,
+                       y = popshare,
+                       label = region_1),
+                   min.segment.length = 0.5,
+                   size = 5) +
+  facet_wrap(~country) +
+  labs(title = "Share of geotagged Tweets in subnational region by actual population share") +
+  theme_devpublicopinion
+
+
+# Plot over time
+# if the correlation becomes closer to one, estimates may get less biased?
+ggplot(geotagged_volume,
+       aes(x = tweets_national_share,
+           y = popshare)) +
+  geom_point(aes(colour = country), show.legend = FALSE) +
+  geom_smooth(method = "lm") +
+  # geom_label_repel(data = geotagged_volume %>%
+  #                    filter(tweets_national_share/popshare > 3) %>%
+  #                    group_by(country) %>%
+  #                    slice_sample(n = 1),
+  #                  aes(x = tweets_national_share,
+  #                      y = popshare,
+  #                      label = region_1),
+  #                  min.segment.length = 0.5,
+  #                  size = 5) +
+  facet_wrap(~year) +
+  scale_x_continuous(limits = c(0, 1)) +
+  scale_y_continuous(limits = c(0, 1)) +
+  labs(title = "Share of geotagged Tweets in subnational region by actual population share") +
+  theme_devpublicopinion
 
 
 ```
+
+
 
 
 
