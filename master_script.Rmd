@@ -5,7 +5,7 @@ output: html_document
 ---
 
 # Set up
-```{r set-up}
+```{r load-packages}
 # Load packages
 library(tidyverse)
 library(devtools)
@@ -40,9 +40,18 @@ library(data.table)
 require(scales)
 library(patchwork)
 library(GGally)
+library(broom.mixed)
+library(modelr)
 
 # Load package functions
 #devtools::load_all()
+
+```
+
+```{r source-scripts}
+# Source R scripts
+list.files("R", full.names = TRUE) %>%
+  purrr::map(source)
 
 ```
 
@@ -50,8 +59,6 @@ library(GGally)
 ```{r load-data}
 # Load formatted data
 # Formatted with R scripts in data-raw
-#load("data/formatted_data.RData")
-
 load("data/formatted_gadm.RData")
 
 load("data/formatted_supplementary.RData")
@@ -63,15 +70,6 @@ tweets_sub <- fread("data/tweets_sub.csv")
 senti_tokens <- fread("data/senti_tokens.csv")
 
 ```
-
-
-```{r source-scripts}
-# Source R scripts
-list.files("R", full.names = TRUE) %>%
-  purrr::map(source)
-
-```
-
 
 # Sentiment analysis
 
@@ -160,8 +158,6 @@ raw_day %>%
 raw_day <- raw_day %>%
   mutate(target_id = row_number())
 
-nrow(raw_day)
-
 raw_day_targets_all <- join_targets(raw_day, targets_master)
 
 # Check which senti regions are not in targets object
@@ -170,10 +166,12 @@ raw_day %>% filter(!region_1 %in% targets_master$region_1) %>% distinct(country,
 # Select nearest target (election or poll) for each day
 raw_day_targets <- select_nearest_target(raw_day_targets_all)
 
-nrow(raw_day_targets) # number of rows after finding nearest target 
+# Compare rows
+nrow(raw_day)
+nrow(raw_day_targets)
 
+# Create variable with country and region_1
 raw_day_targets <- raw_day_targets %>%
-  # create variable with country and region_1
   mutate(year = year(date),
          country_and_region_1 = paste0(country, "_", region_1))
 
@@ -211,7 +209,6 @@ raw_mae %>%
 
 ```
 
-
 # Add targets and GDL for models
 ```{r add-to-senti-day}
 # Add targets (election results and polls)
@@ -219,6 +216,7 @@ raw_mae %>%
 senti_day <- senti_day %>%
   mutate(target_id = row_number())
 
+# Add national level to join targets
 senti_day <- add_national_level(senti_day)
 
 senti_day_targets_all <- join_targets(senti_day, targets_master)
@@ -233,8 +231,8 @@ senti_day_targets <- select_nearest_target(senti_day_targets_all)
 nrow(senti_day)
 nrow(senti_day_targets)
 
+# Create variable with country and region_1
 senti_day_targets <- senti_day_targets %>%
-  # create variable with country and region_1
   mutate(year = year(date),
          country_and_region_1 = paste0(country, "_", region_1))
 
@@ -264,7 +262,8 @@ senti_region %>% filter(!region_1 %in% targets_master$region_1) %>% distinct(cou
 # Select nearest target (election or poll) for each day
 senti_region_targets <- select_nearest_target(senti_region_targets_all)
 
-# Compare rows, new rows indicate targets being of equal diff days to a sentiment day
+# Compare rows
+# New rows indicate targets being of equal diff days to a sentiment day
 nrow(senti_region)
 nrow(senti_region_targets)
 
@@ -292,9 +291,7 @@ senti_region_targets_covars %>%
 ```
 
 # Multilevel regression
-```{r mr-models}
-# Multilevel models
-
+```{r training-data}
 # Training data
 # Sentiment day
 train_data_elex_first_day <- create_training_data(senti_day_targets_covars,
@@ -309,69 +306,168 @@ train_data_polls_region <- create_training_data(senti_region_targets_covars,
                                                 type = "polls", less_than_days_diff = 100)
 
 
+```
+
+
+```{r linear-models}
+# Linear models
+fit_lm_1_for_country <- function(train_data){ lm(votes_share ~ afinn_mean, data = train_data) }
+fit_lm_2_for_country <- function(train_data){ lm(votes_share ~ n_likes_mean, data = train_data) }
+fit_lm_3_for_country <- function(train_data){ lm(votes_share ~ afinn_mean*n_likes_mean, data = train_data) }
+
+# Fit models on elections
+lm_d_e <- train_data_elex_first_day %>%
+  group_by(country) %>% 
+  nest() %>%
+  mutate(lm_1_d_e = purrr::map(data, ~fit_lm_1_for_country(.x)),
+         lm_2_d_e = purrr::map(data, ~fit_lm_2_for_country(.x)),
+         lm_3_d_e = purrr::map(data, ~fit_lm_3_for_country(.x))
+  ) %>%
+  ungroup() %>%
+  pivot_longer(cols = c(lm_1_d_e, lm_2_d_e, lm_3_d_e), names_to = "model_name", values_to = "model") %>%
+  mutate(test_type = "day")
+
+lm_d_e
 
 ```
 
 
-```{r mr-models}
+```{r multi-models}
 # Multilevel models
 
-# Fit day models
-# Trained on election results
-mr_day_elex_1 <- lmer(votes_share ~ afinn_mean + (1 | country),
-                      data = train_data_elex_first_day)
+# Functions for multilevel regression
+fit_mr_1_day <- function(train_data){ lmer(votes_share ~ afinn_mean + (1 | country), data = train_data) }
 
-mr_day_elex_2 <- lmer(votes_share ~ afinn_mean + (1 + afinn_mean | country),
-                      data = train_data_elex_first_day)
+fit_mr_2_day <- function(train_data){ lmer(votes_share ~ n_likes_mean + (1 | country), data = train_data) }
 
-mr_day_elex_3 <- lmer(votes_share ~ afinn_mean + n_likes_mean + (1 + afinn_mean | country),
-                      data = train_data_elex_first_day)
+fit_mr_3_day <- function(train_data){ lmer(votes_share ~ afinn_mean*n_likes_mean + (1 | country),
+                                           data = train_data) }
 
-mr_day_elex_4 <- lmer(votes_share ~ afinn_mean + (1 + afinn_mean + days_diff_abs | country),
-                      data = train_data_elex_first_day)
+fit_mr_1_region <- function(train_data){
+  lmer(votes_share ~ afinn_mean_daily + afinn_mean_region + (1 | country), data = train_data)
+}
 
-# Trained on polls
-mr_day_polls_1 <- lmer(votes_share ~ afinn_mean + (1 | country),
-                       data = train_data_polls_day)
+fit_mr_2_region <- function(train_data){
+  lmer(votes_share ~ n_likes_mean + (1 | country), data = train_data)
+}
 
-mr_day_polls_2 <- lmer(votes_share ~ afinn_mean + (1 + afinn_mean | country),
-                       data = train_data_polls_day)
+fit_mr_3_region <- function(train_data){
+  lmer(votes_share ~ afinn_mean_daily*n_likes_mean + afinn_mean_region + (1 | country), data = train_data)
+}
+
+# Fit multilevel models on elections
+# Day
+mr_d_e <- train_data_elex_first_day %>%
+  nest(data = everything()) %>%
+  mutate(mr_1_d_e = purrr::map(data, ~fit_mr_1_day(.x)),
+         mr_2_d_e = purrr::map(data, ~fit_mr_2_day(.x)),
+         mr_3_d_e = purrr::map(data, ~fit_mr_3_day(.x))
+  ) %>%
+  pivot_longer(cols = c(2:4), names_to = "model_name", values_to = "model") %>%
+  mutate(test_type = "day")
 
 
-# Fit region models
-# By election results
-mr_region_elex_1 <- lmer(votes_share ~ afinn_mean_daily + (1 | country),
-                         data = train_data_elex_first_region)
+# Region
+mr_r_e <- train_data_elex_first_region %>%
+  nest(data = everything()) %>%
+  mutate(mr_1_r_e = purrr::map(data, ~fit_mr_1_region(.x)),
+         mr_2_r_e = purrr::map(data, ~fit_mr_2_region(.x)),
+         mr_3_r_e = purrr::map(data, ~fit_mr_3_region(.x))
+  ) %>%
+  pivot_longer(cols = c(2:4), names_to = "model_name", values_to = "model") %>%
+  mutate(test_type = "region")
 
-mr_region_elex_2 <- lmer(votes_share ~ afinn_mean_daily + afinn_mean_region + (1 + afinn_mean_daily | country),
-                         data = train_data_elex_first_region)
 
-mr_region_elex_3 <- lmer(votes_share ~ afinn_mean_daily + n_likes_mean + (1 + afinn_mean_daily | country),
-                         data = train_data_elex_first_region)
+# Fit multilevel models on polls
+# Day
+mr_d_p <- train_data_polls_day %>%
+  nest(data = everything()) %>%
+  mutate(mr_1_d_p = purrr::map(data, ~fit_mr_1_day(.x)),
+         mr_2_d_p = purrr::map(data, ~fit_mr_2_day(.x)),
+         mr_3_d_p = purrr::map(data, ~fit_mr_3_day(.x))
+  ) %>%
+  pivot_longer(cols = c(2:4), names_to = "model_name", values_to = "model") %>%
+  mutate(test_type = "day")
 
-mr_region_elex_4 <- lmer(votes_share ~ afinn_mean_daily + days_diff_abs + (1 + afinn_mean_daily | country),
-                         data = train_data_elex_first_region)
 
-# Trained on polls
-mr_region_polls_1 <- lmer(votes_share ~ afinn_mean_daily + (1 | country),
-                          data = train_data_polls_region)
+# Region
+mr_r_p <- train_data_polls_region %>%
+  nest(data = everything()) %>%
+  mutate(mr_1_r_p = purrr::map(data, ~fit_mr_1_region(.x)),
+         mr_2_r_p = purrr::map(data, ~fit_mr_2_region(.x)),
+         mr_3_r_p = purrr::map(data, ~fit_mr_3_region(.x))
+  ) %>%
+  pivot_longer(cols = c(2:4), names_to = "model_name", values_to = "model") %>%
+  mutate(test_type = "region")
 
-mr_region_polls_2 <- lmer(votes_share ~ afinn_mean_daily + (1 + afinn_mean_daily | country),
-                          data = train_data_polls_region)
+
+```
+
+# All models
+```{r bind-all-models}
+# Join countries to multilevel models
+# Required before joining all models to test data
+countries_to_join <- senti_day_targets_covars %>%
+  distinct(country) %>%
+  mutate(join_id = 1)
+
+models_mr <- bind_rows(mr_d_e,
+                       mr_d_p,
+                       mr_r_e,
+                       mr_r_p) %>%
+  select(-data) %>%
+  mutate(join_id = 1)
+
+models_mr <- left_join(countries_to_join, models_mr)
+
+# Bind all models together
+# Multilevel and linear
+models_master <- bind_rows(lm_d_e,
+                           models_mr) %>%
+  select(-data, -join_id) 
+
+head(models_master)
+
+# Use tidy to get model statistics
+# broom and broom.mixed packages
+models_master <- models_master %>%
+  mutate(model_tidy = purrr::map(model, broom.mixed::tidy)) %>%
+  unnest(model_tidy)
+
+# Add names for models
 
 
 ```
 
 
-```{r predict-mr}
-# Predict model 1
-# predictions_1 <- create_test_data() %>%
-#   mutate(prediction_1_elex_1 = predict(model_1_elex_1, ., allow.new.levels = TRUE),
-#          prediction_1_elex_2 = predict(model_1_elex_2, ., allow.new.levels = TRUE),
-#          prediction_1_polls_1 = predict(model_1_polls_1, ., allow.new.levels = TRUE),
-#          prediction_1_polls_2 = predict(model_1_polls_2, ., allow.new.levels = TRUE)
-#          
-#   )
+```{r model-predictions}
+# Predictions
+
+# Create test data
+test_day <- create_test_data(senti_day_targets_covars, choose_type = "election") %>%
+  mutate(test_type = "day")
+
+test_region <- create_test_data(senti_region_targets_covars, choose_type = "election") %>%
+  mutate(test_type = "region")
+
+test_master <- bind_rows(test_day,
+                         test_region)
+
+# Add models to test data
+test_master_2 <- add_models_to_test_data(test_master,
+                                         models_master)
+
+# Predict
+estimates_master <- test_master_2 %>%
+  add_predictions(., .$model)
+
+map(test_master)
+  
+  mutate(prediction = predict(model, ., allow.new.levels = TRUE))
+
+
+mutate(prediction = map2(model, data, ~predict(.x, .y, allow.new.levels = TRUE)))
+
 
 
 # Find MR model estimates
@@ -398,8 +494,9 @@ estimates_mr_master <- bind_rows(estimates_mr_day,
 
 ```
 
+
 # MRP
-```{r mrp-models}
+```{r add-post-stratification}
 # Multilevel regression with post-stratification
 
 # Use MR models
