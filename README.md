@@ -1,16 +1,9 @@
-# Estimating public opinion in developing countries using social media
+# Estimating public opinion in developing countries using Twitter data
 This project outlines a strategy and its feasibility and limitations in estimating public opinion in English-speaking developing countries. This may have consequences for the idea of political and electoral accountability, the social contract, depending on how our strategy can reliably produce estimates of public opinion. These estimates may serve as a comparison against official electoral results.
 
 This is my undergraduate dissertation at UCL.
 
-The final product will be an R package to promote open-source, scalable research.
-
-### To-do:
-* Train data
-* Events data to explain or validate changes in public opinion (qualitative/visual validation), e.g. Wikipedia (https://en.wikipedia.org/wiki/2019_in_Nigeria)
-* Any traditional polling available? (A consideration when adding new countries)
-* Add other countries, including developed countries for comparison
-* Translate non-English tweets? (Lucas et al 2015; de Vries, Schoonevelde and Schumacher 2018)
+To reproduce my analysis and pipeline, you can download my R package. It was created to help promote open-source, scalable research.
 
 ### Download analysis as a package:
 ```
@@ -19,14 +12,6 @@ devtools::install_github("williamrohdemadsen/dev-public-opinion", build_vignette
 library(devpublicopinion)
 ```
 
-## Research design
-### How can public Twitter data be used to increase political accountability?
-
-Using Twitter data, I aim to estimate public opinion and investigate to what extent and how these estimates can be used to increase political accountability. 
-
-## Hypotheses
-* A model using region-level differences will have a higher accuracy than a model using only individual covariates? What is it validated against?
-
 ## Pipeline
 1. Data collection: Tweets, covariates, electoral results, survey results, language demographics
 2. Tweet analysis:
@@ -34,13 +19,11 @@ Using Twitter data, I aim to estimate public opinion and investigate to what ext
 	* Extracting individual-level covariates (gender, age, location, etc.)
 3. Public opinion prediction: Simple favourability proportion (% share who favours a leader over time)
 	* Machine learning with training data in the form of election data and other sources
-	* MRP
-	* Census-weighting: Population, internet use, 
+	* MRP by population share
 4. Validation
 	* Election data
 	* Events data
 	* Differences by regions, characteristics, events, etc.
-	* Rates of change: If overall share is too biased, changes in sentiment may be a better and more reliable predictor
 5. Problems
 	* Bias of Twitter users: Maybe: Younger, more extreme, more outward-looking, etc. 
 	* Bots: How many Tweets does not represent a single person's views? Check research on spotting Twitter bots.
@@ -72,8 +55,8 @@ Tweets are collected by two methods:
 2. Tweets which mention a leader and give coordinates with the smallest-possible circle of a country
 
 #### Which countries?
-Tentative group: Nigeria, Iraq, Phillippines, Egypt, Tunis, Russia, Turkey, Malaysia, Zimbabwe, Afghanistan, Mozambique
-Looking at differences in English-speaking proportion, number of Twitter users, electoral corruption and other characteristics, we can discuss the consequences of the accuracy of the Twitter public opinion by country.
+Group: Nigeria, Zimbabwe, Afghanistan, Mozambique, and Georgia.
+Differences in English-speaking proportion, number of Twitter users, electoral corruption and other characteristics can affect the accuracy of Twitter-based public opinion predictions.
 
 #### Rotating proxies: Robin Hood method:
 It may be necessary to automatically change IP proxies during the collection. A VPN seems to work fine. Otherwise, a proxy service may be required.
@@ -86,8 +69,6 @@ The following resources were either used or considered during the text analysis:
 
 ### Individual-level characteristics
 * Age, race, gender: https://github.com/wri/demographic-identifier
-
-* Age:
 
 * Gender: Use census date for each country. Liu and Ruths' (2013) gender-name association score between -1 to 1 could work.
 http://www.namepedia.org/en/firstname/
@@ -103,9 +84,6 @@ Depends on what is available for each country. For example, if a country's offic
 About 2019 election, "Saturday’s vote was marred by violence, Taliban threats and widespread allegations of mismanagement and abuse" by [Gannon](https://globalnews.ca/news/5966475/afghanistan-election-political-chaos/). Investigate if predictions can somehow be validated by comparing to province-level death tolls, Taliban control.
 
 Compare with electoral complaints on province-level.
-
-#### Nigeria
-
 
 ## Data
 ### Twitter
