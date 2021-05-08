@@ -33,15 +33,28 @@ source("data-raw/02_format_raw_data.R")
 #source("data-raw/03_data_to_get_tweets.R")
 
 # Read tweets ----
-tweets_raw <- fread("data-raw/tweets/tweets.csv")
+tweets_raw <- fread("data-raw/tweets/tweets.csv", nThread = 10000)
 
 # Format tweets ----
 
 # Subset
 #tweets_raw <- tweets_raw[1:300000,]
 
+# Remove non-English
+tweets_en <- remove_non_english(tweets_raw)
+
+# Save English tweets raw
+#fwrite(tweets_en, file = "data-raw/tweets/tweets_en.csv", nThread = 10000)
+#tweets_en <- fread("data-raw/tweets/tweets_en.csv", nThread = 10000)
+
+# Create leader names to match
+candidates_match <- create_leaders_match(candidates)
+
+# Get coordinates
+tweets_en <- get_coordinates(tweets_en)
+
 # Add leaders' names
-tweets_cap <- add_leaders_to_tweets(tweets_raw, candidates)
+tweets_cap <- add_leaders_to_tweets(tweets_en, candidates)
 
 # Filter out duplicates and Tweets that don't mention a leader
 tweets_sub <- filter_tweets(tweets_cap)
