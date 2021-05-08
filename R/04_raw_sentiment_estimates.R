@@ -37,11 +37,11 @@ create_cut_offs <- function(senti_tweet){
 
 }
 
-#' Calculate raw number of pros and cons per day
+#' Calculate baseline number of pros and cons per day
 #' @param senti_cut_offs
 #' @param n_roll window of rolling average
 #' @return raw estimates at different cut offs
-calculate_raw_n_per_day <- function(senti_cut_offs){
+calculate_baseline_n_per_day <- function(senti_cut_offs){
 
   # Calculate raw number of pros and cons per day, by cut off
   senti_cut_offs_dt <- as.data.table(senti_cut_offs)
@@ -54,11 +54,11 @@ calculate_raw_n_per_day <- function(senti_cut_offs){
 
 }
 
-#' Calculate raw estimate
-calculate_raw_estimate_per_day <- function(raw_n_day, n_roll = 7){
+#' Calculate baseline estimate
+calculate_baseline_estimate_per_day <- function(baseline_n_day, n_roll = 7){
 
   # Calculate raw estimat per day along with rolling average
-  raw_n_day %>%
+  baseline_n_day %>%
     pivot_wider(names_from = stance, values_from = n) %>%
     group_by(country, leader, cut_off) %>%
     arrange(date) %>%
@@ -74,17 +74,17 @@ calculate_raw_estimate_per_day <- function(raw_n_day, n_roll = 7){
 
 #' MAE by cut offs and country
 #' @param raw_day_targets_covars
-mae_by_cut_offs <- function(raw_day_targets_covars, type = "election", days_diff_less = 1000){
+mae_by_cut_offs <- function(baseline_day_targets_covars, type = "election", days_diff_less = 1000){
 
   # Calculate mean, sd and summary of difference between raw estimates and cut-off
   # For period col
-  raw_mae <- raw_day_targets_covars %>%
+  baseline_mae <- baseline_day_targets_covars %>%
     mutate(pro_share_diff = abs(pro_share - votes_share),
            pro_share_roll_diff = abs(pro_share_roll - votes_share)
            )
 
   # Summarise by country, election, and cut offs
-  raw_mae %>%
+  baseline_mae %>%
     # choose polls or election
     filter(type == "election") %>%
     # choose which window of days to election to analyse summary for
