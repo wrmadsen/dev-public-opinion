@@ -7,41 +7,41 @@ output: html_document
 # Set up
 ```{r load-packages}
 # Load packages
-library(tidyverse)
-library(devtools)
-library(readxl)
-library(lubridate)
-library(stringr)
-library(janitor)
-library(zoo)
-library(RcppRoll)
-library(rgdal) # for shapefiles
-library(sf) # manipulating spatial data
-library(lme4) # for glmer, etc. modelling
-library(httr)
-library(ggrepel)
-library(reticulate) # using python code in R
-library(vroom) # loading json faster
-library(ndjson)
-library(jsonlite)
-library(rvest) # reading html websites
-library(maps)
-library(ggmap)
-library(stars) # rasters
-library(maptools)
-library(spatstat)
-library(koRpus)
-library(quanteda)
-library(textdata)
-library(tidytext)
-library(SnowballC)
-library(furrr)
-library(data.table)
-require(scales)
-library(patchwork)
-library(GGally)
-library(broom.mixed)
-library(modelr)
+library(tidyverse, quietly = TRUE)
+library(devtools, quietly = TRUE)
+library(readxl, quietly = TRUE)
+library(lubridate, quietly = TRUE)
+library(stringr, quietly = TRUE)
+library(janitor, quietly = TRUE)
+library(zoo, quietly = TRUE)
+library(RcppRoll, quietly = TRUE)
+library(rgdal, quietly = TRUE) # for shapefiles
+library(sf, quietly = TRUE) # manipulating spatial data
+library(lme4, quietly = TRUE) # for glmer, etc. modelling
+library(httr, quietly = TRUE)
+library(ggrepel, quietly = TRUE)
+library(reticulate, quietly = TRUE) # using python code in R
+library(vroom, quietly = TRUE) # loading json faster
+library(ndjson, quietly = TRUE)
+library(jsonlite, quietly = TRUE)
+library(rvest, quietly = TRUE) # reading html websites
+library(maps, quietly = TRUE)
+library(ggmap, quietly = TRUE)
+library(stars, quietly = TRUE) # rasters
+library(maptools, quietly = TRUE)
+library(spatstat, quietly = TRUE)
+library(koRpus, quietly = TRUE)
+library(quanteda, quietly = TRUE)
+library(textdata, quietly = TRUE)
+library(tidytext, quietly = TRUE)
+library(SnowballC, quietly = TRUE)
+library(furrr, quietly = TRUE)
+library(data.table, quietly = TRUE)
+library(scales, quietly = TRUE)
+library(patchwork, quietly = TRUE)
+library(GGally, quietly = TRUE)
+library(broom.mixed, quietly = TRUE)
+library(modelr, quietly = TRUE)
 
 # Load package functions
 #devtools::load_all()
@@ -65,9 +65,10 @@ load("data/formatted_supplementary.RData")
 
 load("data/tweets_sf.RData")
 
-tweets_sub <- fread("data/tweets_sub.csv") 
+senti_tokens <- fread("data/senti_tokens.csv", nThread = 20000)
 
-senti_tokens <- fread("data/senti_tokens.csv")
+tweets_sub <- fread("data/tweets_sub.csv", nThread = 20000)
+
 
 ```
 
@@ -91,28 +92,29 @@ senti_tweet_w_region <- as.data.table(senti_tweet_w_region_sf) %>%
 ```
 
 
-# Sentiment per day
-```{r senti-day}
-# Sentiment per day
-senti_day <- calculate_sentiment_per_day(senti_tweet_w_region)
+# Sentiment raw
+```{r senti-raw}
+# Sentiment non-adjusted
+# raw is non-adjusted
+senti_raw <- calculate_sentiment_per_day(senti_tweet_w_region)
 
-senti_day
+senti_raw
 
 # Regions included in data
-senti_day$region_1 %>% unique %>% paste(., collapse = ", ")
+senti_raw$region_1 %>% unique %>% paste(., collapse = ", ")
 
 ```
 
 
 # Sentiment per region over time
-```{r senti-region}
-# Sentiment per region adjusted over time
+```{r senti-adjusted}
+# Sentiment adjusted
 # Based on regions
 # average sentiment per region
 # using non-point tweets to show trend over time
-senti_region <- create_region_adjusted_sentiment(senti_day)
+senti_adj <- create_region_adjusted_sentiment(senti_raw)
 
-senti_region %>% arrange(region_1) %>% distinct(region_1) %>% paste
+senti_adj %>% arrange(region_1) %>% distinct(region_1) %>% paste
 
 # Linear interpolation to make up for missing days
 # interpolate_missing_days()
@@ -120,87 +122,87 @@ senti_region %>% arrange(region_1) %>% distinct(region_1) %>% paste
 ```
 
 
-# Raw estimates
-```{r raw-estimates}
+# Baseline estimates
+```{r baseline-estimates}
 # Find for-against based on mean sentiment
 senti_cut_offs <- create_cut_offs(senti_tweet_w_region)
 
 #senti_cut_offs <- senti_cut_offs[1:10000,]
 
 # Create raw number of pros and cons per day
-raw_n_day <- calculate_raw_n_per_day(senti_cut_offs)
+baseline_n_day <- calculate_baseline_n_per_day(senti_cut_offs)
 
 # Calculate raw estimate per day
-raw_day <- calculate_raw_estimate_per_day(raw_n_day, n_roll = 7)
+baseline_day <- calculate_baseline_estimate_per_day(raw_n_day, n_roll = 7)
 
-raw_day %>% filter(is.na(country))
+baseline_day %>% filter(is.na(country))
 
 # Add national level
-raw_day <- add_national_level(raw_day)
+baseline_day <- add_national_level(baseline_day)
 
 # Plot pro-share by cut-offs
-raw_day %>%
+baseline_day %>%
   filter(leader == "Ghani") %>%
   ggplot(., aes(x = date, y = pro_share)) +
   geom_point(colour = "red") +
   geom_line(aes(y = pro_share_roll), colour = "black") +
   facet_wrap(~ cut_off) +
-  labs(title = "Ghani's raw favourability rate by raw estimates and different cut offs",
-       subtitle = "Estimated favourability of Afghan leader Ghani by raw sentiment and different cut offs") +
+  labs(title = "Ghani's raw favourability rate by baseline estimates and different cut offs",
+       subtitle = "Estimated favourability of Afghan leader Ghani by baseline sentiment and different cut offs") +
   theme_devpublicopinion
 
 
 ```
 
-```{r add-targets-and-gdl-to-raw}
+```{r add-targets-and-gdl-to-baseline}
 # Add targets (election results and polls)
 # Join sentiment with target vector, election and polling results
-raw_day <- raw_day %>%
+baseline_day <- baseline_day %>%
   mutate(target_id = row_number())
 
-raw_day_targets_all <- join_targets(raw_day, targets_master)
+baseline_day_targets_all <- join_targets(baseline_day, targets_master)
 
 # Check which senti regions are not in targets object
-raw_day %>% filter(!region_1 %in% targets_master$region_1) %>% distinct(country, region_1)
+baseline_day %>% filter(!region_1 %in% targets_master$region_1) %>% distinct(country, region_1)
 
 # Select nearest target (election or poll) for each day
-raw_day_targets <- select_nearest_target(raw_day_targets_all)
+baseline_day_targets <- select_nearest_target(baseline_day_targets_all)
 
 # Compare rows
-nrow(raw_day)
-nrow(raw_day_targets)
+nrow(baseline_day)
+nrow(baseline_day_targets)
 
 # Create variable with country and region_1
-raw_day_targets <- raw_day_targets %>%
+baseline_day_targets <- baseline_day_targets %>%
   mutate(year = year(date),
          country_and_region_1 = paste0(country, "_", region_1))
 
 # Add GDL covariates
-raw_day_targets_covars <- add_gdl_covariates(raw_day_targets, gdl_interpo)
+baseline_day_targets_covars <- add_gdl_covariates(baseline_day_targets, gdl_interpo)
 
 # Check if regions are missing GDL statistics
-raw_day_targets_covars %>% filter(is.na(popshare)) %>% distinct(region_1)
+baseline_day_targets_covars %>% filter(is.na(popshare)) %>% distinct(region_1)
 
 
 ```
 
 
-```{r validate-raw}
-# Validate raw
+```{r validate-baseline}
+# Validate baseline
 
 # Summary statistics of each cut-off
-raw_mae <- mae_by_cut_offs(raw_day_targets_covars, type = "election", days_diff_less = 10)
+baseline_mae <- mae_by_cut_offs(baseline_day_targets_covars, type = "election", days_diff_less = 10)
 
 # Plot raw estimate stats of each cut-off
-raw_mae %>%
+baseline_mae %>%
   mutate(country_elex = paste0(country, ", ", format(date_target, "%B %Y"))) %>%
   ggplot(.,
          aes(x = cut_off, y = mean*100)) +
   geom_col() +
   #geom_smooth(method = lm) +
   facet_wrap(~ country_elex) +
-  labs(title = "Mean absolute error of 'raw' electoral estimates at different AFINN cut offs",
-       subtitle = "Mean absolute error (MAE) of election estimates based on 'raw' AFINN sentiment, percentage points",
+  labs(title = "Mean absolute error of baseline' electoral estimates at different AFINN cut offs",
+       subtitle = "Mean absolute error (MAE) of election estimates based on baseline AFINN sentiment, percentage points",
        x = "Cut off values",
        y = "MAE"
   ) +
@@ -209,81 +211,81 @@ raw_mae %>%
 
 ```
 
-# Add targets and GDL for models
-```{r add-to-senti-day}
+# Add targets and GDL for modelling
+```{r add-to-senti-raw}
 # Add targets (election results and polls)
 # Join sentiment with target vector, election and polling results
-senti_day <- senti_day %>%
+senti_raw <- senti_raw %>%
   mutate(target_id = row_number())
 
 # Add national level to join targets
-senti_day <- add_national_level(senti_day)
+senti_raw <- add_national_level(senti_raw)
 
-senti_day_targets_all <- join_targets(senti_day, targets_master)
+senti_raw_targets_all <- join_targets(senti_raw, targets_master)
 
 # Check which senti regions are not in targets object
-senti_day %>% filter(!region_1 %in% targets_master$region_1) %>% distinct(country, region_1)
+senti_raw %>% filter(!region_1 %in% targets_master$region_1) %>% distinct(country, region_1)
 
 # Select nearest target (election or poll) for each day
-senti_day_targets <- select_nearest_target(senti_day_targets_all)
+senti_raw_targets <- select_nearest_target(senti_raw_targets_all)
 
 # Compare rows
-nrow(senti_day)
-nrow(senti_day_targets)
+nrow(senti_raw)
+nrow(senti_raw_targets)
 
 # Create variable with country and region_1
-senti_day_targets <- senti_day_targets %>%
+senti_raw_targets <- senti_raw_targets %>%
   mutate(year = year(date),
          country_and_region_1 = paste0(country, "_", region_1))
 
 # Add GDL covariates
-senti_day_targets_covars <- add_gdl_covariates(senti_day_targets, gdl_interpo)
+senti_raw_targets_covars <- add_gdl_covariates(senti_raw_targets, gdl_interpo)
 
 # Check if regions are missing GDL statistics
-senti_day_targets_covars %>% filter(is.na(popshare)) %>% distinct(region_1)
+senti_raw_targets_covars %>% filter(is.na(popshare)) %>% distinct(region_1)
 
 ```
 
 
 ```{r add-to-senti-region}
 # Add row_number to join targets
-senti_region <- senti_region %>%
+senti_adj <- senti_adj %>%
   mutate(target_id = row_number())
 
 # Fix missing national and region column
-senti_region <- add_national_level(senti_region)
+senti_adj <- add_national_level(senti_adj)
 
 # Add targets (election results and polls)
-senti_region_targets_all <- join_targets(senti_region, targets_master, by_region = FALSE)
+senti_adj_targets_all <- join_targets(senti_adj, targets_master, by_region = FALSE)
 
 # Check which senti regions are not in targets object
-senti_region %>% filter(!region_1 %in% targets_master$region_1) %>% distinct(country, region_1)
+senti_adj %>% filter(!region_1 %in% targets_master$region_1) %>% distinct(country, region_1)
 
 # Select nearest target (election or poll) for each day
-senti_region_targets <- select_nearest_target(senti_region_targets_all)
+senti_adj_targets <- select_nearest_target(senti_adj_targets_all)
 
 # Compare rows
 # New rows indicate targets being of equal diff days to a sentiment day
-nrow(senti_region)
-nrow(senti_region_targets)
+nrow(senti_adj)
+nrow(senti_adj_targets)
 
 # Create variable with country and region_1
-senti_region_targets <- senti_region_targets %>%
+senti_adj_targets <- senti_adj_targets %>%
   mutate(year = year(date),
          country_and_region_1 = paste0(country, "_", region_1))
 
 # Add GDL covariates
-senti_region_targets_covars <- add_gdl_covariates(senti_region_targets, gdl_interpo)
+senti_adj_targets_covars <- add_gdl_covariates(senti_adj_targets, gdl_interpo)
 
 # Check if regions are missing GDL statistics
-senti_region_targets_covars %>% filter(is.na(popshare)) %>% distinct(region_1)
+senti_adj_targets_covars %>% filter(is.na(popshare)) %>% distinct(region_1)
 
 
 ```
 
 ```{r print-elex-per-country}
 # Elections for each country
-senti_region_targets_covars %>%
+senti_adj_targets_covars %>%
   filter(type == "election") %>%
   distinct(country, date_target) %>%
   arrange(country)
@@ -293,16 +295,16 @@ senti_region_targets_covars %>%
 # Multilevel regression
 ```{r training-data}
 # Training data
-# Sentiment day
-train_data_elex_first_day <- create_training_data(senti_day_targets_covars,
+# Sentiment raw
+train_data_elex_first_raw <- create_training_data(senti_raw_targets_covars,
                                                   type = "elex", less_than_days_diff = 100)
-train_data_polls_day <- create_training_data(senti_day_targets_covars,
+train_data_polls_raw <- create_training_data(senti_raw_targets_covars,
                                              type = "polls", less_than_days_diff = 100)
 
-# Sentiment region
-train_data_elex_first_region <- create_training_data(senti_region_targets_covars,
+# Sentiment adjusted
+train_data_elex_first_adj <- create_training_data(senti_adj_targets_covars,
                                                      type = "elex", less_than_days_diff = 100)
-train_data_polls_region <- create_training_data(senti_region_targets_covars,
+train_data_polls_adj <- create_training_data(senti_adj_targets_covars,
                                                 type = "polls", less_than_days_diff = 100)
 
 
@@ -315,41 +317,41 @@ fit_lm_1_day <- function(train_data){ lm(votes_share ~ afinn_mean, data = train_
 fit_lm_2_day <- function(train_data){ lm(votes_share ~ n_likes_mean, data = train_data) }
 fit_lm_3_day <- function(train_data){ lm(votes_share ~ afinn_mean*n_likes_mean, data = train_data) }
 
-fit_lm_1_region <- function(train_data){ lm(votes_share ~ afinn_mean_daily + afinn_mean_region, data = train_data) }
+fit_lm_1_region <- function(train_data){ lm(votes_share ~ afinn_mean_daily, data = train_data) }
 fit_lm_2_region <- function(train_data){ lm(votes_share ~ n_likes_mean, data = train_data) }
 fit_lm_3_region <- function(train_data){ lm(votes_share ~  afinn_mean_daily*n_likes_mean + afinn_mean_region,
                                             data = train_data) }
 
 # Fit models on elections
-# Day
-lm_d_e <- train_data_elex_first_day %>%
+# Raw
+lm_r_e <- train_data_elex_first_raw %>%
   group_by(country) %>% 
   nest() %>%
-  mutate(lm_1_d_e = purrr::map(data, ~fit_lm_1_day(.x)),
-         lm_2_d_e = purrr::map(data, ~fit_lm_2_day(.x)),
-         lm_3_d_e = purrr::map(data, ~fit_lm_3_day(.x))
+  mutate(lm_1_r_e = purrr::map(data, ~fit_lm_1_day(.x)),
+         lm_2_r_e = purrr::map(data, ~fit_lm_2_day(.x)),
+         lm_3_r_e = purrr::map(data, ~fit_lm_3_day(.x))
   ) %>%
   ungroup() %>%
-  pivot_longer(cols = c(lm_1_d_e, lm_2_d_e, lm_3_d_e), names_to = "model_name", values_to = "model") %>%
-  mutate(model_type = "day") %>%
-  rename(model_country = country)
-
-lm_d_e
-
-# Region
-lm_r_e <- train_data_elex_first_region %>%
-  group_by(country) %>% 
-  nest() %>%
-  mutate(lm_1_r_e = purrr::map(data, ~fit_lm_1_region(.x)),
-         lm_2_r_e = purrr::map(data, ~fit_lm_2_region(.x)),
-         lm_3_r_e = purrr::map(data, ~fit_lm_3_region(.x))
-  ) %>%
-  ungroup() %>%
-  pivot_longer(cols = c(lm_1_r_e, lm_2_r_e, lm_3_r_e), names_to = "model_name", values_to = "model") %>%
-  mutate(model_type = "region") %>%
+  pivot_longer(cols = starts_with("lm"), names_to = "model_name", values_to = "model") %>%
+  mutate(model_type = "raw") %>%
   rename(model_country = country)
 
 lm_r_e
+
+# Adjusted
+lm_a_e <- train_data_elex_first_adj %>%
+  group_by(country) %>% 
+  nest() %>%
+  mutate(lm_1_a_e = purrr::map(data, ~fit_lm_1_region(.x)),
+         lm_2_a_e = purrr::map(data, ~fit_lm_2_region(.x)),
+         lm_3_a_e = purrr::map(data, ~fit_lm_3_region(.x))
+  ) %>%
+  ungroup() %>%
+  pivot_longer(cols = starts_with("lm"), names_to = "model_name", values_to = "model") %>%
+  mutate(model_type = "adjusted") %>%
+  rename(model_country = country)
+
+lm_a_e
 
 
 
@@ -361,87 +363,107 @@ lm_r_e
 
 # Functions for multilevel regression fitting
 # Day
-fit_mr_1_day <- function(train_data){ lmer(votes_share ~ afinn_mean + (1 | country), data = train_data) }
+fit_mr_1_day <- function(train_data){
+  
+  lmer(votes_share ~ afinn_mean + (1 + afinn_mean | country), data = train_data)
+  
+}
 
-fit_mr_2_day <- function(train_data){ lmer(votes_share ~ n_likes_mean + (1 | country), data = train_data) }
+fit_mr_2_day <- function(train_data){
+  
+  lmer(votes_share ~ n_likes_mean + (1 | country), data = train_data)
+  
+}
 
-fit_mr_3_day <- function(train_data){ lmer(votes_share ~ afinn_mean*n_likes_mean + (1 | country),
-                                           data = train_data) }
+fit_mr_3_day <- function(train_data){
+  
+  lmer(votes_share ~ afinn_mean*n_likes_mean + (1 | country), data = train_data)
+  
+}
 
-fit_mr_4_day <- function(train_data){ lmer(votes_share ~ afinn_mean*n_likes_mean + (1 + afinn_mean | country),
-                                           data = train_data) }
+fit_mr_4_day <- function(train_data){
+  
+  lmer(votes_share ~ afinn_mean*n_likes_mean + (1 + afinn_mean | country), data = train_data)
+  
+}
 
 
 # Region
 fit_mr_1_region <- function(train_data){
-  lmer(votes_share ~ afinn_mean_daily + afinn_mean_region + phone + (1 | country), data = train_data)
+  
+  lmer(votes_share ~ afinn_mean_daily + phone + (1 + afinn_mean_daily | country), data = train_data)
+  
 }
 
 fit_mr_2_region <- function(train_data){
+  
   lmer(votes_share ~ n_likes_mean + phone + (1 | country), data = train_data)
+  
 }
 
 fit_mr_3_region <- function(train_data){
-  lmer(votes_share ~ afinn_mean_daily + n_likes_mean + afinn_mean_region + phone + (1 | country), data = train_data)
+  
+  lmer(votes_share ~ afinn_mean_daily*n_likes_mean + afinn_mean_region + phone + (1 | country), data = train_data)
+  
 }
 
 fit_mr_4_region <- function(train_data){
-  lmer(votes_share ~ afinn_mean_daily + afinn_mean_region + phone + (1 + afinn_mean_daily | country), data = train_data)
+  
+  lmer(votes_share ~ afinn_mean_daily*n_likes_mean + afinn_mean_region + phone + (1 + afinn_mean_daily | country), data = train_data)
+  
 }
 
 # Check training data
-names(train_data_elex_first_day)
+names(train_data_elex_first_raw)
 
 # Fit multilevel models on elections
-# Day
-mr_d_e <- train_data_elex_first_day %>%
+# Raw
+mr_r_e <- train_data_elex_first_raw %>%
   nest(data = everything()) %>%
-  mutate(mr_1_d_e = purrr::map(data, ~fit_mr_1_day(.x)),
-         mr_2_d_e = purrr::map(data, ~fit_mr_2_day(.x)),
-         mr_3_d_e = purrr::map(data, ~fit_mr_3_day(.x)),
-         mr_4_d_e = purrr::map(data, ~fit_mr_4_day(.x))
+  mutate(mr_1_r_e = purrr::map(data, ~fit_mr_1_day(.x)),
+         mr_2_r_e = purrr::map(data, ~fit_mr_2_day(.x)),
+         mr_3_r_e = purrr::map(data, ~fit_mr_3_day(.x)),
+         mr_4_r_e = purrr::map(data, ~fit_mr_4_day(.x))
   ) %>%
   pivot_longer(cols = starts_with("mr"), names_to = "model_name", values_to = "model") %>%
-  mutate(model_type = "day")
+  mutate(model_type = "raw")
 
-# Region
-mr_r_e <- train_data_elex_first_region %>%
+# Adjusted
+mr_a_e <- train_data_elex_first_adj %>%
   nest(data = everything()) %>%
-  mutate(mr_1_r_e = purrr::map(data, ~fit_mr_1_region(.x)),
-         mr_2_r_e = purrr::map(data, ~fit_mr_2_region(.x)),
-         mr_3_r_e = purrr::map(data, ~fit_mr_3_region(.x)),
-         mr_4_r_e = purrr::map(data, ~fit_mr_4_region(.x))
-         
+  mutate(mr_1_a_e = purrr::map(data, ~fit_mr_1_region(.x)),
+         mr_2_a_e = purrr::map(data, ~fit_mr_2_region(.x)),
+         mr_3_a_e = purrr::map(data, ~fit_mr_3_region(.x)),
+         mr_4_a_e = purrr::map(data, ~fit_mr_4_region(.x))
   ) %>%
   pivot_longer(cols = starts_with("mr"), names_to = "model_name", values_to = "model") %>%
-  mutate(model_type = "region")
+  mutate(model_type = "adjusted")
 
 
 # Fit multilevel models on polls
-# Day
-mr_d_p <- train_data_polls_day %>%
+# Raw
+mr_r_p <- train_data_polls_raw %>%
   nest(data = everything()) %>%
-  mutate(mr_1_d_p = purrr::map(data, ~fit_mr_1_day(.x)),
-         mr_2_d_p = purrr::map(data, ~fit_mr_2_day(.x)),
-         mr_3_d_p = purrr::map(data, ~fit_mr_3_day(.x)),
-         mr_4_d_p = purrr::map(data, ~fit_mr_4_day(.x))
+  mutate(mr_1_r_p = purrr::map(data, ~fit_mr_1_day(.x)),
+         mr_2_r_p = purrr::map(data, ~fit_mr_2_day(.x)),
+         mr_3_r_p = purrr::map(data, ~fit_mr_3_day(.x)),
+         mr_4_r_p = purrr::map(data, ~fit_mr_4_day(.x))
+  ) %>%
+  pivot_longer(cols = starts_with("mr"), names_to = "model_name", values_to = "model") %>%
+  mutate(model_type = "raw")
+
+
+# Adjusted
+mr_a_p <- train_data_polls_region %>%
+  nest(data = everything()) %>%
+  mutate(mr_1_a_p = purrr::map(data, ~fit_mr_1_region(.x)),
+         mr_2_a_p = purrr::map(data, ~fit_mr_2_region(.x)),
+         mr_3_a_p = purrr::map(data, ~fit_mr_3_region(.x)),
+         mr_4_a_p = purrr::map(data, ~fit_mr_4_region(.x))
          
   ) %>%
   pivot_longer(cols = starts_with("mr"), names_to = "model_name", values_to = "model") %>%
-  mutate(model_type = "day")
-
-
-# Region
-mr_r_p <- train_data_polls_region %>%
-  nest(data = everything()) %>%
-  mutate(mr_1_r_p = purrr::map(data, ~fit_mr_1_region(.x)),
-         mr_2_r_p = purrr::map(data, ~fit_mr_2_region(.x)),
-         mr_3_r_p = purrr::map(data, ~fit_mr_3_region(.x)),
-         mr_4_r_p = purrr::map(data, ~fit_mr_4_region(.x)),
-         
-  ) %>%
-  pivot_longer(cols = starts_with("mr"), names_to = "model_name", values_to = "model") %>%
-  mutate(model_type = "region")
+  mutate(model_type = "adjusted")
 
 
 ```
@@ -449,26 +471,50 @@ mr_r_p <- train_data_polls_region %>%
 # All models
 ```{r bind-all-models}
 # Bind MR models
-models_mr <- bind_rows(mr_d_e,
-                       mr_d_p,
-                       mr_r_e,
-                       mr_r_p) %>%
-  select(-data) %>%
+models_mr <- bind_rows(mr_r_e,
+                       mr_r_p,
+                       mr_a_e,
+                       mr_a_p) %>%
   mutate(join_id = 1)
 
 # Bind all models together
 # Multilevel and linear
-models_master <- bind_all_models(models_mr, lm_r_e, lm_d_e)
+# Adjusted and raw
+models_master <- bind_all_models(models_mr, lm_a_e, lm_r_e)
 
 models_master %>% filter(is.na(model_country))
 
 models_master %>% distinct(model_name_long)
 
+```
+
+
+```{r tidy-models}
 # Use tidy to get model statistics
 # broom and broom.mixed packages
 models_stats <- models_master %>%
   mutate(model_tidy = purrr::map(model, broom.mixed::tidy)) %>%
   unnest(model_tidy)
+
+# Format into table
+models_master$model[[1]]$obs
+
+
+broom::glance(models_master$model[[1]])
+
+# Linear
+models_stats_lm <- models_master %>%
+  filter(grepl("Linear", model_name_long)) %>%
+  group_by(model_name_long) %>%
+  slice(1) %>%
+  ungroup()
+
+models_stats_lm %>%
+  mutate(model_tidy = purrr::map(model, broom::tidy)) %>%
+  select(model_tidy, model_name_long) %>%
+  unnest()
+
+
 
 
 ```
@@ -476,15 +522,16 @@ models_stats <- models_master %>%
 
 ```{r create-test-data}
 # Create test data
-test_day <- create_test_data(senti_day_targets_covars, choose_type = "election") %>%
-  mutate(test_type = "day")
+test_raw <- create_test_data(senti_day_targets_covars, choose_type = "election") %>%
+  mutate(test_type = "raw")
 
-test_region <- create_test_data(senti_region_targets_covars, choose_type = "election") %>%
-  mutate(test_type = "region")
+test_adjusted <- create_test_data(senti_region_targets_covars, choose_type = "election") %>%
+  mutate(test_type = "adjusted")
 
-test_master <- bind_rows(test_day,
-                         test_region) %>%
+test_master <- bind_rows(test_raw,
+                         test_adjusted) %>%
   mutate(test_id = row_number())
+
 ```
 
 
@@ -495,17 +542,19 @@ prediction_master <- add_all_model_predictions(models_master, test_master)
 ```
 
 
-```{r find-post-predictions}
+```{r make-post-predictions}
 # Add post-stratified estimates with GDL's popshare variable
 prediction_master <- prediction_master %>%
   mutate(prediction_post = prediction*popshare)
 
 # Summarise weighted prediction of each region by country
 predictions_post_national <- prediction_master %>%
+  filter(days_diff_abs < 10) %>%
   filter(region_2 != "National") %>%
-  group_by(country, leader, model_name, model_name_long) %>%
+  group_by(country, year, leader, model_name, model_name_long) %>%
   summarise(prediction_post = weighted.mean(prediction, popshare, na.rm = TRUE),
-            n_tweets = sum(n_tweets, na.rm = TRUE)) %>%
+            n_tweets = sum(n_tweets, na.rm = TRUE),
+            mean_obs = mean(obs)) %>%
   arrange(country)
 
 # Find actual national vote shares
@@ -515,18 +564,30 @@ actual_shares_national <- find_actual_vote_shares_national(prediction_master)
 predictions_post_national <- left_join(actual_shares_national, predictions_post_national) %>%
   mutate(error = prediction_post - votes_share,
          error_abs = abs(error)
-         )
+  )
 
-predictions_post_national %>%
-  #filter(country != "Zimbabwe") %>%
-  group_by(model_name, model_name_long) %>%
-  summarise(mae = mean(error_abs),
-            n_tweets_mean = mean(n_tweets)) %>%
-  arrange(mae)
+# Find MAE for post predictions at national level
+(mae_post_national <- predictions_post_national %>%
+    filter(!grepl("Linear", model_name_long)) %>%
+    filter(!is.na(model_name)) %>%
+    group_by(model_name, model_name_long) %>%
+    summarise(mae = mean(error_abs, na.rm = TRUE)) %>%
+    ungroup() %>%
+    mutate(model_name_long = paste0(model_name_long, ", post"),
+           level = "National") %>%
+    arrange(mae)
+)
 
+# Predictions versus actual for post-stratificatied models
+pred_vs_actual_post <- predictions_post_national %>%
+  select(-c(n_tweets, error, error_abs, model_name)) %>%
+  rename(prediction = prediction_post) %>%
+  mutate(model_name_long = paste0(model_name_long, ", post"),
+         level = "National")
 
 
 ```
+
 
 
 # Validation
@@ -537,133 +598,308 @@ prediction_master <- prediction_master %>%
   mutate(error = prediction - votes_share,
          error_abs = abs(error))
 
-
 ```
 
 
 ```{r mae-by-model}
-# Find MAE by model, include NAs
-prediction_master %>%
-  filter(region_2 == "National") %>%
-  filter(days_diff_abs < 10) %>%
-  group_by(model_name, model_name_long) %>%
-  summarise(mae = mean(error_abs)) %>%
-  arrange(mae)
+# MAE by model
 
-# Exclude NAs
-prediction_master %>%
-  filter(region_2 == "National") %>%
-  filter(days_diff_abs < 10) %>%
-  group_by(model_name, model_name_long) %>%
-  summarise(mae = mean(error_abs, na.rm = TRUE)) %>%
-  arrange(mae)
-
-```
-
-
-
-```{r validate-mr-data}
-# Plots for validating MR estimates
-prediction_master
-
-# Calculate MAE by model and country
-mae_by_model_country <- prediction_master %>%
-  filter(days_diff_abs < 10) %>%
-  group_by(model_name, country) %>%
-  summarise(mae = mean(error_abs, na.rm = TRUE),
-            n_regions = n_distinct(region_1)) %>%
-  ungroup()
-
-# Add country average and model average levels
-mae_by_model_country <- bind_rows(mae_by_model_country,
-                                  mae_by_model_country %>%
-                                    mutate(country = "Country average") %>%
-                                    group_by(model_name, country) %>%
-                                    summarise(mae = mean(mae)),
-                                  mae_by_model_country %>%
-                                    mutate(model = "Model average") %>%
-                                    group_by(model_name, country) %>%
-                                    summarise(mae = mean(mae))
-)
-
-# Calculate MAE by model and region
-mae_by_model_region <- prediction_master %>%
-  filter(days_diff_abs < 10) %>%
-  group_by(model_name, country, region_1, region_2) %>%
-  summarise(votes_share = mean(votes_share, na.rm = TRUE),
-            prediction = mean(prediction, na.rm = TRUE),
-            mae = mean(error_abs, na.rm = TRUE)
-  ) %>%
-  ungroup()
-
-# Add model average level
-(mae_by_model_region <- bind_rows(mae_by_model_region,
-                                  mae_by_model_region %>%
-                                    mutate(model_name = "Model average") %>%
-                                    group_by(model_name, country, region_1, region_2) %>%
-                                    summarise(votes_share = mean(votes_share, na.rm = TRUE),
-                                              prediction = mean(prediction, na.rm = TRUE),
-                                              mae = mean(mae, na.rm = TRUE))
-) #%>% filter(model == "Model average")
-)
-
-
-```
-
-
-```{r validate-plots}
-# Plot MAE by model and region
-mae_by_model_country %>%
-  mutate(model_name = as.factor(model_name),
-         country = reorder_within(country, mae, model_name)) %>%
-  ggplot(aes(x = country, y = mae, fill = model_name)) +
-  geom_col(show.legend = FALSE) +
-  facet_wrap(~model_name, scales = "free_y") +
-  coord_flip() +
-  scale_x_reordered()
-
-# Plot all predictions as points
+# Subset days within 10 days
 prediction_master_sub <- prediction_master %>%
-  filter(days_diff_abs < 15)
+  filter(days_diff_abs < 10)
 
-ggplot(prediction_master_sub,
-       aes(x = prediction,
-           y = votes_share)) +
-  geom_point(aes(colour = country),
-             size = 3,
-             #show.legend = FALSE
-  ) +
-  facet_wrap(~model_name) +
-  geom_abline(intercept = 0, slope = 1) +
-  scale_x_continuous(limits = c(0, 1)) +
-  scale_colour_discrete(name = "") +
+# MAE by model for national and region level predictions
+mae_by_model <- bind_rows(
+  # National
+  prediction_master_sub %>%
+    filter(region_2 == "National") %>%
+    group_by(model_name_long) %>%
+    mutate(mae = mean(error_abs, na.rm = TRUE)) %>%
+    slice(1) %>%
+    transmute(model_name_long, mae, level = "National"),
+  # Region
+  prediction_master_sub %>%
+    filter(region_2 != "National") %>%
+    group_by(model_name_long) %>%
+    mutate(mae = mean(error_abs, na.rm = TRUE)) %>%
+    slice(1) %>%
+    transmute(model_name_long, mae, level = "Region")) %>%
+  ungroup() %>%
+  # Add post-stratified national level predictions
+  bind_rows(mae_post_national)
+
+mae_by_model %>%
+  arrange(mae)
+
+# Average national MAE
+mae_by_model %>%
+  filter(level == "National") %>%
+  summarise(mae = mean(mae))
+
+# Average national MAE for multilevel models with or withour post-stratification
+mae_by_model %>%
+  filter(level == "National") %>%
+  filter(grepl("MR", model_name_long)) %>%
+  mutate(post_or_not = grepl("post", model_name_long)) %>%
+  group_by(post_or_not) %>%
+  summarise(mae = mean(mae))
+
+# Plot bar
+mae_by_model %>%
+  mutate(level = as.factor(level),
+         model_name_long = reorder_within(model_name_long, mae, level)) %>%
+  ggplot(.,
+         aes(x = model_name_long,
+             y = mae)) +
+  geom_col(aes(fill = level), show.legend = FALSE) +
+  facet_wrap(~level, scales = "free_y") +
+  coord_flip() +
+  scale_x_reordered() +
   theme_devpublicopinion +
-  labs(title = "Model predictions against actual vote shares",
-       subtitle = "Different model predictions (x-axis) against latest actual election vote shares (y-axis); diagonal line shows perfect predictions (error equals 0)",
-       x = "Prediction",
-       y = "Votes share")
+  labs(title = "National- and region-level MAE for models",
+       subtitle = "Mean absolute error for national- and region-level predictions by all models",
+       x = NULL,
+       y = "Mean absolute error (MAE)") +
+  ggsave("output/figures/mae_by_model.png", height = 10, width = 14)
 
-
-# Plot average predictions by region as points
-ggplot(mae_by_model_region,
-       aes(x = prediction,
-           y = votes_share)) +
-  geom_point(aes(colour = country),
-             size = 3,
-             #show.legend = FALSE
-  ) +
-  facet_wrap(~model_name) +
-  geom_abline(intercept = 0, slope = 1) +
-  scale_x_continuous(limits = c(0, 1)) +
-  scale_colour_discrete(name = "") +
-  theme_devpublicopinion +
-  labs(title = "Average model predictions against actual vote shares by region",
-       subtitle = "Different model estimates (x-axis) against latest actual election vote shares (y-axis), averaged by subnational region;\ndiagonal line shows perfect predictions (where error equals 0)",
-       x = "Prediction",
-       y = "Votes share") 
 
 
 ```
+
+
+
+```{r plot-prediction-against-actual}
+# Plot predictions against actual votes shares
+# National and region-level
+
+# Find actual votes share and prediction for each model for each region
+pred_vs_actual <- bind_rows(
+  # National
+  prediction_master_sub %>%
+    filter(region_2 == "National") %>%
+    group_by(leader, year, country, region_1, region_2, model_name_long, votes_share) %>%
+    summarise(prediction = mean(prediction, na.rm = TRUE),
+              mean_obs = mean(obs)),
+  # Region
+  prediction_master_sub %>%
+    filter(region_2 != "National") %>%
+    group_by(leader, year, country, region_1, region_2, model_name_long, votes_share) %>%
+    summarise(prediction = mean(prediction, na.rm = TRUE),
+              mean_obs = mean(obs))
+) %>%
+  ungroup() %>%
+  bind_rows(pred_vs_actual_post) %>%
+  mutate(level = if_else(region_2 == "National", "National predictions", "Regional predictions"),
+         model_type = if_else(grepl("Linear", model_name_long), "Linear", "Multilevel"),
+         post_or_not = if_else(grepl("post", model_name_long), "Post-stratification", "No post-stratification"),
+         error = prediction - votes_share,
+         error_abs = abs(error))
+
+
+# Plot points
+
+# Subset multilevel regression
+pred_vs_actual_mr <- pred_vs_actual %>%
+  filter(model_type == "Multilevel") %>%
+  mutate(zwe_or_not = if_else(country == "Zimbabwe", "Zimbabwe", "Other country"))
+
+# By post-stratification or not
+# Also show Zimbabwe's 2013 election
+ggplot(pred_vs_actual_mr,
+       aes(x = votes_share,
+           y = prediction)) +
+  geom_point(aes(colour = zwe_or_not)) +
+  geom_abline(intercept = 0, slope = 1) +
+  facet_wrap(~post_or_not) +
+  scale_colour_discrete(name = "") +
+  scale_x_continuous(limits = c(0, 1)) +
+  scale_y_continuous(limits = c(0, 1)) +
+  theme_devpublicopinion +
+  labs(title = "Predictions against actual vote shares by multilevel models",
+       subtitle = "Predicted against actual votes share; each point is a predicted vote share for a candidate by a multilevel model",
+       x = "Actual vote share",
+       y = "Prediction") +
+  ggsave("output/figures/predicted_against_actual.png", height = 10, width = 14)
+
+
+```
+
+
+
+```{r mae-by-country}
+# Plots for MAE by country or region
+
+# Calculate MAE by country
+mae_by_country <- bind_rows(
+  # National
+  prediction_master_sub %>%
+    #filter(region_2 == "National") %>%
+    group_by(leader, year, country, region_1, region_2, model_name_long, votes_share) %>%
+    summarise(mae = mean(error_abs, na.rm = TRUE),
+              mean_obs = mean(obs)),
+  # Region
+  prediction_master_sub %>%
+    #filter(region_2 != "National") %>%
+    group_by(leader, year, country, region_1, region_2, model_name_long, votes_share) %>%
+    summarise(mae = mean(error_abs, na.rm = TRUE),
+              mean_obs = mean(obs))
+) %>%
+  ungroup() %>%
+  bind_rows(pred_vs_actual_post) %>%
+  mutate(error = prediction - votes_share,
+         error_abs = abs(error),
+         level = if_else(region_2 == "National", "National predictions", "Regional predictions"),
+         model_type = if_else(grepl("Linear", model_name_long), "Linear", "Multilevel"),
+         post_or_not = if_else(grepl("post", model_name_long), "Post-stratification", "No post-stratification"))
+
+
+# Summarise by country
+# Add mean observations
+mae_by_country <- mae_by_country %>%
+  group_by(leader, country, region_1) %>%
+  summarise(mae = mean(mae, na.rm = TRUE),
+            mean_obs = mean(mean_obs, na.rm = TRUE)
+  )
+
+# Add supplemenetary, including English speaking share
+mae_by_country <- mae_by_country %>%
+  left_join(., supp %>% group_by(country) %>% slice_max(year, n = 1), by = "country")
+
+
+
+# Plot MAE by mean sample size
+ggplot(mae_by_country,
+       aes(x = mean_obs,
+           y = mae)
+       ) +
+  geom_point(aes(colour = country)) +
+  scale_colour_discrete(name = "") +
+  theme_devpublicopinion +
+  labs(title = "A larger ",
+       subtitle = "Mean absolute error (MAE) ",
+       x = "MAE",
+       y = "Mean sample size, number of Tweets") +
+  ggsave("output/figures/country_mae_sample.png", height = 10, width = 14)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# mae_by_country <- prediction_master_sub %>%
+#   filter(grepl("MR", model_name_long)) %>%
+#   group_by(country, region_1, model_name_long) %>%
+#   summarise(mae = mean(error_abs, na.rm = TRUE),
+#             mean_obs = mean(obs)) %>%
+#   group_by(country) %>%
+#   summarise(mae = mean(mae, na.rm = TRUE),
+#             mean_obs = mean(mean_obs)) %>%
+#   ungroup()
+# 
+# 
+# 
+
+
+
+
+
+
+# # MAE by region
+# mae_by_country <- prediction_master_sub %>%
+#   group_by(country, region_2) %>%
+#   summarise(mae = mean(error_abs, na.rm = TRUE),
+#             n_tweets_daily = sum(n_tweets_daily),
+#   ) %>%
+#   ungroup()
+# 
+# # Add country average and model average levels
+# mae_by_model_country <- bind_rows(mae_by_model_country,
+#                                   mae_by_model_country %>%
+#                                     mutate(country = "Country average") %>%
+#                                     group_by(model_name, country) %>%
+#                                     summarise(mae = mean(mae)),
+#                                   mae_by_model_country %>%
+#                                     mutate(model = "Model average") %>%
+#                                     group_by(model_name, country) %>%
+#                                     summarise(mae = mean(mae))
+# )
+# 
+# # Calculate MAE by model and region
+# mae_by_model_region <- prediction_master %>%
+#   filter(days_diff_abs < 10) %>%
+#   group_by(model_name, country, region_1, region_2) %>%
+#   summarise(votes_share = mean(votes_share, na.rm = TRUE),
+#             prediction = mean(prediction, na.rm = TRUE),
+#             mae = mean(error_abs, na.rm = TRUE)
+#   ) %>%
+#   ungroup()
+# 
+# # Add model average level
+# (mae_by_model_region <- bind_rows(mae_by_model_region,
+#                                   mae_by_model_region %>%
+#                                     mutate(model_name = "Model average") %>%
+#                                     group_by(model_name, country, region_1, region_2) %>%
+#                                     summarise(votes_share = mean(votes_share, na.rm = TRUE),
+#                                               prediction = mean(prediction, na.rm = TRUE),
+#                                               mae = mean(mae, na.rm = TRUE))
+# ) #%>% filter(model == "Model average")
+# )
+
+
+```
+
+```{r plot-random-effects}
+# Plot random effects of best model
+
+# Subset best model
+model_to_plot <- models_master %>%
+  filter(model_name_long == "MR 4, election fitted, day") %>%
+  .$model
+
+model_to_plot <- model_to_plot[[1]]
+
+# Fixed effects of coefficients
+fixef(model_to_plot)
+
+# Random effects of coefficients
+ran_ef_to_plot <- ranef(model_to_plot)
+
+ran_ef_to_plot <- ran_ef_to_plot %>%
+  as.data.frame() %>%
+  select(term, country = grp, value = condval, sd = condsd)
+
+#Labels for facet wrap
+ranef_labs <- c("Intercept", "AFINN sentiment")
+names(ranef_labs) <- c("(Intercept)", "afinn_mean")
+
+# Plot random effects
+ggplot(re_to_plot,
+       aes(x = value,
+           y = country)) +
+  geom_col(aes(fill = term), show.legend = FALSE) +
+  geom_vline(xintercept = 0) +
+  facet_wrap(~ term,
+             labeller = labeller(term = ranef_labs),
+             scales = "free_x") +
+  theme_devpublicopinion +
+  labs(title = "Random effects of intercept and country-varying sentiment",
+       subtitle = "Random effects associated with varying intercepts and varying slopes of AFINN sentiment; note that scales differ by facet",
+       x = "Coefficient difference, percentage points",
+       y = "") +
+  ggsave("output/figures/random_effects.png", height = 10, width = 14)
+
+
+```
+
 
 
 
@@ -846,6 +1082,7 @@ add_total <- function(x) { mutate(x, Total = Afghanistan + Georgia + Mexico + Ni
 
 ```{r model-tabel}
 # Table to compare models
+models_master
 
 
 #tidy()
@@ -887,7 +1124,8 @@ ggplot(poll_plot_data,
   labs(title = "Polling for developing countries is sparce over time",
        subtitle = "% vote share, point for each traditional polling collected by country; numbers of polls included in this figure are not exhaustive",
        x = NULL,
-       y = "%, vote share")
+       y = "%, vote share") +
+  ggsave("output/figures/polling_is_scarce.png", height = 10, width = 14)
 
 
 ```
@@ -1097,32 +1335,5 @@ ggplot(geotagged_volume,
 ```
 
 
-
-
-
-```{r plot-eng-speakers}
-# English-speakers plot
-# Plot different data on English speakers
-supp %>%
-  ggplot(.,
-         aes(x = eng_prop_wiki,
-             y = eng_prop) # ethno
-  ) +
-  geom_point() +
-  geom_label_repel(aes(label = paste0(country, " ", year))) +
-  labs(title = "Different sources on English speakers per country")
-
-# Plot English speaking population against corruption index
-supp %>%
-  #filter(wgi_est < 1) %>%
-  filter(twitter_users_pc < 0.3) %>%
-  ggplot(.,
-         aes(x = twitter_users_pc,
-             y = eng_prop)) +
-  geom_point() +
-  geom_label_repel(aes(label = paste0(country, " ", year))) +
-  labs(title = "English-speaking share by voice and accountability index")
-
-```
 
 

@@ -1,10 +1,17 @@
 # Format tweets -----
-#' Format tweets
-#'
-#' @param tweets_raw raw tweets binded from JSONs.
-#' @param candidates which people to get and when.
-#' @return tweets with formatted coordinates, country, leader, and other variables.
-add_leaders_to_tweets <- function(tweets_raw, candidates){
+
+
+#' Remove non-English tweets
+remove_non_english <- function(tweets_raw){
+
+  tweets_raw <- as.data.table(tweets_raw)
+
+  tweets_raw[language == "en"]
+
+}
+
+#' Leader names to match
+create_leaders_match <- function(candidates){
 
   # Look-up to add leaders and countries
   candidates_lookup <- candidates %>%
@@ -16,7 +23,13 @@ add_leaders_to_tweets <- function(tweets_raw, candidates){
   # Leader names to match with content of Tweets
   candidates_match <- paste(candidates_lookup$name_lower, collapse = "[^A-z]|[^A-z]")
 
-  candidates_match <- paste0("[^A-z]", candidates_match, "[^A-z]")
+  paste0("[^A-z]", candidates_match, "[^A-z]")
+
+}
+
+
+#' Get coordinates
+get_coordinates <<- function(tweets_raw){
 
   # Convert to data.table
   tweets_raw_dt <- as.data.table(tweets_raw)
@@ -26,11 +39,20 @@ add_leaders_to_tweets <- function(tweets_raw, candidates){
 
   tweets_raw_dt[, y := str_match(place, "\\d, (.*?)\\]")[,2] %>% as.double()]
 
+}
+
+
+#' Format tweets
+#' @param tweets_raw raw tweets binded from JSONs.
+#' @param candidates which people to get and when.
+#' @return tweets with formatted coordinates, country, leader, and other variables.
+add_leaders_to_tweets <- function(tweets_raw, candidates){
+
+  # Add row number
   tweets_raw_dt[, row_no := .I]
 
   # Find which leader(s) is/are mentioned in each tweet
   # Use data.table to speed up processing
-  #tweets_raw_dt[, leader_mentions := str_extract_all(tolower(tweet), candidates_match)]
 
   # Tweets to lower case
   tweets_raw_dt[, tweet_lower := tolower(tweet)]
@@ -78,6 +100,7 @@ add_leaders_to_tweets <- function(tweets_raw, candidates){
 #
 # tweets_formatted
 
+
 #' Filter tweets
 filter_tweets <- function(tweets_formatted){
 
@@ -90,8 +113,7 @@ filter_tweets <- function(tweets_formatted){
 
   # Remove tweets that
   # don't mention a single leader
-  # or are non-English
-  tweets_no_dups[!is.na(leader) & language == "en"] %>%
+  tweets_no_dups[!is.na(leader)] %>%
     tibble()
 
 }

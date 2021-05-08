@@ -142,4 +142,50 @@ create_test_data <- function(senti_targets_covars, choose_type = "election"){
 
 }
 
+#' Bind all models together
+bind_all_models <- function(...){
+
+  bind_rows(...) %>%
+    mutate(obs = map_dbl(data, nrow)) %>%
+    select(-data, -join_id) %>%
+    mutate(model_no = row_number()) %>%
+    # add names for models
+    mutate(model_fit = if_else(grepl("lm", model_name), "Linear", "MR"),
+           model_fit_no = gsub("\\D", "", model_name),
+           train = if_else(grepl("e", model_name), "election", "polling"),
+           model_name_long = paste0(model_fit, " ", model_fit_no, ", ", train, " fitted, ", model_type)
+    ) %>%
+    select(-c(model_fit, model_fit_no, train))
+
+}
+
+# Add predictions for all models
+add_all_model_predictions <- function(models_master, test_master){
+
+
+  # Get estimates for each test row by different models
+  prediction_raw <- purrr::map(models_master$model, ~predict(.x, test_master, allow.new.levels = TRUE))
+
+  # Pivot longer
+  prediction <- prediction_raw %>%
+    bind_rows() %>%
+    mutate(model_no = row_number()) %>%
+    pivot_longer(cols = c(1:ncol(.)-1), names_to = "test_id", values_to = "prediction") %>%
+    mutate(test_id = as.integer(test_id)) %>%
+    left_join(.,
+              models_master %>% select(-model),
+              by = "model_no")
+
+  # Add estimates to test data
+  # Allows us to calculate difference between actual vote share and estimated share
+  prediction_master <- left_join(test_master, prediction, by = "test_id")
+
+  # Remove rows if test type is not model type (region or day)
+  # or if test country is not model country (except for multilevel models with no model country)
+  prediction_master <- prediction_master %>%
+    filter(test_type == model_type) %>%
+    filter(is.na(model_country) | model_country == country)
+
+}
+
 
