@@ -303,9 +303,9 @@ train_data_polls_raw <- create_training_data(senti_raw_targets_covars,
 
 # Sentiment adjusted
 train_data_elex_first_adj <- create_training_data(senti_adj_targets_covars,
-                                                     type = "elex", less_than_days_diff = 100)
+                                                  type = "elex", less_than_days_diff = 100)
 train_data_polls_adj <- create_training_data(senti_adj_targets_covars,
-                                                type = "polls", less_than_days_diff = 100)
+                                             type = "polls", less_than_days_diff = 100)
 
 
 ```
@@ -313,23 +313,23 @@ train_data_polls_adj <- create_training_data(senti_adj_targets_covars,
 
 ```{r linear-models}
 # Linear models
-fit_lm_1_day <- function(train_data){ lm(votes_share ~ afinn_mean, data = train_data) }
-fit_lm_2_day <- function(train_data){ lm(votes_share ~ n_likes_mean, data = train_data) }
-fit_lm_3_day <- function(train_data){ lm(votes_share ~ afinn_mean*n_likes_mean, data = train_data) }
+fit_lm_1_raw <- function(train_data){ lm(votes_share ~ afinn_mean, data = train_data) }
+fit_lm_2_raw <- function(train_data){ lm(votes_share ~ n_retweets_mean, data = train_data) }
+fit_lm_3_raw <- function(train_data){ lm(votes_share ~ afinn_mean*n_retweets_mean, data = train_data) }
 
-fit_lm_1_region <- function(train_data){ lm(votes_share ~ afinn_mean_daily, data = train_data) }
-fit_lm_2_region <- function(train_data){ lm(votes_share ~ n_likes_mean, data = train_data) }
-fit_lm_3_region <- function(train_data){ lm(votes_share ~  afinn_mean_daily*n_likes_mean + afinn_mean_region,
-                                            data = train_data) }
+fit_lm_1_adj <- function(train_data){ lm(votes_share ~ afinn_mean_daily, data = train_data) }
+fit_lm_2_adj <- function(train_data){ lm(votes_share ~ n_retweets_mean, data = train_data) }
+fit_lm_3_adj <- function(train_data){ lm(votes_share ~  afinn_mean_daily*n_retweets_mean + afinn_mean_region,
+                                         data = train_data) }
 
 # Fit models on elections
 # Raw
 lm_r_e <- train_data_elex_first_raw %>%
   group_by(country) %>% 
   nest() %>%
-  mutate(lm_1_r_e = purrr::map(data, ~fit_lm_1_day(.x)),
-         lm_2_r_e = purrr::map(data, ~fit_lm_2_day(.x)),
-         lm_3_r_e = purrr::map(data, ~fit_lm_3_day(.x))
+  mutate(lm_1_r_e = purrr::map(data, ~fit_lm_1_raw(.x)),
+         lm_2_r_e = purrr::map(data, ~fit_lm_2_raw(.x)),
+         lm_3_r_e = purrr::map(data, ~fit_lm_3_raw(.x))
   ) %>%
   ungroup() %>%
   pivot_longer(cols = starts_with("lm"), names_to = "model_name", values_to = "model") %>%
@@ -342,9 +342,9 @@ lm_r_e
 lm_a_e <- train_data_elex_first_adj %>%
   group_by(country) %>% 
   nest() %>%
-  mutate(lm_1_a_e = purrr::map(data, ~fit_lm_1_region(.x)),
-         lm_2_a_e = purrr::map(data, ~fit_lm_2_region(.x)),
-         lm_3_a_e = purrr::map(data, ~fit_lm_3_region(.x))
+  mutate(lm_1_a_e = purrr::map(data, ~fit_lm_1_adj(.x)),
+         lm_2_a_e = purrr::map(data, ~fit_lm_2_adj(.x)),
+         lm_3_a_e = purrr::map(data, ~fit_lm_3_adj(.x))
   ) %>%
   ungroup() %>%
   pivot_longer(cols = starts_with("lm"), names_to = "model_name", values_to = "model") %>%
@@ -362,54 +362,54 @@ lm_a_e
 # Multilevel models
 
 # Functions for multilevel regression fitting
-# Day
-fit_mr_1_day <- function(train_data){
+# Raw
+fit_mr_1_raw <- function(train_data){
   
   lmer(votes_share ~ afinn_mean + (1 + afinn_mean | country), data = train_data)
   
 }
 
-fit_mr_2_day <- function(train_data){
+fit_mr_2_raw <- function(train_data){
   
-  lmer(votes_share ~ n_likes_mean + (1 | country), data = train_data)
-  
-}
-
-fit_mr_3_day <- function(train_data){
-  
-  lmer(votes_share ~ afinn_mean*n_likes_mean + (1 | country), data = train_data)
+  lmer(votes_share ~ n_retweets_mean + (1 + n_retweets_mean | country), data = train_data)
   
 }
 
-fit_mr_4_day <- function(train_data){
+fit_mr_3_raw <- function(train_data){
   
-  lmer(votes_share ~ afinn_mean*n_likes_mean + (1 + afinn_mean | country), data = train_data)
+  lmer(votes_share ~ afinn_mean*n_retweets_mean + (1 + afinn_mean | country), data = train_data)
+  
+}
+
+fit_mr_4_raw <- function(train_data){
+  
+  lmer(votes_share ~ afinn_mean*n_retweets_mean + (1 + afinn_mean | country), data = train_data)
   
 }
 
 
-# Region
-fit_mr_1_region <- function(train_data){
+# Adjusted
+fit_mr_1_adj <- function(train_data){
   
-  lmer(votes_share ~ afinn_mean_daily + phone + (1 + afinn_mean_daily | country), data = train_data)
-  
-}
-
-fit_mr_2_region <- function(train_data){
-  
-  lmer(votes_share ~ n_likes_mean + phone + (1 | country), data = train_data)
+  lmer(votes_share ~ afinn_mean_daily + (1 + afinn_mean_daily | country), data = train_data)
   
 }
 
-fit_mr_3_region <- function(train_data){
+fit_mr_2_adj <- function(train_data){
   
-  lmer(votes_share ~ afinn_mean_daily*n_likes_mean + afinn_mean_region + phone + (1 | country), data = train_data)
+  lmer(votes_share ~ n_retweets_mean + (1 + n_retweets_mean | country), data = train_data)
   
 }
 
-fit_mr_4_region <- function(train_data){
+fit_mr_3_adj <- function(train_data){
   
-  lmer(votes_share ~ afinn_mean_daily*n_likes_mean + afinn_mean_region + phone + (1 + afinn_mean_daily | country), data = train_data)
+  lmer(votes_share ~ afinn_mean_daily*n_retweets_mean + (1 + afinn_mean_daily | country), data = train_data)
+  
+}
+
+fit_mr_4_adj <- function(train_data){
+  
+  lmer(votes_share ~ afinn_mean_daily*n_retweets_mean + afinn_mean_region + phone + (1 + afinn_mean_daily | country), data = train_data)
   
 }
 
@@ -420,10 +420,10 @@ names(train_data_elex_first_raw)
 # Raw
 mr_r_e <- train_data_elex_first_raw %>%
   nest(data = everything()) %>%
-  mutate(mr_1_r_e = purrr::map(data, ~fit_mr_1_day(.x)),
-         mr_2_r_e = purrr::map(data, ~fit_mr_2_day(.x)),
-         mr_3_r_e = purrr::map(data, ~fit_mr_3_day(.x)),
-         mr_4_r_e = purrr::map(data, ~fit_mr_4_day(.x))
+  mutate(mr_1_r_e = purrr::map(data, ~fit_mr_1_raw(.x)),
+         mr_2_r_e = purrr::map(data, ~fit_mr_2_raw(.x)),
+         mr_3_r_e = purrr::map(data, ~fit_mr_3_raw(.x)),
+         mr_4_r_e = purrr::map(data, ~fit_mr_4_raw(.x))
   ) %>%
   pivot_longer(cols = starts_with("mr"), names_to = "model_name", values_to = "model") %>%
   mutate(model_type = "raw")
@@ -431,10 +431,10 @@ mr_r_e <- train_data_elex_first_raw %>%
 # Adjusted
 mr_a_e <- train_data_elex_first_adj %>%
   nest(data = everything()) %>%
-  mutate(mr_1_a_e = purrr::map(data, ~fit_mr_1_region(.x)),
-         mr_2_a_e = purrr::map(data, ~fit_mr_2_region(.x)),
-         mr_3_a_e = purrr::map(data, ~fit_mr_3_region(.x)),
-         mr_4_a_e = purrr::map(data, ~fit_mr_4_region(.x))
+  mutate(mr_1_a_e = purrr::map(data, ~fit_mr_1_adj(.x)),
+         mr_2_a_e = purrr::map(data, ~fit_mr_2_adj(.x)),
+         mr_3_a_e = purrr::map(data, ~fit_mr_3_adj(.x)),
+         mr_4_a_e = purrr::map(data, ~fit_mr_4_adj(.x))
   ) %>%
   pivot_longer(cols = starts_with("mr"), names_to = "model_name", values_to = "model") %>%
   mutate(model_type = "adjusted")
@@ -444,22 +444,22 @@ mr_a_e <- train_data_elex_first_adj %>%
 # Raw
 mr_r_p <- train_data_polls_raw %>%
   nest(data = everything()) %>%
-  mutate(mr_1_r_p = purrr::map(data, ~fit_mr_1_day(.x)),
-         mr_2_r_p = purrr::map(data, ~fit_mr_2_day(.x)),
-         mr_3_r_p = purrr::map(data, ~fit_mr_3_day(.x)),
-         mr_4_r_p = purrr::map(data, ~fit_mr_4_day(.x))
+  mutate(mr_1_r_p = purrr::map(data, ~fit_mr_1_raw(.x)),
+         mr_2_r_p = purrr::map(data, ~fit_mr_2_raw(.x)),
+         mr_3_r_p = purrr::map(data, ~fit_mr_3_raw(.x)),
+         mr_4_r_p = purrr::map(data, ~fit_mr_4_raw(.x))
   ) %>%
   pivot_longer(cols = starts_with("mr"), names_to = "model_name", values_to = "model") %>%
   mutate(model_type = "raw")
 
 
 # Adjusted
-mr_a_p <- train_data_polls_region %>%
+mr_a_p <- train_data_polls_adj %>%
   nest(data = everything()) %>%
-  mutate(mr_1_a_p = purrr::map(data, ~fit_mr_1_region(.x)),
-         mr_2_a_p = purrr::map(data, ~fit_mr_2_region(.x)),
-         mr_3_a_p = purrr::map(data, ~fit_mr_3_region(.x)),
-         mr_4_a_p = purrr::map(data, ~fit_mr_4_region(.x))
+  mutate(mr_1_a_p = purrr::map(data, ~fit_mr_1_adj(.x)),
+         mr_2_a_p = purrr::map(data, ~fit_mr_2_adj(.x)),
+         mr_3_a_p = purrr::map(data, ~fit_mr_3_adj(.x)),
+         mr_4_a_p = purrr::map(data, ~fit_mr_4_adj(.x))
          
   ) %>%
   pivot_longer(cols = starts_with("mr"), names_to = "model_name", values_to = "model") %>%
@@ -496,25 +496,79 @@ models_stats <- models_master %>%
   mutate(model_tidy = purrr::map(model, broom.mixed::tidy)) %>%
   unnest(model_tidy)
 
-# Format into table
-models_master$model[[1]]$obs
+# List all models
+# Including each linear model per country
+models_stats %>%
+  filter(!is.na(model_country)) %>%
+  distinct(model_name_long, model_country)
+
+# Tidy names, levels, and statistics
+models_stats <- models_stats %>%
+  select(model_name_long, model_country, obs, effect, group, term, estimate, std.error, statistic, p.value) %>%
+  mutate(effect = recode(effect,
+                         "fixed" = "Fixed",
+                         "ran_pars" = "Random"),
+         group = recode(group,
+                        "country" = "Country"
+         ),
+         term = gsub("\\(|\\)", "", term),
+         term = gsub("__", " ", term),
+         term = gsub("afinn_mean", "Sentiment", term),
+         term = gsub("cor", "Correlation,", term),
+         term = gsub("n_retweets_mean", "Retweets", term),
+         term = gsub("Sentiment_region", "Regional sentiment", term),
+         term = gsub("Sentiment_daily", "Daily sentiment", term),
+         term = gsub("\\.", " and ", term),
+         term = gsub("sd", "Standard devitation,", term),
+         term = gsub("\\:", " and ", term),
+         term = gsub("phone", "Phone share", term)
+  )
+
+sapply(models_stats %>% select(effect, group, term), unique)
+
+# Sort names and table column
+all_tables <- models_stats %>%
+  # Split tibbles
+  dplyr::group_split(model_name_long, model_country) %>%
+  purrr::map(~mutate(., across(where(is.double), ~round(., 2) %>% as.character))) %>%
+  purrr::map(~add_row(.,
+                      effect = "Effect",
+                      group = "Group",
+                      term = "Term",
+                      estimate = "Estimate",
+                      std.error = "Standard error",
+                      statistic = "Statistic",
+                      p.value = "P-value",
+                      .before = 1)) %>%
+  purrr::map(~mutate(.,
+                     model_name_long = na.locf(model_name_long, fromLast = TRUE),
+                     model_country = na.locf(model_country, fromLast = TRUE, na.rm = FALSE),
+                     obs = na.locf(obs, fromLast = TRUE) %>% paste0("Observations: ", .)
+  )) %>%
+  purrr::map(~add_row(.)) %>%
+  purrr::map(~mutate(.,
+                     model_name_long = if_else(row_number() %in% 2:nrow(.), NA_character_, model_name_long),
+                     model_country = if_else(row_number() %in% 2:nrow(.), NA_character_, model_country),
+                     obs = if_else(row_number() %in% 2:nrow(.), NA_character_, obs),
+  )) %>%
+  # Bind tables
+  bind_rows() %>%
+  # Replace NAs with empty cells
+  mutate(across(everything(), ~if_else(is.na(.), "", .)))
+
+all_tables
+
+# Save file which can then be pasted in document
+write_csv(all_tables, file = "output/tables/models_tables.csv")
 
 
-broom::glance(models_master$model[[1]])
+# Check individual models
+m3_stats <- models_master %>%
+  filter(model_name_long == "MR 3, election fitted, adjusted")
 
-# Linear
-models_stats_lm <- models_master %>%
-  filter(grepl("Linear", model_name_long)) %>%
-  group_by(model_name_long) %>%
-  slice(1) %>%
-  ungroup()
+m3_stats$model
 
-models_stats_lm %>%
-  mutate(model_tidy = purrr::map(model, broom::tidy)) %>%
-  select(model_tidy, model_name_long) %>%
-  unnest()
-
-
+tidy(m3_stats)
 
 
 ```
@@ -522,10 +576,10 @@ models_stats_lm %>%
 
 ```{r create-test-data}
 # Create test data
-test_raw <- create_test_data(senti_day_targets_covars, choose_type = "election") %>%
+test_raw <- create_test_data(senti_raw_targets_covars, choose_type = "election") %>%
   mutate(test_type = "raw")
 
-test_adjusted <- create_test_data(senti_region_targets_covars, choose_type = "election") %>%
+test_adjusted <- create_test_data(senti_adj_targets_covars, choose_type = "election") %>%
   mutate(test_type = "adjusted")
 
 test_master <- bind_rows(test_raw,
@@ -636,9 +690,9 @@ mae_by_model %>%
   filter(level == "National") %>%
   summarise(mae = mean(mae))
 
-# Average national MAE for multilevel models with or withour post-stratification
+# Average MAE for multilevel models with or without post-stratification
 mae_by_model %>%
-  filter(level == "National") %>%
+  #filter(level == "National") %>%
   filter(grepl("MR", model_name_long)) %>%
   mutate(post_or_not = grepl("post", model_name_long)) %>%
   group_by(post_or_not) %>%
@@ -771,7 +825,7 @@ mae_by_country <- mae_by_country %>%
 ggplot(mae_by_country,
        aes(x = mean_obs,
            y = mae)
-       ) +
+) +
   geom_point(aes(colour = country)) +
   scale_colour_discrete(name = "") +
   theme_devpublicopinion +
@@ -860,9 +914,9 @@ ggplot(mae_by_country,
 ```{r plot-random-effects}
 # Plot random effects of best model
 
-# Subset best model
+# Subset MR model
 model_to_plot <- models_master %>%
-  filter(model_name_long == "MR 4, election fitted, day") %>%
+  filter(model_name_long == "MR 3, election fitted, adjusted") %>%
   .$model
 
 model_to_plot <- model_to_plot[[1]]
@@ -879,20 +933,20 @@ ran_ef_to_plot <- ran_ef_to_plot %>%
 
 #Labels for facet wrap
 ranef_labs <- c("Intercept", "AFINN sentiment")
-names(ranef_labs) <- c("(Intercept)", "afinn_mean")
+names(ranef_labs) <- c("(Intercept)", "afinn_mean_daily")
 
 # Plot random effects
-ggplot(re_to_plot,
+ggplot(ran_ef_to_plot,
        aes(x = value,
            y = country)) +
   geom_col(aes(fill = term), show.legend = FALSE) +
   geom_vline(xintercept = 0) +
   facet_wrap(~ term,
              labeller = labeller(term = ranef_labs),
-             scales = "free_x") +
+             scales = "free_y") +
   theme_devpublicopinion +
-  labs(title = "Random effects of intercept and country-varying sentiment",
-       subtitle = "Random effects associated with varying intercepts and varying slopes of AFINN sentiment; note that scales differ by facet",
+  labs(title = "Random effects of multilevel regression model 3 fitted on election results",
+       subtitle = "Random effects associated with varying intercepts and varying slopes of AFINN sentiment",
        x = "Coefficient difference, percentage points",
        y = "") +
   ggsave("output/figures/random_effects.png", height = 10, width = 14)
@@ -1077,18 +1131,6 @@ add_total <- function(x) { mutate(x, Total = Afghanistan + Georgia + Mexico + Ni
 
 
 ```
-
-
-
-```{r model-tabel}
-# Table to compare models
-models_master
-
-
-#tidy()
-
-```
-
 
 # Plots
 
