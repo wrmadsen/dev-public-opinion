@@ -159,12 +159,16 @@ bind_all_models <- function(...){
 
 }
 
-# Add predictions for all models
-add_all_model_predictions <- function(models_master, test_master){
+#' Add predictions for all models
+#' @return prediction_master
+add_all_model_predictions <- function(models_master, test_data){
 
+  # Update model no for model master
+  models_master <- models_master %>%
+    mutate(model_no = row_number())
 
   # Get estimates for each test row by different models
-  prediction_raw <- purrr::map(models_master$model, ~predict(.x, test_master, allow.new.levels = TRUE))
+  prediction_raw <- purrr::map(models_master$model, ~predict(.x, test_data, allow.new.levels = TRUE))
 
   # Pivot longer
   prediction <- prediction_raw %>%
@@ -178,13 +182,15 @@ add_all_model_predictions <- function(models_master, test_master){
 
   # Add estimates to test data
   # Allows us to calculate difference between actual vote share and estimated share
-  prediction_master <- left_join(test_master, prediction, by = "test_id")
+  prediction_master <- left_join(test_data, prediction, by = "test_id")
 
   # Remove rows if test type is not model type (region or day)
   # or if test country is not model country (except for multilevel models with no model country)
   prediction_master <- prediction_master %>%
     filter(test_type == model_type) %>%
     filter(is.na(model_country) | model_country == country)
+
+  prediction_master
 
 }
 

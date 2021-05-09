@@ -4,7 +4,7 @@ author: "William Rohde Madsen"
 output: html_document
 ---
 
-# Set up
+# Set-up
 ```{r load-packages}
 # Load packages
 library(tidyverse, quietly = TRUE)
@@ -579,7 +579,8 @@ tidy(best_model)
 
 ```{r create-test-data}
 # Create test data
-test_raw <- create_test_data(senti_raw_targets_covars, choose_type = "election") %>%
+test_raw <- create_test_data(senti_raw_targets_covars %>% rename(n_tweets_daily = n_tweets),
+                             choose_type = "election") %>%
   mutate(test_type = "raw")
 
 test_adjusted <- create_test_data(senti_adj_targets_covars, choose_type = "election") %>%
@@ -605,54 +606,74 @@ prediction_master <- prediction_master %>%
   mutate(prediction_post = prediction*popshare)
 
 # Summarise weighted prediction of each region by country
-predictions_post_national <- prediction_master %>%
-  filter(days_diff_abs < 10) %>%
-  filter(region_2 != "National") %>%
-  group_by(country, year, leader, model_name, model_name_long) %>%
-  summarise(prediction_post = weighted.mean(prediction, popshare, na.rm = TRUE),
-            n_tweets = sum(n_tweets, na.rm = TRUE),
-            mean_obs = mean(obs)) %>%
-  arrange(country)
+(predictions_post_national <- prediction_master %>%
+    filter(days_diff_abs < 10) %>%
+    filter(region_2 != "National") %>%
+    group_by(country, year, leader, model_name, model_name_long) %>%
+    summarise(prediction = weighted.mean(prediction, popshare, na.rm = TRUE),
+              n_tweets_daily_mean = mean(n_tweets_daily, na.rm = TRUE),
+              mean_obs = mean(obs)) %>%
+    ungroup() %>%
+    mutate(model_name_long = paste0(model_name_long, ", post"),
+           level = "National",
+           region_1 = "National",
+           region_2 = "National") %>%
+    arrange(country)
+)
 
+# Add actual national vote shares
 # Find actual national vote shares
 actual_shares_national <- find_actual_vote_shares_national(prediction_master)
 
-# Join predictions and actual
-predictions_post_national <- left_join(actual_shares_national, predictions_post_national) %>%
-  mutate(error = prediction_post - votes_share,
-         error_abs = abs(error)
-  )
+# Join
+predictions_post_national <- left_join(actual_shares_national, predictions_post_national)
 
-# Find MAE for post by model
-(mae_post_by_model <- predictions_post_national %>%
-    filter(!grepl("Linear", model_name_long)) %>%
-    filter(!is.na(model_name)) %>%
-    group_by(model_name, model_name_long, mean_obs) %>%
-    summarise(mae = mean(error_abs, na.rm = TRUE)) %>%
-    ungroup() %>%
-    mutate(model_name_long = paste0(model_name_long, ", post"),
-           level = "National") %>%
-    arrange(mae)
-)
+# Bind post-predictions back to master prediction dataset
+prediction_master <- bind_rows(prediction_master, predictions_post_national)
 
-# Find error for post by model and country
-(mae_post_by_model_country <- predictions_post_national %>%
-    filter(!grepl("Linear", model_name_long)) %>%
-    filter(!is.na(model_name)) %>%
-    group_by(country, model_name_long,mean_obs) %>%
-    summarise(mae = mean(error_abs, na.rm = TRUE)) %>%
-    ungroup() %>%
-    mutate(model_name_long = paste0(model_name_long, ", post"),
-           level = "National") %>%
-    arrange(mae)
-)
+# Check rows just added
+prediction_master %>%
+  filter(grepl("post", model_name_long)) %>% view
 
-# Predictions versus actual for post-stratificatied models
-pred_vs_actual_post <- predictions_post_national %>%
-  select(-c(n_tweets, error, error_abs, model_name)) %>%
-  rename(prediction = prediction_post) %>%
-  mutate(model_name_long = paste0(model_name_long, ", post"),
-         level = "National")
+
+```
+
+
+```{r find-post-mae}
+# Find MAE of post-stratification
+
+# # Find MAE for post by model
+# (mae_post_by_model <- predictions_post_national %>%
+#     filter(!grepl("Linear", model_name_long)) %>%
+#     filter(!is.na(model_name)) %>%
+#     group_by(model_name, model_name_long, mean_obs) %>%
+#     summarise(mae = mean(error_abs, na.rm = TRUE),
+#               n_tweets_daily_mean = mean(n_tweets_daily_mean, na.rm = TRUE)
+#     ) %>%
+#     ungroup() %>%
+#     arrange(mae)
+# )
+# 
+# # Find error for post by model and country
+# (mae_post_by_model_country <- predictions_post_national %>%
+#     filter(!grepl("Linear", model_name_long)) %>%
+#     filter(!is.na(model_name)) %>%
+#     group_by(country, model_name_long,mean_obs) %>%
+#     summarise(mae = mean(error_abs, na.rm = TRUE),
+#               n_tweets_daily_mean = mean(n_tweets_daily_mean, na.rm = TRUE)
+#     ) %>%
+#     ungroup() %>%
+#     mutate(model_name_long = paste0(model_name_long, ", post"),
+#            level = "National") %>%
+#     arrange(mae)
+# )
+# 
+# # Predictions versus actual for post-stratificatied models
+# pred_vs_actual_post <- predictions_post_national %>%
+#   select(-c(error, error_abs, model_name)) %>%
+#   rename(prediction = prediction_post) %>%
+#   mutate(model_name_long = paste0(model_name_long, ", post"),
+#          level = "National")
 
 
 ```
@@ -680,23 +701,29 @@ prediction_master_sub <- prediction_master %>%
 # MAE by model for national and region level predictions
 mae_by_model <- bind_rows(
   # National
+  # This also includes post-stratified estimates
   prediction_master_sub %>%
     filter(region_2 == "National") %>%
     group_by(model_name_long) %>%
-    mutate(mae = mean(error_abs, na.rm = TRUE)) %>%
+    mutate(mae = mean(error_abs, na.rm = TRUE),
+           n_tweets_daily_mean = mean(n_tweets_daily, na.rm = TRUE)
+    ) %>%
     slice(1) %>%
-    transmute(model_name_long, mae, level = "National"),
+    transmute(model_name_long, mae, n_tweets_daily_mean, level = "National"),
   # Region
   prediction_master_sub %>%
     filter(region_2 != "National") %>%
     group_by(model_name_long) %>%
-    mutate(mae = mean(error_abs, na.rm = TRUE)) %>%
+    mutate(mae = mean(error_abs, na.rm = TRUE),
+           n_tweets_daily_mean = mean(n_tweets_daily, na.rm = TRUE)
+    ) %>%
     slice(1) %>%
-    transmute(model_name_long, mae, level = "Region")) %>%
-  ungroup() %>%
-  # Add post-stratified national level predictions
-  bind_rows(mae_post_by_model)
+    transmute(model_name_long, mae, n_tweets_daily_mean, level = "Region")) %>%
+  ungroup() #%>%
+# Add post-stratified national level predictions
+#bind_rows(mae_post_by_model)
 
+# Print MAE
 mae_by_model %>%
   arrange(mae)
 
@@ -745,12 +772,14 @@ mae_by_model %>%
 # Calculate MAE by country
 mae_by_country <- bind_rows(
   # National
+  # Includes post-stratified estimates
   prediction_master_sub %>%
     filter(region_2 == "National") %>%
     group_by(year, country, model_name_long) %>%
     summarise(mae = mean(error_abs, na.rm = TRUE),
               mean_obs = mean(obs),
-              mean_phone = mean(phone, na.rm = TRUE)
+              mean_phone = mean(phone, na.rm = TRUE),
+              n_tweets_daily_mean = mean(n_tweets_daily, na.rm = TRUE)
     ) %>%
     mutate(level = "National"),
   # Region
@@ -759,21 +788,22 @@ mae_by_country <- bind_rows(
     group_by(year, country, model_name_long) %>%
     summarise(mae = mean(error_abs, na.rm = TRUE),
               mean_obs = mean(obs),
-              mean_phone = mean(phone, na.rm = TRUE)
+              mean_phone = mean(phone, na.rm = TRUE),
+              n_tweets_daily_mean = mean(n_tweets_daily, na.rm = TRUE)
     ) %>%
     mutate(level = "Region")) %>%
   ungroup() %>%
-  bind_rows(mae_post_by_model_country) %>%
+  #bind_rows(mae_post_by_model_country) %>%
   mutate(model_type = if_else(grepl("Linear", model_name_long), "Linear", "Multilevel"),
          post_or_not = if_else(grepl("post", model_name_long), "Post-stratification", "No post-stratification"))
 
 # Add supplemenetary, including English speaking share
-mae_by_country <- left_join(mae_by_country,
-                            supp %>%
-                              group_by(country) %>%
-                              slice_max(year, n = 1) %>%
-                              select(-year),
-                            by = "country")
+mae_by_country_with_supp <- left_join(mae_by_country,
+                                      supp %>%
+                                        group_by(country) %>%
+                                        slice_max(year, n = 1) %>%
+                                        select(-year),
+                                      by = "country")
 
 # By country, simple bar plot
 
@@ -833,26 +863,66 @@ mae_by_country %>%
   slice_min(mae, n = 2) %>%
   arrange(country, level, mae)
 
-
 # Plot MAE by candidate, country, and region
 # By sample size
-mae_by_region %>%
+mae_by_country %>%
   filter(grepl("MR", model_name_long)) %>%
   ggplot(.,
-         aes(x = mean_obs,
+         aes(x = n_tweets_daily_mean,
              y = mae)) +
   geom_point(aes(colour = country)) +
   geom_smooth(method = "lm", se = FALSE, colour = "black") +
   scale_colour_discrete(name = "") +
+  #facet_wrap(~country) +
   theme_devpublicopinion +
-  labs(title = "Correlation between MAE and sample size (number of Tweets per day)",
+  labs(title = "Relationship between multilevel model error and sample size (number of Tweets per day)",
        subtitle = "Mean absolute error (MAE) by sample size, measured as the average number of Tweets per day, for multilevel models",
-       x = "Mean sample size (number of Tweets per day)",
+       x = "Mean sample size (mean number of Tweets per day)",
        y = "MAE") +
   ggsave("output/figures/country_mae_sample.png", height = 10, width = 14)
 
 
 
+```
+
+```{r mae-by-model-group}
+# MAE by model groups
+# Linear, multilevel, and multilevel with post-stratification
+
+# Create by model type
+mae_sample_table <- mae_by_country %>%
+  filter(grepl("election", model_name_long)) %>%
+  filter(!(model_type == "Linear" & post_or_not == "Post-stratification")) %>%
+  mutate(model_group = case_when(model_type == "Linear" ~ "Linear regression",
+                                 model_type == "Multilevel" & post_or_not == "Post-stratification" ~ "Multilevel regression with post-stratification (MRP)",
+                                 model_type == "Multilevel" & post_or_not == "No post-stratification" ~ "Multilevel regression without post-stratification"),
+         model_group = fct_relevel(model_group,
+                                   "Linear regression",
+                                   "Multilevel regression without post-stratification",
+                                   "Multilevel regression with post-stratification (MRP)")
+  ) %>%
+  arrange(model_group, country)
+
+mae_sample_table %>%
+  group_by(model_group, raw = grepl("raw", model_name_long)) %>%
+  summarise(mean = mean(n_tweets_daily_mean),
+            n = n())
+
+mae_sample_table <- mae_sample_table %>%
+  group_by(model_group) %>%
+  summarise(mae = mean(mae),
+            n_tweets_daily_mean = mean(n_tweets_daily_mean, na.rm = TRUE)) %>%
+  mutate(across(c(mae, n_tweets_daily_mean), ~round(., 2))) %>%
+  rename("Model group" = model_group, "MAE" = mae, "Average number of Tweets per day" = n_tweets_daily_mean)
+
+mae_sample_table
+
+# Save as csv
+write_csv(mae_sample_table, "output/tables/mae_sample_by_model_group.csv")
+
+
+# Mean daily tweets by model
+mae_by_model %>% group_by(level) %>% slice_min(mae, n = 3)
 
 
 ```
@@ -867,6 +937,7 @@ mae_by_region %>%
 # Find actual votes share and prediction for each model for each region
 pred_vs_actual <- bind_rows(
   # National
+  # This includes post-stratified predictions as well
   prediction_master_sub %>%
     filter(region_2 == "National") %>%
     group_by(leader, year, country, region_1, region_2, model_name_long, votes_share) %>%
@@ -880,7 +951,7 @@ pred_vs_actual <- bind_rows(
               mean_obs = mean(obs))
 ) %>%
   ungroup() %>%
-  bind_rows(pred_vs_actual_post) %>%
+  #bind_rows(pred_vs_actual_post) %>%
   mutate(level = if_else(region_2 == "National", "National predictions", "Regional predictions"),
          model_type = if_else(grepl("Linear", model_name_long), "Linear", "Multilevel"),
          post_or_not = if_else(grepl("post", model_name_long), "Post-stratification", "No post-stratification"),
@@ -962,7 +1033,7 @@ ggplot(ran_ef_to_plot,
 ```
 
 
-```{r show-icc}
+```{r calculate-icc}
 # Show intra-class correlation of best model
 best_model$model
 
@@ -973,54 +1044,95 @@ icc(best_model$model[[1]])
 ```
 
 
-
-
-```{r plot-estimates-correlation}
-# Correlation between estimates and features
-prediction_master_num <- prediction_master %>%
-  select(where(is.numeric))
-
-# Calculate correlation
-prediction_master_cor <- prediction_master_num %>%
-  cor()
-
-prediction_master_cor <- prediction_master_cor %>%
-  as_data_frame() %>%
-  mutate(x = colnames(prediction_master_num)) %>%
-  pivot_longer(names_to = "y", values_to = "value", popshare:error_abs)
-
-prediction_master_cor %>%
-  arrange(x, y) %>%
-  ggplot(aes(x = x, y = y, fill = value)) + 
-  geom_tile() +
-  scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
-                       midpoint = 0, limit = c(-1,1), space = "Lab", 
-                       name = "Pearson\nCorrelation") +
-  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
-  coord_fixed() +
-  labs(x = "feature", 
-       y = "feature",
-       title = "Correlation between features", 
-       caption = "Source: Pima Indians Diabetes Database")
-
-
-# Scatterplot matrix
-ggpairs(prediction_master, 
-        columns = c(eye, cellphone, phone),
-        alpha = 0.7) +
-  labs(x = "feature", 
-       y = "feature",
-       title = "Scatterplot matrix", 
-       caption = "Source: Pima Indians Diabetes Database")
-
-```
-
-
-
-
 # Predictions over time
 ```{r predictions-over-time}
 # Use models to estimate votes share over time
+
+# Subset models for time estimates
+models_over_time <- models_master %>%
+  filter(model_name_long == "MR 3, election fitted, adjusted") %>%
+  filter(grepl("MR 3", model_name_long)) %>%
+  filter(model_type == "adjusted")
+
+# Data of daily sentiment over time
+data_over_time <- senti_adj %>%
+  mutate(afinn_mean = afinn_mean_daily,
+         test_id = row_number(),
+         test_type = "adjusted",
+         year = year(date))
+
+#data_over_time <- bind_rows(data_over_time,
+ #                           data_over_time %>% mutate(test_type = "adjusted"))
+
+# Add covariates
+data_over_time <- add_gdl_covariates(data_over_time, gdl_interpo)
+
+# Get predictions
+prediction_over_time <- add_all_model_predictions(models_over_time, data_over_time) %>%
+  filter(country == leader_country)
+
+prediction_over_time %>% distinct(leader, country, leader_country) %>% arrange(leader)
+
+# Calculate post-stratified national estimates
+post_over_time <- prediction_over_time %>%
+  filter(model_name_long == "MR 3, election fitted, adjusted") %>%
+  filter(region_2 != "National") %>%
+  mutate(week = floor_date(date, "week")) %>%
+  group_by(date, country, leader, model_name, model_name_long) %>%
+  summarise(prediction = weighted.mean(prediction, popshare, na.rm = TRUE),
+            n_tweets_daily_mean = mean(n_tweets_daily, na.rm = TRUE),
+            mean_obs = mean(obs)) %>%
+  ungroup() %>%
+  arrange(country, leader, date)
+
+# Add linear interpolation
+post_over_time <- post_over_time %>%
+  filter(prediction < 1) %>%
+  group_by(leader, country) %>%
+  mutate(prediction = zoo::na.approx(prediction, na.rm = FALSE, rule = 2),
+         prediction_roll = roll_mean(prediction, n = 14, fill = NA)) %>%
+  ungroup()
+
+# Print over time estimates
+head(post_over_time)
+
+# Plot all leaders over time
+post_over_time %>%
+  ggplot(.,
+       aes(x = date)) + 
+  geom_point(aes(colour = leader,
+                 y = prediction),
+             show.legend = FALSE) +
+  geom_line(aes(y = prediction_roll)) +
+  facet_wrap(country~leader, scales = "free") +
+  scale_colour_discrete(name = "") +
+  theme_devpublicopinion +
+  labs(title = "MRP estimates over time for developing country leaders and candidates",
+       subtitle = "Estimated national favourability of a leader by multilevel regression with post-stratification (MRP);\nblack lines show 14-day rolling average of model predictions",
+       x = NULL,
+       y = "Estimated vote share") +
+  ggsave("output/figures/estimates_over_time.png", height = 10, width = 14)
+
+
+# Plot Zimbabwe
+# Plot
+post_over_time %>%
+  filter(country == "Zimbabwe") %>%
+  ggplot(.,
+       aes(x = date)) + 
+  geom_point(aes(colour = leader,
+                 y = prediction),
+             show.legend = FALSE) +
+  geom_line(aes(y = prediction_roll)) +
+  facet_wrap(country~leader, scales = "free") +
+  scale_colour_discrete(name = "") +
+  #scale_x_date(date_labels = "%b %Y") +
+  theme_devpublicopinion +
+  labs(title = "MRP estimates over time for Zimbabwe",
+       subtitle = "Estimated national favourability of a leader by multilevel regression with post-stratification (MRP);\nblack lines show 14-day rolling average of model predictions",
+       x = NULL,
+       y = "Estimated vote share") +
+  ggsave("output/figures/estimates_over_time_zwe.png", height = 10, width = 14)
 
 
 ```
@@ -1219,7 +1331,7 @@ poll_plot_data %>%
   distinct(country, date_target) %>%
   group_by(country) %>%
   summarise(n = n(),
-            )
+  )
 
 
 
