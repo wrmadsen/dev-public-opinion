@@ -13,20 +13,17 @@ library(devpublicopinion)
 ```
 
 ## Pipeline
-1. Data collection: Tweets, covariates, electoral results, survey results, language demographics
+1. Data collection: Tweets, covariates, electoral results, survey results, and language demographics
 2. Tweet analysis:
-	* Sentiment analysis: Classifying each Tweet
-	* Extracting individual-level covariates (gender, age, location, etc.)
-3. Public opinion prediction: Simple favourability proportion (% share who favours a leader over time)
-	* Machine learning with training data in the form of election data and other sources
-	* MRP by population share
+	* Sentiment analysis
+	* Higher and lower level covariates
+3. Public opinion prediction
+	* Machine learning with training and validation data
+	* Multilevel regression with post-stratification
 4. Validation
 	* Election data
 	* Events data
 	* Differences by regions, characteristics, events, etc.
-5. Problems
-	* Bias of Twitter users: Maybe: Younger, more extreme, more outward-looking, etc. 
-	* Bots: How many Tweets does not represent a single person's views? Check research on spotting Twitter bots.
 
 ### Get Tweets
 `Python`'s [twint](https://github.com/twintproject/twint) module allows us to collect Tweets in a scalable way. With `R`'s [reticulate](https://rstudio.github.io/reticulate/) package, I run our `Python` script from `R`.
@@ -50,16 +47,12 @@ Imposing `limit = 20000` (per 12 hours) on the 6th scenario above, cuts the time
 
 A takeaway may to impose a limit on non-geocoded tweets to save time and gather geocodes tweets, which have less volume, without a limit.
 
-Tweets are collected by two methods:
-1. Tweets which mention a leader
-2. Tweets which mention a leader and give coordinates with the smallest-possible circle of a country
-
 #### Which countries?
 Group: Nigeria, Zimbabwe, Afghanistan, Mozambique, and Georgia.
 Differences in English-speaking proportion, number of Twitter users, electoral corruption and other characteristics can affect the accuracy of Twitter-based public opinion predictions.
 
 #### Rotating proxies: Robin Hood method:
-It may be necessary to automatically change IP proxies during the collection. A VPN seems to work fine. Otherwise, a proxy service may be required.
+It may be necessary to automatically change IP proxies during the collection.
 
 ### Text analysis
 
