@@ -33,7 +33,7 @@ source("data-raw/02_format_raw_data.R")
 #source("data-raw/03_data_to_get_tweets.R")
 
 # Read tweets ----
-tweets_raw <- fread("data-raw/tweets/tweets.csv", nThread = 10000)
+tweets_raw <- fread("data-raw/tweets/tweets_raw_og.csv", nThread = 10000)
 
 # Format tweets ----
 

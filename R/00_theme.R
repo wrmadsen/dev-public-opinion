@@ -1,6 +1,6 @@
 # Annotation size
 # when text size
-text_size <- 15
+text_size <- 18
 anno_size <- text_size*(5/14)
 
 # Font
@@ -33,3 +33,4 @@ theme_devpublicopinion <- theme(axis.text = element_text(size = unit(text_size, 
         strip.background = element_blank(),
         axis.text = element_text(size = unit(text_size-2, "mm"))
   )
+

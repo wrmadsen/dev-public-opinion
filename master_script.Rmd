@@ -107,7 +107,7 @@ senti_raw$region_1 %>% unique %>% paste(., collapse = ", ")
 ```
 
 
-# Sentiment per region over time
+# Sentiment adjusted over time
 ```{r senti-adjusted}
 # Sentiment adjusted
 # Based on regions
@@ -310,6 +310,16 @@ train_data_elex_first_adj <- create_training_data(senti_adj_targets_covars,
 train_data_polls_adj <- create_training_data(senti_adj_targets_covars,
                                              type = "polls", less_than_days_diff = days_for_training)
 
+
+```
+
+
+```{r average-number-of-tweets-in-training-data}
+# Average number of tweets per day in training data
+
+train_data_elex_first_adj %>%
+  #group_by(leader, country, region_1, region_2, date) %>%
+  summarise(n_tweets_daily = mean(n_tweets_daily))
 
 ```
 
@@ -562,7 +572,7 @@ all_tables <- models_stats %>%
 all_tables
 
 # Save file which can then be pasted in document
-write_csv(all_tables, file = "output/tables/models_tables.csv")
+write_csv(all_tables, file = "output/tables/appendix_models_tables.csv")
 
 
 # Check individual models
@@ -595,23 +605,22 @@ test_master <- bind_rows(test_raw,
 
 ```{r make-predictions}
 # Add predictions for all models
-prediction_master <- add_all_model_predictions(models_master, test_master)
+predictions <- add_all_model_predictions(models_master, test_master)
 
 ```
 
 
 ```{r make-post-predictions}
 # Add post-stratified estimates with GDL's popshare variable
-prediction_master <- prediction_master %>%
+prediction_master <- predictions %>%
   mutate(prediction_post = prediction*popshare)
 
 # Summarise weighted prediction of each region by country
 (predictions_post_national <- prediction_master %>%
-    filter(days_diff_abs < 10) %>%
     filter(region_2 != "National") %>%
-    group_by(country, year, leader, model_name, model_name_long) %>%
+    group_by(country, year, leader, model_name, model_name_long, days_diff_abs) %>%
     summarise(prediction = weighted.mean(prediction, popshare, na.rm = TRUE),
-              n_tweets_daily_mean = mean(n_tweets_daily, na.rm = TRUE),
+              n_tweets_daily = mean(n_tweets_daily, na.rm = TRUE),
               mean_obs = mean(obs)) %>%
     ungroup() %>%
     mutate(model_name_long = paste0(model_name_long, ", post"),
@@ -623,17 +632,17 @@ prediction_master <- prediction_master %>%
 
 # Add actual national vote shares
 # Find actual national vote shares
-actual_shares_national <- find_actual_vote_shares_national(prediction_master)
+(actual_shares_national <- find_actual_vote_shares_national(prediction_master))
 
 # Join
-predictions_post_national <- left_join(actual_shares_national, predictions_post_national)
+predictions_post_national <- left_join(predictions_post_national, actual_shares_national)
 
 # Bind post-predictions back to master prediction dataset
 prediction_master <- bind_rows(prediction_master, predictions_post_national)
 
 # Check rows just added
 prediction_master %>%
-  filter(grepl("post", model_name_long)) %>% view
+  filter(grepl("post", model_name_long)) %>% select(country, region_1, region_2, leader, model_name, days_diff_abs, votes_share, prediction)
 
 
 ```
@@ -698,6 +707,9 @@ prediction_master <- prediction_master %>%
 prediction_master_sub <- prediction_master %>%
   filter(days_diff_abs < 10)
 
+# Check that post predictions are included
+prediction_master %>% filter(grepl("post", model_name_long))
+
 # MAE by model for national and region level predictions
 mae_by_model <- bind_rows(
   # National
@@ -727,6 +739,10 @@ mae_by_model <- bind_rows(
 mae_by_model %>%
   arrange(mae)
 
+# Print post-predictions to check they have been included
+mae_by_model %>%
+  filter(grepl("post", model_name_long))
+
 # Best model is MR 3, election fitted, adjusted
 best_model_name <- "MR 3, election fitted, adjusted"
 
@@ -743,7 +759,7 @@ mae_by_model %>%
   group_by(post_or_not) %>%
   summarise(mae = mean(mae))
 
-# Plot bar
+# Plot figure 1 bar
 mae_by_model %>%
   mutate(level = as.factor(level),
          model_name_long = reorder_within(model_name_long, mae, level)) %>%
@@ -759,7 +775,7 @@ mae_by_model %>%
        subtitle = "Mean absolute error for national- and region-level predictions by all models",
        x = NULL,
        y = "Mean absolute error (MAE)") +
-  ggsave("output/figures/mae_by_model.png", height = 10, width = 14)
+  ggsave("output/figures/fig1_mae_by_model.png", height = 10, width = 14)
 
 
 
@@ -838,12 +854,13 @@ mae_by_country_plus %>%
   scale_x_reordered() +
   scale_fill_discrete(name = "") +
   theme_devpublicopinion +
-  labs(title = "Multilevel regression outperforms linear regression at all but one level across five countries",
-       subtitle = "Average MAE of linear models, multilevel models, and the best performing MR 3 model,\nacross Zimbabwe, Georgia, Afghanistan, Mexico, and Nigeria. Note that MR 3 predictions at the national level used post-stratification.",
+  theme(strip.text = element_text(size = text_size+2)) +
+  labs(title = "Multilevel regression outperforms linear regression at most levels",
+       subtitle = "Average MAE of linear models, multilevel models, and the well performing MR 3 model,\nacross Zimbabwe, Georgia, Afghanistan, Mexico, and Nigeria.\nNote that MR 3 predictions at the national level used post-stratification.",
        x = NULL,
        y = "MAE, percentage points"
   ) +
-  ggsave("output/figures/mae_by_country_and_model_type.png", height = 10, width = 14)
+  ggsave("output/figures/fig4_mae_by_country_and_model_type.png", height = 10, width = 14)
 
 # Check numbers
 # By model type
@@ -856,7 +873,7 @@ mae_by_country_plus %>%
 # By specific model
 mae_by_country %>%
   select(country, level, model_name_long, model_type, mae) %>%
-  #filter(country %in% c("Afghanistan", "Mexico")) %>%
+  filter(country %in% c("Afghanistan", "Mexico", "Zimbabwe")) %>%
   #filter(level == "Region") %>%
   mutate(mae = mae*100) %>%
   group_by(country, level) %>%
@@ -870,7 +887,7 @@ mae_by_country %>%
   ggplot(.,
          aes(x = n_tweets_daily_mean,
              y = mae)) +
-  geom_point(aes(colour = country)) +
+  geom_point(aes(colour = country), size = 5) +
   geom_smooth(method = "lm", se = FALSE, colour = "black") +
   scale_colour_discrete(name = "") +
   #facet_wrap(~country) +
@@ -879,55 +896,11 @@ mae_by_country %>%
        subtitle = "Mean absolute error (MAE) by sample size, measured as the average number of Tweets per day, for multilevel models",
        x = "Mean sample size (mean number of Tweets per day)",
        y = "MAE") +
-  ggsave("output/figures/country_mae_sample.png", height = 10, width = 14)
+  ggsave("output/figures/fig5_country_mae_sample.png", height = 10, width = 14)
 
 
 
 ```
-
-```{r mae-by-model-group}
-# MAE by model groups
-# Linear, multilevel, and multilevel with post-stratification
-
-# Create by model type
-mae_sample_table <- mae_by_country %>%
-  filter(grepl("election", model_name_long)) %>%
-  filter(!(model_type == "Linear" & post_or_not == "Post-stratification")) %>%
-  mutate(model_group = case_when(model_type == "Linear" ~ "Linear regression",
-                                 model_type == "Multilevel" & post_or_not == "Post-stratification" ~ "Multilevel regression with post-stratification (MRP)",
-                                 model_type == "Multilevel" & post_or_not == "No post-stratification" ~ "Multilevel regression without post-stratification"),
-         model_group = fct_relevel(model_group,
-                                   "Linear regression",
-                                   "Multilevel regression without post-stratification",
-                                   "Multilevel regression with post-stratification (MRP)")
-  ) %>%
-  arrange(model_group, country)
-
-mae_sample_table %>%
-  group_by(model_group, raw = grepl("raw", model_name_long)) %>%
-  summarise(mean = mean(n_tweets_daily_mean),
-            n = n())
-
-mae_sample_table <- mae_sample_table %>%
-  group_by(model_group) %>%
-  summarise(mae = mean(mae),
-            n_tweets_daily_mean = mean(n_tweets_daily_mean, na.rm = TRUE)) %>%
-  mutate(across(c(mae, n_tweets_daily_mean), ~round(., 2))) %>%
-  rename("Model group" = model_group, "MAE" = mae, "Average number of Tweets per day" = n_tweets_daily_mean)
-
-mae_sample_table
-
-# Save as csv
-write_csv(mae_sample_table, "output/tables/mae_sample_by_model_group.csv")
-
-
-# Mean daily tweets by model
-mae_by_model %>% group_by(level) %>% slice_min(mae, n = 3)
-
-
-```
-
-
 
 
 ```{r plot-prediction-against-actual}
@@ -971,18 +944,26 @@ pred_vs_actual_mr <- pred_vs_actual %>%
 ggplot(pred_vs_actual_mr,
        aes(x = votes_share,
            y = prediction)) +
-  geom_point(aes(colour = zwe_or_not)) +
+  geom_point(aes(colour = zwe_or_not), size = 1) +
   geom_abline(intercept = 0, slope = 1) +
   facet_wrap(~post_or_not) +
   scale_colour_discrete(name = "") +
   scale_x_continuous(limits = c(0, 1)) +
   scale_y_continuous(limits = c(0, 1)) +
   theme_devpublicopinion +
-  labs(title = "Predictions against actual vote shares by multilevel models",
+  theme(strip.text = element_text(size = text_size+2)) +
+  labs(title = "Predicted against actual vote shares by multilevel models",
        subtitle = "Predicted against actual votes share; each point is a predicted vote share for a candidate by a multilevel model",
        x = "Actual vote share",
        y = "Prediction") +
-  ggsave("output/figures/predicted_against_actual.png", height = 10, width = 14)
+  ggsave("output/figures/fig2_predicted_against_actual.png", height = 10, width = 14)
+
+# 27 words per figure
+# 27 times 6 is 162
+# Thus need word docx count to be less than 7338 words
+
+# Footnotes plus
+162+330
 
 
 ```
@@ -1023,11 +1004,12 @@ ggplot(ran_ef_to_plot,
              labeller = labeller(term = ranef_labs),
              scales = "free_y") +
   theme_devpublicopinion +
+  theme(strip.text = element_text(size = text_size+2)) +
   labs(title = "Random effects of multilevel regression model 3 fitted on election results",
        subtitle = "Random effects associated with varying intercepts and varying slopes of AFINN sentiment",
        x = "Coefficient difference, percentage points",
        y = "") +
-  ggsave("output/figures/random_effects.png", height = 10, width = 14)
+  ggsave("output/figures/fig3_random_effects.png", height = 10, width = 14)
 
 
 ```
@@ -1062,7 +1044,7 @@ data_over_time <- senti_adj %>%
          year = year(date))
 
 #data_over_time <- bind_rows(data_over_time,
- #                           data_over_time %>% mutate(test_type = "adjusted"))
+#                           data_over_time %>% mutate(test_type = "adjusted"))
 
 # Add covariates
 data_over_time <- add_gdl_covariates(data_over_time, gdl_interpo)
@@ -1099,7 +1081,7 @@ head(post_over_time)
 # Plot all leaders over time
 post_over_time %>%
   ggplot(.,
-       aes(x = date)) + 
+         aes(x = date)) + 
   geom_point(aes(colour = leader,
                  y = prediction),
              show.legend = FALSE) +
@@ -1107,38 +1089,134 @@ post_over_time %>%
   facet_wrap(country~leader, scales = "free") +
   scale_colour_discrete(name = "") +
   theme_devpublicopinion +
+  theme(strip.text = element_text(size = text_size+1)) +
   labs(title = "MRP estimates over time for developing country leaders and candidates",
-       subtitle = "Estimated national favourability of a leader by multilevel regression with post-stratification (MRP);\nblack lines show 14-day rolling average of model predictions",
+       subtitle = "Estimated national favourability of leaders by multilevel regression with post-stratification (MRP);\nblack lines show 14-day rolling averages of model predictions",
        x = NULL,
        y = "Estimated vote share") +
-  ggsave("output/figures/estimates_over_time.png", height = 10, width = 14)
+  ggsave("output/figures/fig6_estimates_over_time.png", height = 10, width = 14)
 
 
-# Plot Zimbabwe
-# Plot
-post_over_time %>%
-  filter(country == "Zimbabwe") %>%
-  ggplot(.,
-       aes(x = date)) + 
-  geom_point(aes(colour = leader,
-                 y = prediction),
-             show.legend = FALSE) +
-  geom_line(aes(y = prediction_roll)) +
-  facet_wrap(country~leader, scales = "free") +
-  scale_colour_discrete(name = "") +
-  #scale_x_date(date_labels = "%b %Y") +
-  theme_devpublicopinion +
-  labs(title = "MRP estimates over time for Zimbabwe",
-       subtitle = "Estimated national favourability of a leader by multilevel regression with post-stratification (MRP);\nblack lines show 14-day rolling average of model predictions",
-       x = NULL,
-       y = "Estimated vote share") +
-  ggsave("output/figures/estimates_over_time_zwe.png", height = 10, width = 14)
+# Plot estimates over time per country
+plot_estimates_over_time_per_country <- function(post_over_time, country_to_plot = "Zimbabwe"){
+  
+  estimates_title <- paste0("MRP estimates over time for ", country_to_plot)
+  
+  estimates_file_name <- paste0("output/figures/appendix_estimates_over_time_", country_to_plot, ".png")
+  
+  
+  # Subset and plot
+  post_over_time %>%
+    filter(country == country_to_plot) %>%
+    ggplot(.,
+           aes(x = date)) + 
+    geom_point(aes(colour = leader,
+                   y = prediction),
+               show.legend = FALSE) +
+    geom_line(aes(y = prediction_roll)) +
+    facet_wrap(leader, scales = "free") +
+    scale_colour_discrete(name = "") +
+    #scale_x_date(date_labels = "%b %Y") +
+    theme_devpublicopinion +
+    labs(title = estimates_title,
+         subtitle = "Estimated national favourability of leaders by multilevel regression with post-stratification (MRP);\nblack lines show 14-day rolling averages of model predictions",
+         x = NULL,
+         y = "Estimated vote share") +
+    ggsave(estimates_file_name, height = 10, width = 14)
+  
+  
+}
+
+# Plot and save countries
+plot_estimates_over_time_per_country(post_over_time, country_to_plot = "Zimbabwe")
+plot_estimates_over_time_per_country(post_over_time, country_to_plot = "Georgia")
+plot_estimates_over_time_per_country(post_over_time, country_to_plot = "Afghanistan")
+plot_estimates_over_time_per_country(post_over_time, country_to_plot = "Mexico")
+plot_estimates_over_time_per_country(post_over_time, country_to_plot = "Nigeria")
 
 
 ```
 
 
 # Tables
+
+```{r table-mae-by-model-group}
+# MAE by model groups
+# Linear, multilevel, and multilevel with post-stratification
+
+# Create by model type
+mae_sample_table <- mae_by_country %>%
+  filter(grepl("election", model_name_long)) %>%
+  filter(!(model_type == "Linear" & post_or_not == "Post-stratification")) %>%
+  mutate(model_group = case_when(model_type == "Linear" ~ "Linear regression",
+                                 model_type == "Multilevel" & post_or_not == "Post-stratification" ~ "Multilevel regression with post-stratification (MRP)",
+                                 model_type == "Multilevel" & post_or_not == "No post-stratification" ~ "Multilevel regression without post-stratification"),
+         model_group = fct_relevel(model_group,
+                                   "Linear regression",
+                                   "Multilevel regression without post-stratification",
+                                   "Multilevel regression with post-stratification (MRP)")
+  ) %>%
+  arrange(model_group, country)
+
+mae_sample_table %>%
+  group_by(model_group, raw = grepl("raw", model_name_long)) %>%
+  summarise(mean = mean(n_tweets_daily_mean),
+            n = n())
+
+mae_sample_table <- mae_sample_table %>%
+  group_by(model_group) %>%
+  summarise(mae = mean(mae),
+            n_tweets_daily_mean = mean(n_tweets_daily_mean, na.rm = TRUE)) %>%
+  mutate(across(c(mae, n_tweets_daily_mean), ~round(., 4))) %>%
+  rename("Model group" = model_group, "MAE" = mae, "Average number of Tweets per day" = n_tweets_daily_mean)
+
+mae_sample_table
+
+# Save as csv
+write_csv(mae_sample_table, "output/tables/table3_mae_sample_by_model_group.csv")
+
+# Mean daily tweets by model
+mae_by_model %>% group_by(level) %>% slice_min(mae, n = 3)
+
+
+```
+
+
+
+```{r list-elections-table}
+# List elections in training data
+training_elections <- train_data_elex_first_raw %>%
+  distinct(country, date_target) %>%
+  arrange(country, date_target) %>%
+  transmute(Data = "Training", Elections = paste0(country, " (", year(date_target), ")"))
+
+train_data_elex_first_adj %>%
+  distinct(country, date_target)
+
+# List elections in test data
+validation_elections <- prediction_master %>%
+  filter(type == "election") %>%
+  distinct(country, date_target) %>%
+  transmute(Data = "Validation", Elections = paste0(country, " (", year(date_target), ")"))
+
+
+# Create table
+elex_table <- bind_rows(training_elections,
+                        validation_elections) %>%
+  arrange(Data, Elections) %>%
+  group_by(Data) %>%
+  summarise(Elections = toString(Elections))
+
+elex_table
+
+# Save as csv
+write_csv(elex_table, "output/tables/table2_elex_for_train_or_vali.csv")
+
+
+
+```
+
+
 ```{r table-country-stats}
 # Table of country statistics
 tweets_stats_country <- tweets_sub %>%
@@ -1228,7 +1306,7 @@ add_total <- function(x) { mutate(x, Total = Afghanistan + Georgia + Mexico + Ni
     summarise(n = n()) %>%
     group_by(country) %>%
     summarise(n = n()) %>%
-    mutate(variable = "Number of elections per country") %>%
+    mutate(variable = "Number of unique candidacies or leaders") %>%
     pivot_wider(names_from = country, values_from = n) %>%
     add_total()
 )
@@ -1239,7 +1317,7 @@ add_total <- function(x) { mutate(x, Total = Afghanistan + Georgia + Mexico + Ni
     summarise(n = n()) %>%
     group_by(country) %>%
     summarise(n = n()) %>%
-    mutate(variable = "Number of polls per country") %>%
+    mutate(variable = "Number of polls") %>%
     pivot_wider(names_from = country, values_from = n) %>%
     add_total()
 )
@@ -1250,40 +1328,22 @@ add_total <- function(x) { mutate(x, Total = Afghanistan + Georgia + Mexico + Ni
                                n_weeks_per_country,
                                n_years_per_country,
                                n_regions_1_per_country,
-                               #n_regions_2_per_country,
+                               n_candidates_per_country,
                                n_elections_per_country,
                                n_polls_per_country) %>%
     rename(Name = variable)
 )
 
 # Save as csv
-#write_csv(by_country_table, file = "output/tables/per_country.csv")
+write_csv(by_country_table, file = "output/tables/table1_per_country.csv")
 
 
 ```
-
-
-```{r list-elections}
-# List elections in training data
-train_data_elex_first_raw %>%
-  distinct(country, date_target)
-
-train_data_elex_first_adj %>%
-  distinct(country, date_target)
-
-# List elections in test data
-prediction_master %>%
-  filter(type == "election") %>%
-  distinct(country, date_target)
-
-
-```
-
 
 
 # Plots
 
-```{r plot-polls-and-elex}
+```{r plot-polls-comparison}
 # Plot traditional polling and election results
 
 # Subset database to include national level rows, only polls
@@ -1312,11 +1372,12 @@ ggplot(poll_plot_data,
   facet_wrap(~country# , scales = "free"
   ) +
   theme_devpublicopinion +
-  labs(title = "Polling for developing countries is sparce over time",
-       subtitle = "% vote share, point for each traditional polling collected by country; numbers of polls included in this figure are not exhaustive",
+  theme(strip.text = element_text(size = text_size+2)) +
+  labs(title = "Traditional polling for developing countries is sparce and clustered over time",
+       subtitle = "% vote share, each point is a traditional poll conducted in the given country; numbers of polls included in this figure are indicative but not exhaustive",
        x = NULL,
        y = "%, vote share") +
-  ggsave("output/figures/polling_is_scarce.png", height = 10, width = 14)
+  ggsave("output/figures/appendix_polling_is_scarce.png", height = 10, width = 14)
 
 
 
@@ -1345,7 +1406,7 @@ poll_plot_data %>%
 ```
 
 
-```{r plot-weekly-tweet-frequency}
+```{r plot-numbers-of-tweets-per-week}
 # Summarise tweets per week
 tweets_n_per_week <- tweets_sub %>%
   group_by(leader_country, leader, week = floor_date(date, "week")) %>%
@@ -1359,15 +1420,18 @@ tweets_n_per_week %>%
 
 # Plot
 ggplot(tweets_n_per_week, aes(x = week, y = n)) +
-  geom_col(colour = blue_colour) +
+  geom_col(aes(colour = leader_country), show.legend = FALSE) +
   facet_wrap(~ leader_country,
              scales = "free_y",
              labeller = label_wrap_gen(width = 20),
              #space = "free"
   ) +
   labs(title = "Weekly number of Tweets per country",
-       subtitle = "Number of Tweets per week by country of the leader mentioned in the Tweet") +
+       subtitle = "Number of Tweets per week by country",
+       x = NULL,
+       y = "Number of Tweets") +
   theme_devpublicopinion +
+  theme(strip.text = element_text(size = text_size+2)) +
   ggsave("output/figures/tweets_n_per_week.png")
 
 
