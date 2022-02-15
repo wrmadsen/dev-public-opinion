@@ -1,7 +1,9 @@
 # Estimating public opinion in developing countries using Twitter data
-This project outlines a strategy and its feasibility and limitations in estimating public opinion in English-speaking developing countries. This may have consequences for the idea of political and electoral accountability, the social contract, depending on how our strategy can reliably produce estimates of public opinion. These estimates may serve as a comparison against official electoral results.
+This project outlines a data-driven strategy and its feasibility and limitations in estimating public opinion in English-speaking developing countries.
 
-This is my undergraduate dissertation at UCL.
+This may have consequences for the idea of political and electoral accountability, the social contract, depending on how our strategy can reliably produce estimates of public opinion. These estimates may serve as a comparison against official electoral results.
+
+This is my thesis at UCL.
 
 To reproduce my analysis and pipeline, you can download my R package. It was created to help promote open-source, scalable research.
 
@@ -34,18 +36,18 @@ For now, I use the `Pool` method of `multiprocessing` rather than `Process`. I h
 
 This issue may be I/O bound, so it may make sense to use more threads than is available. This [article](https://www.freecodecamp.org/news/multiprocessing-vs-multithreading-in-python-what-you-need-to-know-ef6bdc13d018/) suggests that multithreading may be better since the task is I/O heavy. That might mean I need to look into using the `threading` module.
 
-Difference between getting tweets one-a-day or over multiple days. Collecting "Buhari" during the first two weeks of January 2015..
-1. `per 1 day, threads = 7`: 351.08 seconds (188 mb), which is 0,54 mb per second
-2. `per 2 days, threads = 7`: 457.49 seconds (222 mb), which is 0,49 mb per second
-3. `per 7 days, threads = 7`: 1301.32 seconds (266 mb, since 7-day-periods stretched beyond)
-4. `per 1 day, threads = 14`: 296.17 seconds (201 mb)
-5. `per 1 day, threads = 30`: 300.39 seconds (201 mb)
-6. `per 12 hours, threads = 14`: 287.37 seconds (118 mb)
-7. `per 12 hours, threads = 30`: 286.12 seconds (118 mb)
+Difference between getting tweets one each day or over multiple days. Collecting "Buhari" during the first two weeks of January 2015:
+1. `per 1 day, threads = 7`: 351.08 seconds (188 MB), which is 0,54 MB per second
+2. `per 2 days, threads = 7`: 457.49 seconds (222 MB), which is 0,49 MB per second
+3. `per 7 days, threads = 7`: 1301.32 seconds (266 MB, since 7-day-periods stretched beyond)
+4. `per 1 day, threads = 14`: 296.17 seconds (201 MB)
+5. `per 1 day, threads = 30`: 300.39 seconds (201 MB)
+6. `per 12 hours, threads = 14`: 287.37 seconds (118 MB)
+7. `per 12 hours, threads = 30`: 286.12 seconds (118 MB)
 
-Imposing `limit = 20000` (per 12 hours) on the 6th scenario above, cuts the time to 199.5 seconds while only reducing tweets to 116 mb. `limit = 10000` cuts it to 104.68 seconds and 102 mb. Note that the `limit` in the 6th scenario refers to number of tweets per 12-hour-interval. `limit = 5000` cuts it to 54.8 seconds and 61 mb. These are for non-geocoded tweets.
+Imposing `limit = 20000` (per 12 hours) on the 6th scenario cuts the time to 199.5 seconds while only reducing tweets to 116 MB. `limit = 10000` cuts it to 104.68 seconds and 102 MB. Note that the `limit` in the 6th scenario refers to the number of tweets per 12-hour-interval. `limit = 5000` cuts it to 54.8 seconds and 61 MB. These are for non-geocoded tweets.
 
-A takeaway may to impose a limit on non-geocoded tweets to save time and gather geocodes tweets, which have less volume, without a limit.
+A takeaway may be to impose a limit on non-geocoded tweets to save time and gather geocodes tweets, which have less volume, without a limit.
 
 #### Which countries?
 Group: Nigeria, Zimbabwe, Afghanistan, Mozambique, and Georgia.
@@ -67,14 +69,14 @@ The following resources were either used or considered during the text analysis:
 http://www.namepedia.org/en/firstname/
 
 ### Comparison and validation
-Depends on what is available for each country. For example, if a country's official election results are not reliable, there are other sources to look at, such as polling, election complaints or other.
+Depends on what is available for each country. For example, if a country's official election results are not reliable, there are other sources to look at, such as polling or election complaints.
 
 * Elections complaints: Validation could also be done for certain countries if they publish data on election complaints. One hypothesis could revolve around a positive correlation between the difference of the official election vote rate and the Twitter prediction against the number of complaints. Afghanistan publishes data on complaints.
 
-* Compare against country with rich polling data, e.g. US or UK.
+* Compare against a country with rich polling data, e.g. US or UK.
 
 #### Afghanistan:
-About 2019 election, "Saturday’s vote was marred by violence, Taliban threats and widespread allegations of mismanagement and abuse" by [Gannon](https://globalnews.ca/news/5966475/afghanistan-election-political-chaos/). Investigate if predictions can somehow be validated by comparing to province-level death tolls, Taliban control.
+About the 2019 election, "Saturday’s vote was marred by violence, Taliban threats and widespread allegations of mismanagement and abuse" by [Gannon](https://globalnews.ca/news/5966475/afghanistan-election-political-chaos/). Investigate if predictions can somehow be validated by comparing to province-level death tolls, Taliban control.
 
 Compare with electoral complaints on province-level.
 
@@ -112,9 +114,9 @@ NDI results: https://www.ndi.org/search?query=results
 
 ### Spatial
 * GDL shapefiles: https://globaldatalab.org/shdi/shapefiles/
-* Africapolis, database of thousands of cities in Africa: https://africapolis.org/data
+* Africapolis, a database of thousands of cities in Africa: https://africapolis.org/data
 * World Cities, https://hub.arcgis.com/datasets/6996f03a1b364dbab4008d99380370ed_0
-* Natural Earth, urban landscan: https://www.naturalearthdata.com/downloads/10m-cultural-vectors/10m-populated-places/
+* Natural Earth, urban LandScan: https://www.naturalearthdata.com/downloads/10m-cultural-vectors/10m-populated-places/
 * NASA, night light: https://earthobservatory.nasa.gov/features/NightLights/page3.php
 * Oak Ridge, landscan: https://landscan.ornl.gov/
 ### Subnational boundaries
