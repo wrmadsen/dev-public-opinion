@@ -10,7 +10,7 @@ To reproduce my analysis and pipeline, you can download my R package. It was cre
 ### Download analysis as a package:
 ```
 library(devtools)
-devtools::install_github("williamrohdemadsen/dev-public-opinion", build_vignettes = TRUE)
+devtools::install_github("wrmadsen/dev-public-opinion", build_vignettes = TRUE)
 library(devpublicopinion)
 ```
 
